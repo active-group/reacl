@@ -8,7 +8,7 @@
 (defn product-category-row
   [cat]
   (dom/tr
-   {:key props}
+   {:key cat}
    (dom/th
     {:colSpan "2"}
     cat)))

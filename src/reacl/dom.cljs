@@ -68,17 +68,3 @@
 (defn deref-dom
   [this ref]
   (. (aget (.. this -refs) ref) getDOMNode))
-
-;; FIXME: want recursive binding form that sticks refs in all the DOMs
-;; and makes them usable
-
-;; Probably requires our own DOM library
-
-;; Q: Can we modify attributes of DOM node after the fact?  Not
-;; necessary if we do our own DOM stuff, but would be nice.
-
-
-
-
-
-

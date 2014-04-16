@@ -1,6 +1,5 @@
 (ns examples.products.core
   (:require [reacl.core :as reacl :include-macros true]
-            [reacl.dom :refer [make-ref deref-dom set-dom-binding! make-dom-binding]]
             [reacl.dom :as dom :include-macros true]))
 
 (enable-console-print!)

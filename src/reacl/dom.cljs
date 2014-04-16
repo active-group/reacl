@@ -78,11 +78,6 @@
 (defdom ul)
 (defdom li)
 
-(defn make-ref
-  [n]
-  (let [ref (name (gensym n))]
-    ref))
-
 (defn deref-dom
   [this ref]
   (. (aget (.. this -refs) ref) getDOMNode))

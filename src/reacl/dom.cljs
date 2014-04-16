@@ -1,11 +1,24 @@
 (ns reacl.dom
   (:require-macros [reacl.dom :refer [defdom]]))
 
-(defn map->obj
+(defn- map->obj
   [mp]
   (apply js-obj
          (apply concat
                 (map (fn [e] [(name (key e)) (val e)]) mp))))
+
+(defn attributes
+  [mp]
+  (apply js-obj
+         (apply concat
+                (map (fn [e] 
+                       (let [k (key e)
+                             v0 (val e)
+                             v (case k
+                                 :style (map->obj v0)
+                                 v0)]
+                         [(name k) v]))
+                     mp))))
 
 (defprotocol HasDom
   (-get-dom [thing]))
@@ -37,7 +50,7 @@
          (let [[mp args]
                (if (and (map? maybe)
                         (not (satisfies? HasDom maybe)))
-                 [(map->obj maybe) rest]
+                 [(attributes maybe) rest]
                  [nil (cons maybe rest)])]
            (apply f mp (map normalize-arg args))))
     ([] (f nil))))

@@ -18,7 +18,7 @@
   (let [name (if (:stocked product)
                  (:name product)
                  (dom/span
-                  {:style #js {:color "red"}} ; whoa! FIXME
+                  {:style {:color "red"}}
                   (:name product)))]
       (dom/tr
        {:key (:name product)}

@@ -1,23 +1,43 @@
 (ns examples.todo.core
   (:require [reacl.core :as reacl :include-macros true]
-            [reacl.dom :as dom :include-macros true]))
+            [reacl.dom :as dom :include-macros true]
+            [reacl.lens :as lens]))
 
 (enable-console-print!)
 
-(def to-do-list
-  (fn [todos]
-    (dom/ul (to-array
-             (map (fn [itemText]
-                    (dom/li {:key itemText} itemText))
-                  todos)))))
+
+(def to-do-item
+  (reacl/class todos [lens]
+    render
+    (fn [& {:keys [dom-node]}]
+      (let [todo (lens/yank todos lens)]
+        (dom/letdom
+         [checkbox (dom/input
+                    {:type "checkbox"
+                     :value (:done? todo)
+                     :onChange (fn [e]
+                                 (on-check
+                                  (.-checked (dom-node checkbox))))})]
+         (dom/div checkbox
+                  (:text todo)))))
+    on-check
+    (reacl/event-handler
+     (fn [checked?]
+       (reacl/return :app-state
+                     (lens/shove todos
+                                 (lens/in lens :done?)
+                                 checked?))))))
 
 (def to-do-app
   (reacl/class todos []
    render
-   (fn [& {:keys [local-state]}]
+   (fn [& {:keys [local-state instantiate]}]
      (dom/div
       (dom/h3 "TODO")
-      (to-do-list todos)
+      (dom/div (to-array
+               (map (fn [todo i]
+                      (dom/div {:key (str i)} (instantiate to-do-item (lens/at-index i))))
+                    todos (range))))
       (dom/form
        {:onSubmit handle-submit}
        (dom/input {:onChange on-change :value local-state})
@@ -33,9 +53,9 @@
 
    handle-submit
    (reacl/event-handler
-    (fn [e _ state]
+    (fn [e _ text]
       (.preventDefault e)
-      (reacl/return :app-state (concat todos [state])
+      (reacl/return :app-state (concat todos [{:text text :done? false}])
                     :local-state "")))))
 
 (js/React.renderComponent

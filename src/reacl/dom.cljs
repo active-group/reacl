@@ -7,7 +7,12 @@
          (apply concat
                 (map (fn [e] [(name (key e)) (val e)]) mp))))
 
-(defrecord DomBinding [dom ref])
+(defprotocol HasDom
+  (-get-dom [thing]))
+
+(defrecord DomBinding [dom ref]
+  HasDom
+  (-get-dom [db] @(:dom db)))
 
 (defn make-dom-binding
   [n]
@@ -20,8 +25,8 @@
 (defn- normalize-arg
   [arg]
   (cond
-   (instance? DomBinding arg) @(:dom arg)
-
+   (satisfies? HasDom arg) (-get-dom arg)
+   
    (array? arg) (to-array (map normalize-arg arg))
 
    :else arg))
@@ -31,7 +36,7 @@
   (fn ([maybe & rest]
          (let [[mp args]
                (if (and (map? maybe)
-                        (not (instance? DomBinding maybe)))
+                        (not (satisfies? HasDom maybe)))
                  [(map->obj maybe) rest]
                  [nil (cons maybe rest)])]
            (apply f mp (map normalize-arg args))))

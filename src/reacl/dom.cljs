@@ -78,6 +78,3 @@
 (defdom ul)
 (defdom li)
 
-(defn deref-dom
-  [this ref]
-  (. (aget (.. this -refs) ref) getDOMNode))

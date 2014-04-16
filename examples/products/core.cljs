@@ -6,12 +6,12 @@
 (enable-console-print!)
 
 (defn product-category-row
-  [props]
+  [cat]
   (dom/tr
    {:key props}
    (dom/th
     {:colSpan "2"}
-    props)))      ; FIXME: really should access this through a lens
+    cat)))
 
 (defn product-row
   [product]

@@ -26,7 +26,15 @@
 (defn lens
   [yank shove]
   (ExplicitLens. yank shove))
- 
+
+(defn at-index
+  [n]
+  (lens (fn [coll] (nth coll n))
+        (fn [coll v]
+          (concat (take n coll)
+                  [v]
+                  (drop (+ n 1) coll)))))
+
 (defrecord Path
     [path]
   Lens

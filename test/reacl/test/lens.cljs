@@ -26,4 +26,9 @@
     (is (= {:foo {:bla 'bla :baz 'bam} :bar 'bar}
            (lens/shove {:foo {:bla 'bla :baz 'baz} :bar 'bar} l 'bam)))))
 
-
+(deftest at-index
+  (let [l (lens/at-index 2)]
+    (is (= 'baz
+           (lens/yank '[foo bar baz bla] l)))
+    (is (= '[foo bar bam bla]
+           (lens/shove '[foo bar baz bla] l 'bam)))))

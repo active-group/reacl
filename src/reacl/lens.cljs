@@ -31,9 +31,10 @@
   [n]
   (lens (fn [coll] (nth coll n))
         (fn [coll v]
-          (concat (take n coll)
-                  [v]
-                  (drop (+ n 1) coll)))))
+          (let [[front back] (split-at n coll)]
+            (concat front
+                    [v]
+                    (rest back))))))
 
 (defrecord Path
     [path]

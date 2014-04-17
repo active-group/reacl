@@ -7,7 +7,6 @@
 (defn product-category-row
   [cat]
   (dom/tr
-   {:key cat}
    (dom/th
     {:colSpan "2"}
     cat)))
@@ -20,7 +19,6 @@
                   {:style {:color "red"}}
                   (:name product)))]
       (dom/tr
-       {:key (:name product)}
        (dom/td name)
        (dom/td (str (:price product))))))
 
@@ -30,24 +28,25 @@
    (fn []
      (let [rows
            (mapcat (fn [product last-product]
-                     (if (or (= (. (:name product) indexOf filter-text)
-                                -1)
-                             (and (not (:stocked product))
-                                  in-stock-only))
-                       []
-                       (let [prefix
-                             (if (not= (:category product)
-                                       (:category last-product))
-                               [(product-category-row (:category product))]
-                               [])]
-                         (concat prefix [(product-row product)]))))
+                     (let [cat (:category product)]
+                       (if (or (= (. (:name product) indexOf filter-text)
+                                  -1)
+                               (and (not (:stocked product))
+                                    in-stock-only))
+                         []
+                         (let [prefix
+                               (if (not= cat
+                                         (:category last-product))
+                                 [(dom/keyed cat (product-category-row cat))]
+                                 [])]
+                           (concat prefix [(dom/keyed (:name product) (product-row product))])))))
                    products (cons nil products))]
        (dom/table
         (dom/thead
          (dom/tr
           (dom/th "Name")
           (dom/th "Price")))
-        (dom/tbody (to-array rows)))))))
+        (dom/tbody rows))))))
 
 (def search-bar
   (reacl/class app-state [filter-text in-stock-only on-user-input]

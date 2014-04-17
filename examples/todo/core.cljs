@@ -34,10 +34,9 @@
    (fn [& {:keys [local-state instantiate]}]
      (dom/div
       (dom/h3 "TODO")
-      (dom/div (to-array
-               (map-indexed (fn [i todo]
-                              (dom/div {:key (str i)} (instantiate to-do-item (lens/at-index i))))
-                            todos)))
+      (dom/div (map-indexed (fn [i todo]
+                              (dom/keyed (str i) (instantiate to-do-item (lens/at-index i))))
+                            todos))
       (dom/form
        {:onSubmit handle-submit}
        (dom/input {:onChange on-change :value local-state})

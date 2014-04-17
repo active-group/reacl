@@ -35,15 +35,35 @@
   [this binding]
   (. (aget (.-refs this) (:ref binding)) getDOMNode))
 
+(defrecord KeyedDom
+    [key dom])
+
+(defn keyed
+  [key dom]
+  (KeyedDom. key dom))
+
+(defn set-dom-key!
+  [dom key]
+  (aset (.-props dom) "key" key)) ; undocumented internals
+
 (defn- normalize-arg
   [arg]
   (cond
    (satisfies? HasDom arg) (-get-dom arg)
-   
-   (array? arg) (to-array (map normalize-arg arg))
 
-   :else arg))
+   ;; sequence of KeyedDom
+   (seq? arg) (to-array
+               (map (fn [rd]
+                      (let [dom (normalize-arg (:dom rd))]
+                        (set-dom-key! dom (:key rd))
+                        dom))
+                    arg))
+
+   ;; deprecated
+   (array? arg) (to-array (map normalize-arg arg))
    
+   :else arg))
+
 (defn dom-function
   [f]
   (fn ([maybe & rest]

@@ -35,9 +35,9 @@
      (dom/div
       (dom/h3 "TODO")
       (dom/div (to-array
-               (map (fn [todo i]
-                      (dom/div {:key (str i)} (instantiate to-do-item (lens/at-index i))))
-                    todos (range))))
+               (map-indexed (fn [i todo]
+                              (dom/div {:key (str i)} (instantiate to-do-item (lens/at-index i))))
+                            todos)))
       (dom/form
        {:onSubmit handle-submit}
        (dom/input {:onChange on-change :value local-state})

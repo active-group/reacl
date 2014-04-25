@@ -11,7 +11,7 @@
   [mp]
   (apply js-obj
          (apply concat
-                (map (fn [e] 
+                (map (fn [e]
                        (let [k (key e)
                              v0 (val e)
                              v (case k
@@ -61,7 +61,7 @@
 
    ;; deprecated
    (array? arg) (to-array (map normalize-arg arg))
-   
+
    :else arg))
 
 (defn dom-function
@@ -86,6 +86,9 @@
 (defdom h1)
 (defdom h2)
 (defdom h3)
+(defdom h4)
+(defdom h5)
+(defdom h6)
 (defdom table)
 (defdom thead)
 (defdom tbody)
@@ -97,4 +100,12 @@
 (defdom button)
 (defdom ul)
 (defdom li)
+(defdom br)
+(defdom label)
+(defdom i)
+(defdom hr)
+(defdom a)
+(defdom select)
+(defdom option)
+
 

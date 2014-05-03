@@ -86,8 +86,8 @@
         render (get map 'render)
         wrap-args
         (fn [?this & ?body]
-          `(let [~?app-state (.. ~?this -props -reacl_app_state)
-                 [~@?args] (.. ~?this -props -reacl_args)] ; FIXME: what if empty?
+          `(let [~?app-state (reacl.core/extract-app-state ~?this)
+                 [~@?args] (reacl.core/extract-args ~?this)] ; FIXME: what if empty?
              ~@?body))
         initial-state (if-let [?expr (get map 'initial-state)]
                         (let [?this `this#]
@@ -105,15 +105,15 @@
           `(fn []
              (cljs.core/this-as 
               ~?this
-              (let [~?state (.. ~?this -state -reacl_local_state)]
+              (let [~?state (reacl.core/extract-local-state ~?this)]
                 ~(wrap-args
                   ?this
                   `(let [~@(mapcat (fn [p]
                                      [(first p) `(aget ~?this ~(str (first p)))])
                                     misc)]
                      (binding [reacl.core/*component* ~?this]
-                       (~render :instantiate (fn [clazz# & props#] (apply instantiate clazz#
-                                                                          (.. ~?this -props -reacl_top_level)
+                       (~render :instantiate (fn [clazz# & props#] (apply reacl.core/instantiate clazz#
+                                                                          (reacl.core/extract-toplevel ~?this)
                                                                           ~?app-state
                                                                           props#))
                                 :local-state ~?state

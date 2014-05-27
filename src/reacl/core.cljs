@@ -99,10 +99,6 @@
   [&{:keys [app-state local-state]}]
   (State. app-state local-state))
 
-(def ^{:dynamic true
-       :doc "Internal dynamic variable for holding the current component."}
-  *component* nil)
-
 (defn event-handler
   "Create a Reacl event handler from a function.
 
@@ -126,10 +122,11 @@
 
    Note that `text` is the component-local state."
   [f]
-  (fn [& args]
-    (let [local-state (extract-local-state *component*)
+  (fn [component & args]
+    (this-as that (println "THIS" (= component that) that))
+    (let [local-state (extract-local-state component)
           ps (apply f (concat args [local-state]))]
       (if (not (nil? (:local-state ps)))
-        (set-local-state! *component* (:local-state ps)))
+        (set-local-state! component (:local-state ps)))
       (if (not (nil? (:app-state ps)))
-        (set-app-state! *component* (:app-state ps))))))
+        (set-app-state! component (:app-state ps))))))

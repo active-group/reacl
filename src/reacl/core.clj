@@ -144,14 +144,13 @@
                   `(let [~@(mapcat (fn [p]
                                      [(first p) `(aget ~?this ~(str (first p)))])
                                     misc)]
-                     (binding [reacl.core/*component* ~?this]
-                       (~render :instantiate (fn [clazz# & props#] (apply reacl.core/instantiate clazz#
-                                                                          (reacl.core/extract-toplevel ~?this)
-                                                                          ~?app-state
-                                                                          props#))
-                                :local-state ~?state
-                                :dom-node (fn [dn#] (reacl.dom/dom-node-ref ~?this dn#))
-                                :this ~?this))))))))]
+                     (~render :instantiate (fn [clazz# & props#] (apply reacl.core/instantiate clazz#
+                                                                       (reacl.core/extract-toplevel ~?this)
+                                                                       ~?app-state
+                                                                       props#))
+                              :local-state ~?state
+                              :dom-node (fn [dn#] (reacl.dom/dom-node-ref ~?this dn#))
+                              :this ~?this)))))))]
     `(js/React.createClass (cljs.core/js-obj "render" ~renderfn 
                                              "getInitialState" ~initial-state 
                                              "displayName" ~(str ?name)
@@ -172,8 +171,7 @@
                                                             `(fn [& ~?args]
                                                                (cljs.core/this-as
                                                                 ~?this
-                                                                (binding [reacl.core/*component* ~?this]
-                                                                  (apply ~(wrap-args ?this ?rhs) ~?args)))))])
+                                                                (apply ~(wrap-args ?this ?rhs) ~?this ~?args))))])
                                                        misc)))))
 
 (defmacro defclass

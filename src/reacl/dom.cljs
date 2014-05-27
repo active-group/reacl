@@ -77,8 +77,8 @@
 
 (defn set-dom-binding!
   [dn dom]
-  (aset (.-props dom) "ref" (:ref dn)) ; undocumented internals
-  (reset! (:dom dn) dom))
+  (reset! (:dom dn)
+          (js/React.addons.cloneWithProps dom #js {:ref (:ref dn)})))
 
 (defdom div)
 (defdom span)

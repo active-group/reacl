@@ -24,14 +24,14 @@
               ;; examples
               {:id "products"
                :source-paths ["src" "examples/products"]
-               :compiler {:preamble ["react/react.min.js"]
+               :compiler {:preamble ["react/react_with_addons.min.js"]
                           :output-to "examples/products/main.js"
                           :output-dir "examples/products/out"
                           :source-map "examples/products/main.map"
                           :optimizations :whitespace}}
               {:id "todo"
                :source-paths ["src" "examples/todo"]
-               :compiler {:preamble ["react/react.min.js"]
+               :compiler {:preamble ["react/react_with_addons.min.js"]
                           :output-to "examples/todo/main.js"
                           :output-dir "examples/todo/out"
                           :source-map "examples/todo/main.map"

@@ -3,6 +3,19 @@
   reacl.core
   (:refer-clojure :exclude [class]))
 
+(def ^{:private true} lifecycle-name-map
+  {'component-will-mount 'componentWillMount
+   'component-did-mount 'componentDidMount
+   'component-will-receive-props 'componentWillReceiveProps
+   'should-component-update? 'shouldComponentUpdate
+   'component-will-update 'componentWillUpdate
+   'component-did-update 'componentDidUpdate
+   'component-will-unmount 'componentWillUnmount})
+
+(def ^{:private true} special-tags
+  (clojure.set/union (into #{} (map val lifecycle-name-map))
+                     #{'render 'initial-state}))
+
 (defmacro class
   "Create a Reacl class.
 
@@ -16,6 +29,7 @@
    (reacl.core/class <name> <app-state> [<param> ...]
      render <renderer-exp>
      [initial-state <initial-state-exp>]
+     [<lifecycle-method-name> <lifecycle-method-exp> ...]
 
      <event-handler-name> <event-handler-exp> ...)
 
@@ -48,9 +62,23 @@
    reacl.dom/letdom and yields its corresponding \"real\" dom object for
    extracting GUI state.
 
-   Everything that's not a renderer or an initial-state is assumed to
-   be a binding for a function, typically an event handler.  These
-   functions will all be bound under their corresponding
+   A lifecycle method can be one of:
+
+     component-will-mount component-did-mount
+     component-will-receive-props should-component-update? 
+     component-will-update component-did-update component-will-unmount
+
+   These correspond to React's lifecycle methods, see here:
+
+   http://facebook.github.io/react/docs/component-specs.html
+
+   Each right-hand-side <lifecycle-method-exp>s should evaluate to a
+   function.  This function's argument is always the component.  The
+   remaining arguments are as for React.
+
+   Everything that's not a renderer, an initial-state, or lifecycle
+   method is assumed to be a binding for a function, typically an event
+   handler.  These functions will all be bound under their corresponding
    <event-handler-name>s in <renderer-exp>.
 
    Example:
@@ -99,8 +127,11 @@
                               ~(wrap-args ?this `(reacl.core/make-local-state ~?expr)))))
                         `(fn [] (reacl.core/make-local-state nil)))
         misc (filter (fn [e]
-                       (not (contains? #{'render 'initial-state} (key e))))
+                       (not (contains? special-tags (key e))))
                      map)
+        lifecycle (filter (fn [e]
+                            (contains? lifecycle-name-map (key e)))
+                          map)
         renderfn
         (let [?this `this#  ; looks like a bug in ClojureScript, this# produces a warning but works
               ?state `state#]
@@ -124,6 +155,16 @@
     `(js/React.createClass (cljs.core/js-obj "render" ~renderfn 
                                              "getInitialState" ~initial-state 
                                              "displayName" ~(str ?name)
+                                             ~@(mapcat (fn [[?name ?rhs]]
+                                                         (let [?args `args#
+                                                               ?this `this#]
+                                                           [(str (get lifecycle-name-map ?name))
+                                                            `(fn [& ~?args]
+                                                               (cljs.core/this-as
+                                                                ;; FIXME: should really bind ?rhs outside
+                                                                ~?this
+                                                                (apply ~?rhs ~?this ~?args)))]))
+                                                       lifecycle)
                                              ~@(mapcat (fn [[?name ?rhs]]
                                                          [(str ?name) 
                                                           (let [?args `args#

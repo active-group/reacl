@@ -1,13 +1,30 @@
-(ns reacl.dom
+(ns ^{:author "Michael Sperber"
+      :doc "Convenience API for constructing virtual DOM.
+
+  This has ClojureScript wrappers for the various HTML elements.
+
+  These all expect attributes as a ClojureScript map.
+
+  Moreover, sub-element sequences need to be ClojureScript sequences of
+  objects constructed using `keyed-dom'.
+
+  Moreover, the `letdom' form constructing virtual DOM elements for
+  easy reference in an event handler."}
+  reacl.dom
   (:require-macros [reacl.dom :refer [defdom]]))
 
 (defn- map->obj
+  "Convert a Clojure map with keyword keys to a JavaScript hashmap with string keys."
   [mp]
   (apply js-obj
          (apply concat
                 (map (fn [e] [(name (key e)) (val e)]) mp))))
 
-(defn attributes
+(defn- attributes
+  "Convert attributes represented as a Clojure map to a React map.
+
+  This knows about :style, and expects a Clojure map for the value."
+
   [mp]
   (apply js-obj
          (apply concat
@@ -21,32 +38,53 @@
                      mp))))
 
 (defprotocol HasDom
+  "General protocol for objects that contain or map to a virtual DOM object.
+
+  This is needed for `letdom', which wraps the DOM nodes on its
+  right-hand sides."  
   (-get-dom [thing]))
 
-(defrecord DomBinding [dom ref]
+(defrecord DomBinding 
+    ^{:doc "Composite object
+  containing an atom containing DOM object and a name for referencing.
+
+  This is needed for `letdom'."}
+  [dom ref]
   HasDom
   (-get-dom [db] @(:dom db)))
 
 (defn make-dom-binding
+  "Make an empty DOM binding from a ref name."
   [n]
   (DomBinding. (atom nil) (name (gensym n))))
 
 (defn dom-node-ref
+  "Get the real DOM node associated with a binding.
+
+  Needs the component object."
   [this binding]
   (. (aget (.-refs this) (:ref binding)) getDOMNode))
 
 (defrecord KeyedDom
+    ^{:doc "DOM with a key, for use as sequences of sub-elements."}
     [key dom])
 
 (defn keyed
+  "Associate a key with a virtual DOM node."
   [key dom]
   (KeyedDom. key dom))
 
-(defn set-dom-key!
+(defn- set-dom-key!
   [dom key]
   (aset (.-props dom) "key" key)) ; undocumented internals
 
 (defn- normalize-arg
+  "Normalize the argument to a DOM-constructing function.
+
+  In particular, each HasDom objects is mapped to its DOM object.
+
+  Also, sequences of KeyeDDom sub-elements are mapped to their
+  respective DOM elements."
   [arg]
   (cond
    (satisfies? HasDom arg) (-get-dom arg)
@@ -65,6 +103,7 @@
    :else arg))
 
 (defn dom-function
+  "Internal function for constructing wrappers for DOM-construction function."
   [f]
   (fn ([maybe & rest]
          (let [[mp args]
@@ -76,6 +115,9 @@
     ([] (f nil))))
 
 (defn set-dom-binding!
+  "Internal function for use by `letdom'.
+
+  This sets the dom field of a DomBinding object, providing a :ref attribute."
   [dn dom]
   (reset! (:dom dn)
           (js/React.addons.cloneWithProps dom #js {:ref (:ref dn)})))

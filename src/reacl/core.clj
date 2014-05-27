@@ -13,11 +13,13 @@
 
    The syntax is
 
-   (reacl/class <app-state> [<param> ...]
+   (reacl.core/class <name> <app-state> [<param> ...]
      render <renderer-exp>
      [initial-state <initial-state-exp>]
 
      <event-handler-name> <event-handler-exp> ...)
+
+   <name> is a name for the class, for debugging purposes.
 
    <app-state> is name bound to the global application state (implicitly
    propagated through instantiation, see below), and <param> ... the names
@@ -54,7 +56,7 @@
    Example:
 
    (def to-do-app
-     (reacl.core/class todos []
+     (reacl.core/class to-do-app todos []
       render
       (fn [& {:keys [local-state instantiate]}]
         (reacl.dom/div
@@ -81,7 +83,7 @@
          (.preventDefault e)
          (reacl.core/return :app-state (concat todos [{:text text :done? false}])
                             :local-state \"\")))))"
-  [?app-state [& ?args] & ?clauses]
+  [?name ?app-state [& ?args] & ?clauses]
   (let [map (apply hash-map ?clauses)
         render (get map 'render)
         wrap-args
@@ -121,6 +123,7 @@
                                 :this ~?this))))))))]
     `(js/React.createClass (cljs.core/js-obj "render" ~renderfn 
                                              "getInitialState" ~initial-state 
+                                             "displayName" ~(str ?name)
                                              ~@(mapcat (fn [[?name ?rhs]]
                                                          [(str ?name) 
                                                           (let [?args `args#
@@ -131,3 +134,26 @@
                                                                 (binding [reacl.core/*component* ~?this]
                                                                   (apply ~(wrap-args ?this ?rhs) ~?args)))))])
                                                        misc)))))
+
+(defmacro defclass
+  "Define a Reacl class.
+
+   The syntax is
+
+   (reacl.core/defclass <name> <app-state> [<param> ...]
+     render <renderer-exp>
+     [initial-state <initial-state-exp>]
+
+     <event-handler-name> <event-handler-exp> ...)
+
+   This expands to this:
+
+   (def <name>
+     (reacl.core/class <name> <app-state> [<param> ...]
+       render <renderer-exp>
+       [initial-state <initial-state-exp>]
+
+       <event-handler-name> <event-handler-exp> ...))"
+  [?name ?app-state [& ?args] & ?clauses]
+  `(def ~?name (reacl.core/class ~?name ~?app-state [~@?args] ~@?clauses)))
+

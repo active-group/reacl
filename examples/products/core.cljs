@@ -22,80 +22,80 @@
        (dom/td name)
        (dom/td (str (:price product))))))
 
-(def product-table
-  (reacl/class products [filter-text in-stock-only]
-   render
-   (fn []
-     (let [rows
-           (mapcat (fn [product last-product]
-                     (let [cat (:category product)]
-                       (if (or (= (. (:name product) indexOf filter-text)
-                                  -1)
-                               (and (not (:stocked product))
-                                    in-stock-only))
-                         []
-                         (let [prefix
-                               (if (not= cat
-                                         (:category last-product))
-                                 [(dom/keyed cat (product-category-row cat))]
-                                 [])]
-                           (concat prefix [(dom/keyed (:name product) (product-row product))])))))
-                   products (cons nil products))]
-       (dom/table
-        (dom/thead
-         (dom/tr
-          (dom/th "Name")
-          (dom/th "Price")))
-        (dom/tbody rows))))))
+(reacl/defclass product-table
+  products [filter-text in-stock-only]
+  render
+  (fn []
+    (let [rows
+          (mapcat (fn [product last-product]
+                    (let [cat (:category product)]
+                      (if (or (= (. (:name product) indexOf filter-text)
+                                 -1)
+                              (and (not (:stocked product))
+                                   in-stock-only))
+                        []
+                        (let [prefix
+                              (if (not= cat
+                                        (:category last-product))
+                                [(dom/keyed cat (product-category-row cat))]
+                                [])]
+                          (concat prefix [(dom/keyed (:name product) (product-row product))])))))
+                  products (cons nil products))]
+      (dom/table
+       (dom/thead
+        (dom/tr
+         (dom/th "Name")
+         (dom/th "Price")))
+       (dom/tbody rows)))))
 
-(def search-bar
-  (reacl/class app-state [filter-text in-stock-only on-user-input]
-   render
-   (fn [& {:keys [dom-node]}]
-     (dom/letdom
-      [textbox (dom/input
-                {:type "text"
-                 :placeholder "Search..."
-                 :value filter-text
+(reacl/defclass search-bar
+  app-state [filter-text in-stock-only on-user-input]
+  render
+  (fn [& {:keys [dom-node]}]
+    (dom/letdom
+     [textbox (dom/input
+               {:type "text"
+                :placeholder "Search..."
+                :value filter-text
+                :onChange (fn [e]
+                            (on-user-input
+                             (.-value (dom-node textbox))
+                             (.-checked (dom-node checkbox))))})
+      checkbox (dom/input
+                {:type "checkbox"
+                 :value in-stock-only
                  :onChange (fn [e]
                              (on-user-input
                               (.-value (dom-node textbox))
-                              (.-checked (dom-node checkbox))))})
-       checkbox (dom/input
-                 {:type "checkbox"
-                  :value in-stock-only
-                  :onChange (fn [e]
-                              (on-user-input
-                               (.-value (dom-node textbox))
-                               (.-checked (dom-node checkbox))))})]
-       (dom/form
-        textbox
-        (dom/p
-         checkbox
-         "Only show products in stock"))))))
+                              (.-checked (dom-node checkbox))))})]
+     (dom/form
+      textbox
+      (dom/p
+       checkbox
+       "Only show products in stock")))))
 
-(def filterable-product-table
-  (reacl/class products []
-   render
-   (fn [& {:keys [instantiate local-state]}]
-     (dom/div
-      (instantiate search-bar
-                   (:filter-text local-state)
-                   (:in-stock-only local-state)
-                   handle-user-input)
-      (instantiate product-table
-                   (:filter-text local-state)
-                   (:in-stock-only local-state))))
-   initial-state
-   {:filter-text ""
-    :in-stock-only false}
-
-   handle-user-input
-   (reacl/event-handler
-    (fn [filter-text in-stock-only]
-      (reacl/return :local-state
-                    {:filter-text filter-text
-                     :in-stock-only in-stock-only})))))
+(reacl/defclass filterable-product-table
+  products []
+  render
+  (fn [& {:keys [instantiate local-state]}]
+    (dom/div
+     (instantiate search-bar
+                  (:filter-text local-state)
+                  (:in-stock-only local-state)
+                  handle-user-input)
+     (instantiate product-table
+                  (:filter-text local-state)
+                  (:in-stock-only local-state))))
+  initial-state
+  {:filter-text ""
+   :in-stock-only false}
+  
+  handle-user-input
+  (reacl/event-handler
+   (fn [filter-text in-stock-only]
+     (reacl/return :local-state
+                   {:filter-text filter-text
+                    :in-stock-only in-stock-only}))))
 
 (def products
   [{:category "Sporting Goods" :price "$49.99" :stocked true :name "Football"}

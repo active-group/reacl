@@ -1,4 +1,6 @@
-(ns reacl.core)
+(ns ^{:author "Michael Sperber"
+      :doc "Reacl core functionality."}
+  reacl.core)
 
 (defn- jsmap
   "Convert a Clojure map to a JavaScript hashmap."

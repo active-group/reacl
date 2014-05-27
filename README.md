@@ -31,8 +31,8 @@ typically happens inside an event handler: That event handler must
 simply return a new application state.  Similarly, if an event
 handler wants to change the local state, it returns a new one.
 
-The key to tying these aspects together are the `reacl.core/class`
-macro for creating Reacl classes (just React component classes, but
+The key to tying these aspects together are the `reacl.core/defclass`
+macro for defining a Reacl class (just a React component class, but
 implementing Reacl's internal protocols), and the
 `reacl.core/event-handler` function for implementing "functional event
 handlers".

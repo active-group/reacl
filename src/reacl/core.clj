@@ -163,7 +163,7 @@
                                                                (cljs.core/this-as
                                                                 ;; FIXME: should really bind ?rhs outside
                                                                 ~?this
-                                                                (apply ~?rhs ~?this ~?args)))]))
+                                                                (apply ~(wrap-args ?this ?rhs) ~?this ~?args)))]))
                                                        lifecycle)
                                              ~@(mapcat (fn [[?name ?rhs]]
                                                          [(str ?name) 

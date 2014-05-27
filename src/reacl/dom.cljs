@@ -74,9 +74,10 @@
   [key dom]
   (KeyedDom. key dom))
 
-(defn- set-dom-key!
+(defn- set-dom-key
+  "Attach a key property to a DOM object."
   [dom key]
-  (aset (.-props dom) "key" key)) ; undocumented internals
+  (js/React.addons.cloneWithProps dom #js {:key key}))
 
 (defn- normalize-arg
   "Normalize the argument to a DOM-constructing function.
@@ -92,9 +93,7 @@
    ;; sequence of KeyedDom
    (seq? arg) (to-array
                (map (fn [rd]
-                      (let [dom (normalize-arg (:dom rd))]
-                        (set-dom-key! dom (:key rd))
-                        dom))
+                      (set-dom-key (normalize-arg (:dom rd)) (:key rd)))
                     arg))
 
    ;; deprecated

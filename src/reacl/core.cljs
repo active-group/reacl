@@ -123,7 +123,6 @@
    Note that `text` is the component-local state."
   [f]
   (fn [component & args]
-    (this-as that (println "THIS" (= component that) that))
     (let [local-state (extract-local-state component)
           ps (apply f (concat args [local-state]))]
       (if (not (nil? (:local-state ps)))

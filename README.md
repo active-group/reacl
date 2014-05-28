@@ -3,6 +3,14 @@
 A ClojureScript library for programming with Facebook's React
 framework.  This is very different from David Nolen's Om framework.
 
+## Using it
+
+Your `project.clj` should contain something like this:
+
+	  :dependencies [[org.clojure/clojure "1.6.0"]
+					 [org.clojure/clojurescript "0.0-2173" :scope "provided"]
+					 [reacl "0.1.0"]]
+
 ## Model
 
 The central idea of Reacl is this: Reacl programs are pure.  They

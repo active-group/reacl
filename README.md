@@ -60,7 +60,7 @@ generic implementation of lenses.
 ## Example
 
 Check out the very simple example for managing a to-do list in file
-[examples/todo/core.cljs](blob/master/examples/todo/core.cljs)
+[examples/todo/core.cljs](examples/todo/core.cljs)
 (don't
 expect [TodoMVC](http://todomvc.com/)).  We use this namespace header:
 
@@ -171,7 +171,7 @@ state.
 
 That's it.  Hopefully that's enough to get you started.  Be sure to
 also check out the [`products`
-example](blob/master/examples/products/core.cljs).
+example](examples/products/core.cljs).
 
 ## License
 

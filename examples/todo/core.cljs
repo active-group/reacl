@@ -5,6 +5,7 @@
 
 (enable-console-print!)
 
+(defrecord Todo [text done?])
 
 (reacl/defclass to-do-item
   todos [lens]
@@ -54,7 +55,7 @@
   (reacl/event-handler
    (fn [e _ text]
      (.preventDefault e)
-     (reacl/return :app-state (concat todos [{:text text :done? false}])
+     (reacl/return :app-state (concat todos [(Todo. text false)])
                    :local-state ""))))
 
 (js/React.renderComponent

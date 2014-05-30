@@ -8,6 +8,7 @@
 
   :dependencies [[org.clojure/clojure "1.6.0"]
                  [org.clojure/clojurescript "0.0-2173" :scope "provided"]
+                 [org.clojure/core.async "0.1.303.0-886421-alpha" :scope "provided"]
                  [com.facebook/react "0.9.0.1"]]
 
   :plugins [[lein-cljsbuild "1.0.2"]
@@ -35,6 +36,13 @@
                           :output-to "examples/todo/main.js"
                           :output-dir "examples/todo/out"
                           :source-map "examples/todo/main.map"
+                          :optimizations :whitespace}}
+              {:id "comments"
+               :source-paths ["src" "examples/comments"]
+               :compiler {:preamble ["react/react_with_addons.min.js"]
+                          :output-to "examples/comments/main.js"
+                          :output-dir "examples/comments/out"
+                          :source-map "examples/comments/main.map"
                           :optimizations :whitespace}}]
    :test-commands {"unit-tests" ["slimerjs" :runner "target/tests.js"]}})
 

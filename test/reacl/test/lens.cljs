@@ -32,3 +32,9 @@
            (lens/yank '[foo bar baz bla] l)))
     (is (= '[foo bar bam bla]
            (lens/shove '[foo bar baz bla] l 'bam)))))
+
+(deftest id
+  (is (= 'baz
+         (lens/yank 'baz lens/id))
+      (= 'bar
+         (lens/shove 'baz lens/id 'bar))))

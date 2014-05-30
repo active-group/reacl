@@ -1,6 +1,8 @@
 (ns ^{:author "Michael Sperber"
       :doc "Reacl core functionality."}
-  reacl.core)
+  reacl.core
+  (:require-macros [cljs.core.async.macros :refer [go]])
+  (:require [cljs.core.async :refer [put! chan <!]]))
 
 (defn- jsmap
   "Convert a Clojure map to a JavaScript hashmap."
@@ -61,15 +63,25 @@
   [this]
   (.. this -props -reacl_args))
 
+(defn extract-channel
+  "Get the component channel for a component
+
+  For internal use."
+  [this]
+  (.. this -props -reacl_channel))
+
 (defn instantiate
   "Internal function to instantiate a Reacl component.
 
    `clazz' is the Reacl class.
-   `toplevel' is function that yields the toplevel component.
+   `get-toplevel' is a function that yields the toplevel component.
    `app-state' is the app-state.
    `args` are the arguments to the component."
-  [clazz toplevel app-state & args]
-  (clazz #js {:reacl_top_level (constantly toplevel) :reacl_app_state app-state :reacl_args args}))
+  [clazz get-toplevel app-state & args]
+  (clazz #js {:reacl_top_level get-toplevel
+              :reacl_app_state app-state
+              :reacl_args args
+              :reacl_channel (chan)}))
 
 (defn instantiate-toplevel
   "Instantiate a Reacl component at the top level.
@@ -79,7 +91,7 @@
    `args` are the arguments to the component."
   [clazz app-state & args]
   (let [placeholder (atom nil)
-        component (clazz #js {:reacl_top_level (fn [] @placeholder) :reacl_app_state app-state :reacl_args args})]
+        component (apply instantiate clazz (fn [] @placeholder) app-state args)]
     (reset! placeholder component)
     component))
 
@@ -98,6 +110,14 @@
    `local-state` is for a new component-local state."
   [&{:keys [app-state local-state]}]
   (State. app-state local-state))
+
+(defn set-state!
+  "Set the app state and component state according to what return returned."
+  [component ps]
+  (if (not (nil? (:local-state ps)))
+    (set-local-state! component (:local-state ps)))
+  (if (not (nil? (:app-state ps)))
+    (set-app-state! component (:app-state ps))))
 
 (defn event-handler
   "Create a Reacl event handler from a function.
@@ -125,7 +145,42 @@
   (fn [component & args]
     (let [local-state (extract-local-state component)
           ps (apply f (concat args [local-state]))]
-      (if (not (nil? (:local-state ps)))
-        (set-local-state! component (:local-state ps)))
-      (if (not (nil? (:app-state ps)))
-        (set-app-state! component (:app-state ps))))))
+      (set-state! component ps))))
+
+(defn make-message-handler
+  "Make a message handler for a Reacl component.
+
+  For internal use.
+
+  This returns a function that takes a function `f'.
+
+  It returns a function with that applies `f' to its own arguments and
+  sends the result value as a message to the component."
+  [this]
+  (let [ch (extract-channel this)]
+    (fn [f]
+      (fn [& args]
+        (let [msg (apply f args)]
+          (put! ch msg))))))
+
+(defn send-message!
+  "Send a message to a Reacl component."
+  [comp msg]
+  (put! (extract-channel comp) msg))
+
+(defn message-processor
+  "Process messages for a Reacl component.
+
+  For internal use.  This implements the `handle-message' clause in
+  reacl.core/class.
+
+  This accepts a component and a message handler, and creates an event
+  handler suitable for sticking into the DOM."
+  [comp handle]
+  (let [c (extract-channel comp)]
+    (go
+      (loop []
+        (let [msg (<! c)]
+          (let [st (handle msg comp)]
+            (set-state! comp st)
+            (recur)))))))

@@ -27,6 +27,13 @@
   [yank shove]
   (ExplicitLens. yank shove))
 
+(defrecord IdentityLens []
+  Lens
+  (-yank [_ data] data)
+  (-shove [_ data v] v))
+
+(def id (IdentityLens.))
+
 (defn at-index
   [n]
   (lens (fn [coll] (nth coll n))

@@ -10,53 +10,59 @@
 (reacl/defclass to-do-item
   todos [lens]
   render
-  (fn [& {:keys [dom-node]}]
+  (fn [& {:keys [dom-node message-handler]}]
     (let [todo (lens/yank todos lens)]
       (dom/letdom
        [checkbox (dom/input
                   {:type "checkbox"
                    :value (:done? todo)
-                   :onChange (fn [e]
-                               (on-check
+                   :onChange (message-handler
+                              (fn [_]
                                 (.-checked (dom-node checkbox))))})]
        (dom/div checkbox
                 (:text todo)))))
-  on-check
-  (reacl/event-handler
-   (fn [checked?]
-     (reacl/return :app-state
-                   (lens/shove todos
-                               (lens/in lens :done?)
-                               checked?)))))
+  handle-message
+  (fn [checked?]
+    (reacl/return :app-state
+                  (lens/shove todos
+                              (lens/in lens :done?)
+                              checked?))))
+
+(defrecord New-text [text])
+(defrecord Submit [])
 
 (reacl/defclass to-do-app
   todos []
   render
-  (fn [& {:keys [local-state instantiate]}]
+  (fn [& {:keys [local-state instantiate message-handler]}]
     (dom/div
      (dom/h3 "TODO")
      (dom/div (map-indexed (fn [i todo]
                              (dom/keyed (str i) (instantiate to-do-item (lens/at-index i))))
                            todos))
      (dom/form
-      {:onSubmit handle-submit}
-      (dom/input {:onChange on-change :value local-state})
+      {:onSubmit (message-handler
+                  (fn [e _]
+                    (.preventDefault e)
+                    (Submit.)))}
+      (dom/input {:onChange (message-handler
+                             (fn [e]
+                               (New-text. (.. e -target -value))))
+                  :value local-state})
       (dom/button
        (str "Add #" (+ (count todos) 1))))))
 
   initial-state ""
-  
-  on-change
-  (reacl/event-handler
-   (fn [e state]
-     (reacl/return :local-state (.. e -target -value))))
-  
-  handle-submit
-  (reacl/event-handler
-   (fn [e _ text]
-     (.preventDefault e)
-     (reacl/return :app-state (concat todos [(Todo. text false)])
-                   :local-state ""))))
+
+  handle-message
+  (fn [msg local-state]
+    (cond
+     (instance? New-text msg)
+     (reacl/return :local-state (:text msg))
+     
+     (instance? Submit msg)
+     (reacl/return :local-state ""
+                   :app-state (concat todos [(Todo. local-state false)])))))
 
 (js/React.renderComponent
  (reacl/instantiate-toplevel to-do-app [])

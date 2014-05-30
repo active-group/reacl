@@ -4,7 +4,7 @@
   (:refer-clojure :exclude [class]))
 
 (def ^{:private true} lifecycle-name-map
-  {'component-will-mount 'componentWillMount
+  { ;; 'component-will-mount is in special-tags
    'component-did-mount 'componentDidMount
    'component-will-receive-props 'componentWillReceiveProps
    'should-component-update? 'shouldComponentUpdate
@@ -14,7 +14,7 @@
 
 (def ^{:private true} special-tags
   (clojure.set/union (into #{} (map val lifecycle-name-map))
-                     #{'render 'initial-state}))
+                     #{'render 'handle-message 'initial-state 'component-will-mount}))
 
 (defmacro class
   "Create a Reacl class.
@@ -30,6 +30,7 @@
      render <renderer-exp>
      [initial-state <initial-state-exp>]
      [<lifecycle-method-name> <lifecycle-method-exp> ...]
+     [handle-message <messager-handler-exp>]
 
      <event-handler-name> <event-handler-exp> ...)
 
@@ -49,6 +50,8 @@
    - local-state: component-local state
    - dom-node: a function for retrieving \"real\" dom nodes corresponding
      to virtual dom nodes
+   - message-handler: a function for creating event handlers that
+     return messages; see below
 
    The instantiate function is for instantiating Reacl subcomponents; it
    takes a Reacl class and arguments corresponding to the Reacl class's
@@ -61,6 +64,16 @@
    The dom-node function takes a named dom object bound via
    reacl.dom/letdom and yields its corresponding \"real\" dom object for
    extracting GUI state.
+
+   The message-handler function creates an event handler for use in
+   the DOM from a function.  That function receives the same arguments as
+   the event handler, and is expected to return a message.  That message
+   is then passed to the component's `handle-message' function.
+
+   The `handle-message' function accepts a message sent to the
+   component as well as the component's local state.  It's expected to
+   return a value specifying a new application state and/or
+   component-local state, via reacl.core/return.
 
    A lifecycle method can be one of:
 
@@ -76,41 +89,49 @@
    function.  This function's argument is always the component.  The
    remaining arguments are as for React.
 
-   Everything that's not a renderer, an initial-state, or lifecycle
-   method is assumed to be a binding for a function, typically an event
-   handler.  These functions will all be bound under their corresponding
-   <event-handler-name>s in <renderer-exp>.
+   Everything that's not a renderer, an initial-state, a
+   handle-message method, or lifecycle method is assumed to be a binding
+   for a function, typically an event handler.  These functions will all
+   be bound under their corresponding <event-handler-name>s in
+   <renderer-exp>.
 
    Example:
 
-   (def to-do-app
-     (reacl.core/class to-do-app todos []
-      render
-      (fn [& {:keys [local-state instantiate]}]
-        (reacl.dom/div
-         (reacl.dom/h3 \"TODO\")
-         (reacl.dom/div (map-indexed (fn [i todo]
-                                 (reacl.dom/keyed (str i) (instantiate to-do-item (reacl.lens/at-index i))))
-                               todos))
-         (reacl.dom/form
-          {:onSubmit handle-submit}
-          (reacl.dom/input {:onChange on-change :value local-state})
-          (reacl.dom/button
-           (str \"Add #\" (+ (count todos) 1))))))
+  (defrecord New-text [text])
+  (defrecord Submit [])
 
-      initial-state \"\"
+  (reacl/defclass to-do-app
+    todos []
+    render
+    (fn [& {:keys [local-state instantiate message-handler]}]
+      (dom/div
+       (dom/h3 \"TODO\")
+       (dom/div (map-indexed (fn [i todo]
+                               (dom/keyed (str i) (instantiate to-do-item (lens/at-index i))))
+                             todos))
+       (dom/form
+        {:onSubmit (message-handler
+                    (fn [e _]
+                      (.preventDefault e)
+                      (Submit.)))}
+        (dom/input {:onChange (message-handler
+                               (fn [e]
+                                 (New-text. (.. e -target -value))))
+                    :value local-state})
+        (dom/button
+         (str \"Add #\" (+ (count todos) 1))))))
 
-      on-change
-      (reacl.core/event-handler
-       (fn [e state]
-         (reacl.core/return :local-state (.. e -target -value))))
+    initial-state \"\"
 
-      handle-submit
-      (reacl.core/event-handler
-       (fn [e _ text]
-         (.preventDefault e)
-         (reacl.core/return :app-state (concat todos [{:text text :done? false}])
-                            :local-state \"\")))))"
+    handle-message
+    (fn [msg local-state]
+      (cond
+       (instance? New-text msg)
+       (reacl/return :local-state (:text msg))
+
+       (instance? Submit msg)
+       (reacl/return :local-state \"\"
+                     :app-state (concat todos [(Todo. local-state false)])))))"
   [?name ?app-state [& ?args] & ?clauses]
   (let [map (apply hash-map ?clauses)
         render (get map 'render)
@@ -145,34 +166,63 @@
                                      [(first p) `(aget ~?this ~(str (first p)))])
                                     misc)]
                      (~render :instantiate (fn [clazz# & props#] (apply reacl.core/instantiate clazz#
-                                                                       (reacl.core/extract-toplevel ~?this)
-                                                                       ~?app-state
-                                                                       props#))
+                                                                        (cljs.core/constantly (reacl.core/extract-toplevel ~?this))
+                                                                        ~?app-state
+                                                                        props#))
                               :local-state ~?state
                               :dom-node (fn [dn#] (reacl.dom/dom-node-ref ~?this dn#))
-                              :this ~?this)))))))]
-    `(js/React.createClass (cljs.core/js-obj "render" ~renderfn 
-                                             "getInitialState" ~initial-state 
-                                             "displayName" ~(str ?name)
-                                             ~@(mapcat (fn [[?name ?rhs]]
-                                                         (let [?args `args#
-                                                               ?this `this#]
-                                                           [(str (get lifecycle-name-map ?name))
-                                                            `(fn [& ~?args]
-                                                               (cljs.core/this-as
-                                                                ;; FIXME: should really bind ?rhs outside
-                                                                ~?this
-                                                                (apply ~(wrap-args ?this ?rhs) ~?this ~?args)))]))
-                                                       lifecycle)
-                                             ~@(mapcat (fn [[?name ?rhs]]
-                                                         [(str ?name) 
+                              :message-handler (reacl.core/make-message-handler ~?this)
+                              :this ~?this)))))))
+        
+        ?handle `handle# ; name of the handler
+        bind-handler
+        (if-let [?handler (get map 'handle-message)]
+          (fn [?body]
+            (let [?this `this#]
+              `(let [~?handle
+                     (fn [msg# ~?this]
+                       (~(wrap-args ?this ?handler)
+                        msg#
+                        (reacl.core/extract-local-state ~?this)))]
+               ~?body)))
+          identity)]
+    (bind-handler
+     `(js/React.createClass (cljs.core/js-obj "render" ~renderfn 
+                                              "getInitialState" ~initial-state 
+                                              "displayName" ~(str ?name)
+                                              ~@(mapcat (fn [[?name ?rhs]]
                                                           (let [?args `args#
                                                                 ?this `this#]
-                                                            `(fn [& ~?args]
-                                                               (cljs.core/this-as
-                                                                ~?this
-                                                                (apply ~(wrap-args ?this ?rhs) ~?this ~?args))))])
-                                                       misc)))))
+                                                            [(str (get lifecycle-name-map ?name))
+                                                             `(fn [& ~?args]
+                                                                (cljs.core/this-as
+                                                                 ;; FIXME: should really bind ?rhs outside
+                                                                 ~?this
+                                                                 (apply ~(wrap-args ?this ?rhs) ~?this ~?args)))]))
+                                                        lifecycle)
+                                              ~@(mapcat (fn [[?name ?rhs]]
+                                                          [(str ?name) 
+                                                           (let [?args `args#
+                                                                 ?this `this#]
+                                                             `(fn [& ~?args]
+                                                                (cljs.core/this-as
+                                                                 ~?this
+                                                                 (apply ~(wrap-args ?this ?rhs) ~?this ~?args))))])
+                                                        misc)
+                                              ;; event handler, if there's a handle-message clause
+                                              ~@(if (contains? map 'handle-message)
+                                                  ["componentWillMount"
+                                                   (let [?this `this#]
+                                                     `(fn []
+                                                        (cljs.core/this-as
+                                                         ~?this
+                                                         (do
+                                                           (reacl.core/message-processor ~?this ~?handle)
+                                                           ;; if there is a component-will-mount clause, tack it on
+                                                           ~@(if-let [?will-mount (get map 'component-will-mount)]
+                                                               [`(~(wrap-args ?this ?will-mount) ~?this)]
+                                                               [])))))]
+                                                  []))))))
 
 (defmacro defclass
   "Define a Reacl class.
@@ -182,6 +232,8 @@
    (reacl.core/defclass <name> <app-state> [<param> ...]
      render <renderer-exp>
      [initial-state <initial-state-exp>]
+     [<lifecycle-method-name> <lifecycle-method-exp> ...]
+     [handle-message <messager-handler-exp>]
 
      <event-handler-name> <event-handler-exp> ...)
 
@@ -191,6 +243,8 @@
      (reacl.core/class <name> <app-state> [<param> ...]
        render <renderer-exp>
        [initial-state <initial-state-exp>]
+       [<lifecycle-method-name> <lifecycle-method-exp> ...]
+       [handle-message <messager-handler-exp>]
 
        <event-handler-name> <event-handler-exp> ...))"
   [?name ?app-state [& ?args] & ?clauses]

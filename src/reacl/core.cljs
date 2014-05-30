@@ -20,7 +20,7 @@
   #js {:reacl_local_state s})
 
 (defn set-local-state!
-  "Make a React state hashmap containing Reacl local state s.
+  "Set Reacl local state of a component.
 
    For internal use."   
   [this local-state]

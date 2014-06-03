@@ -46,10 +46,10 @@
 (reacl/defclass comment-list
   app-state [lens]
   render
-  (fn [this & {:keys [instantiate]}]
+  (fn [this]
     (let [comments (lens/yank app-state lens)
           nodes (map-indexed (fn [i _]
-                               (dom/keyed (str i) (instantiate comment (lens/in lens (lens/at-index i)))))
+                               (dom/keyed (str i) (reacl/instantiate comment this (lens/in lens (lens/at-index i)))))
                              comments)]
       (dom/div {:className "commentList"}
                nodes))))
@@ -57,10 +57,10 @@
 (reacl/defclass comment-box
   app-state [lens]
   render
-  (fn [this & {:keys [instantiate]}]
+  (fn [this]
     (dom/div {:className "commentBox"}
              (dom/h1 "Comments")
-             (instantiate comment-list lens)))
+             (reacl/instantiate comment-list this lens)))
   handle-message
   (fn [msg]
     (let [new-comments

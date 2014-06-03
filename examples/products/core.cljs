@@ -51,7 +51,7 @@
 (reacl/defclass search-bar
   app-state [filter-text in-stock-only on-user-input]
   render
-  (fn [this & {:keys [dom-node]}]
+  (fn [this]
     (dom/letdom
      [textbox (dom/input
                {:type "text"
@@ -59,15 +59,15 @@
                 :value filter-text
                 :onChange (fn [e]
                             (on-user-input
-                             (.-value (dom-node textbox))
-                             (.-checked (dom-node checkbox))))})
+                             (.-value (dom/dom-node this textbox))
+                             (.-checked (dom/dom-node this checkbox))))})
       checkbox (dom/input
                 {:type "checkbox"
                  :value in-stock-only
                  :onChange (fn [e]
                              (on-user-input
-                              (.-value (dom-node textbox))
-                              (.-checked (dom-node checkbox))))})]
+                              (.-value (dom/dom-node this textbox))
+                              (.-checked (dom/dom-node this checkbox))))})]
      (dom/form
       textbox
       (dom/p
@@ -77,15 +77,15 @@
 (reacl/defclass filterable-product-table
   products []
   render
-  (fn [this & {:keys [instantiate local-state]}]
+  (fn [this & {:keys [local-state]}]
     (dom/div
-     (instantiate search-bar
-                  (:filter-text local-state)
-                  (:in-stock-only local-state)
-                  handle-user-input)
-     (instantiate product-table
-                  (:filter-text local-state)
-                  (:in-stock-only local-state))))
+     (reacl/instantiate search-bar this
+                        (:filter-text local-state)
+                        (:in-stock-only local-state)
+                        handle-user-input)
+     (reacl/instantiate product-table this
+                        (:filter-text local-state)
+                        (:in-stock-only local-state))))
   initial-state
   {:filter-text ""
    :in-stock-only false}

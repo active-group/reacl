@@ -138,8 +138,6 @@
                      :app-state (concat todos [(Todo. local-state false)])))))"
   [?name & ?stuff]
 
-  ;?app-state [& ?args] & ?clauses]
-
   (let [[?component ?stuff] (if (symbol? (first ?stuff))
                               [(first ?stuff) (rest ?stuff)]
                               [`component# ?stuff])
@@ -152,9 +150,6 @@
                                 [`local-state# ?stuff])
         [[& ?args] & ?clauses] ?stuff
 
-;;        foo (binding [*out* *err*] (println "?name=" ?name " ?component=" ?component " ?app-state=" ?app-state " ?local-state=" ?local-state
-;;                                            " ?args=" ?args " ?clauses=" ?clauses))
-        
         clause-map (apply hash-map ?clauses)
         wrap-args
         (fn [?this & ?body]

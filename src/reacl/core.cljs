@@ -82,12 +82,12 @@
   "Internal function to instantiate a Reacl component.
 
    `clazz' is the Reacl class.
-   `get-toplevel' is a function that yields the toplevel component.
+   `component' is the component from which the Reacl component is instantiated
    `app-state' is the app-state.
    `args` are the arguments to the component."
-  [clazz get-toplevel app-state & args]
-  (clazz #js {:reacl_top_level get-toplevel
-              :reacl_app_state app-state
+  [clazz component & args]
+  (clazz #js {:reacl_top_level (constantly (extract-toplevel component))
+              :reacl_app_state (extract-app-state component)
               :reacl_args args
               :reacl_channel (chan)}))
 
@@ -99,7 +99,10 @@
    `args` are the arguments to the component."
   [clazz app-state & args]
   (let [placeholder (atom nil)
-        component (apply instantiate clazz (fn [] @placeholder) app-state args)]
+        component (clazz #js {:reacl_top_level (fn [] @placeholder)
+                              :reacl_app_state app-state
+                              :reacl_args args
+                              :reacl_channel (chan)})] ; FIXME: abstract over this and instantiate
     (reset! placeholder component)
     component))
 

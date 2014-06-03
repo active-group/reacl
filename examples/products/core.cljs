@@ -23,69 +23,66 @@
        (dom/td (str (:price product))))))
 
 (reacl/defclass product-table
-  products [filter-text in-stock-only]
+  this products [filter-text in-stock-only]
   render
-  (fn []
-    (let [rows
-          (mapcat (fn [product last-product]
-                    (let [cat (:category product)]
-                      (if (or (= (. (:name product) indexOf filter-text)
-                                 -1)
-                              (and (not (:stocked product))
-                                   in-stock-only))
-                        []
-                        (let [prefix
-                              (if (not= cat
-                                        (:category last-product))
-                                [(dom/keyed cat (product-category-row cat))]
-                                [])]
-                          (concat prefix [(dom/keyed (:name product) (product-row product))])))))
-                  products (cons nil products))]
-      (dom/table
-       (dom/thead
-        (dom/tr
-         (dom/th "Name")
-         (dom/th "Price")))
-       (dom/tbody rows)))))
+  (let [rows
+        (mapcat (fn [product last-product]
+                  (let [cat (:category product)]
+                    (if (or (= (. (:name product) indexOf filter-text)
+                               -1)
+                            (and (not (:stocked product))
+                                 in-stock-only))
+                      []
+                      (let [prefix
+                            (if (not= cat
+                                      (:category last-product))
+                              [(dom/keyed cat (product-category-row cat))]
+                              [])]
+                        (concat prefix [(dom/keyed (:name product) (product-row product))])))))
+                products (cons nil products))]
+    (dom/table
+     (dom/thead
+      (dom/tr
+       (dom/th "Name")
+       (dom/th "Price")))
+     (dom/tbody rows))))
 
 (reacl/defclass search-bar
-  app-state [filter-text in-stock-only on-user-input]
+  this app-state [filter-text in-stock-only on-user-input]
   render
-  (fn [this]
-    (dom/letdom
-     [textbox (dom/input
-               {:type "text"
-                :placeholder "Search..."
-                :value filter-text
-                :onChange (fn [e]
-                            (on-user-input
-                             (.-value (dom/dom-node this textbox))
-                             (.-checked (dom/dom-node this checkbox))))})
-      checkbox (dom/input
-                {:type "checkbox"
-                 :value in-stock-only
-                 :onChange (fn [e]
-                             (on-user-input
-                              (.-value (dom/dom-node this textbox))
-                              (.-checked (dom/dom-node this checkbox))))})]
-     (dom/form
-      textbox
-      (dom/p
-       checkbox
-       "Only show products in stock")))))
+  (dom/letdom
+   [textbox (dom/input
+             {:type "text"
+              :placeholder "Search..."
+              :value filter-text
+              :onChange (fn [e]
+                          (on-user-input
+                           (.-value (dom/dom-node this textbox))
+                           (.-checked (dom/dom-node this checkbox))))})
+    checkbox (dom/input
+              {:type "checkbox"
+               :value in-stock-only
+               :onChange (fn [e]
+                           (on-user-input
+                            (.-value (dom/dom-node this textbox))
+                            (.-checked (dom/dom-node this checkbox))))})]
+   (dom/form
+    textbox
+    (dom/p
+     checkbox
+     "Only show products in stock"))))
 
 (reacl/defclass filterable-product-table
-  products []
+  this products local-state []
   render
-  (fn [this & {:keys [local-state]}]
-    (dom/div
-     (reacl/instantiate search-bar this
-                        (:filter-text local-state)
-                        (:in-stock-only local-state)
-                        handle-user-input)
-     (reacl/instantiate product-table this
-                        (:filter-text local-state)
-                        (:in-stock-only local-state))))
+  (dom/div
+   (reacl/instantiate search-bar this
+                      (:filter-text local-state)
+                      (:in-stock-only local-state)
+                      handle-user-input)
+   (reacl/instantiate product-table this
+                      (:filter-text local-state)
+                      (:in-stock-only local-state)))
   initial-state
   {:filter-text ""
    :in-stock-only false}

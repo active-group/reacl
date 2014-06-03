@@ -136,12 +136,30 @@
        (instance? Submit msg)
        (reacl/return :local-state \"\"
                      :app-state (concat todos [(Todo. local-state false)])))))"
-  [?name ?app-state [& ?args] & ?clauses]
-  (let [clause-map (apply hash-map ?clauses)
-        render (get clause-map 'render)
+  [?name & ?stuff]
+
+  ;?app-state [& ?args] & ?clauses]
+
+  (let [[?component ?stuff] (if (symbol? (first ?stuff))
+                              [(first ?stuff) (rest ?stuff)]
+                              [`component# ?stuff])
+        ;; FIXME abstract
+        [?app-state ?stuff] (if (symbol? (first ?stuff))
+                              [(first ?stuff) (rest ?stuff)]
+                              [`app-state# ?stuff])
+        [?local-state ?stuff] (if (symbol? (first ?stuff))
+                                [(first ?stuff) (rest ?stuff)]
+                                [`local-state# ?stuff])
+        [[& ?args] & ?clauses] ?stuff
+
+;;        foo (binding [*out* *err*] (println "?name=" ?name " ?component=" ?component " ?app-state=" ?app-state " ?local-state=" ?local-state
+;;                                            " ?args=" ?args " ?clauses=" ?clauses))
+        
+        clause-map (apply hash-map ?clauses)
         wrap-args
         (fn [?this & ?body]
-          `(let [~?app-state (reacl.core/extract-app-state ~?this)
+          `(let [~?component ~?this ; FIXME: instead bind ?component directly
+                 ~?app-state (reacl.core/extract-app-state ~?this)
                  [~@?args] (reacl.core/extract-args ~?this)] ; FIXME: what if empty?
              ~@?body))
         ?locals-clauses (partition 2 (get clause-map 'local []))
@@ -160,7 +178,8 @@
         wrap-args&locals
         (fn [?this & ?body]
           (wrap-args ?this
-                     `(let [[~@(map first ?locals-clauses)] (reacl.core/extract-locals ~?this)]
+                     `(let [~?local-state (reacl.core/extract-local-state ~?this)
+                            [~@(map first ?locals-clauses)] (reacl.core/extract-locals ~?this)]
                         ~@?body)))
 
         misc (filter (fn [e]
@@ -171,7 +190,8 @@
                           clause-map)
         ?renderfn
         (let [?this `this#  ; looks like a bug in ClojureScript, this# produces a warning but works
-              ?state `state#]
+              ?state `state#
+              ?render (get clause-map 'render)]
           `(fn []
              (cljs.core/this-as 
               ~?this
@@ -181,12 +201,7 @@
                   `(let [~@(mapcat (fn [p]
                                      [(first p) `(aget ~?this ~(str (first p)))])
                                     misc)]
-                     (~render ~?this
-                              :instantiate (fn [clazz# & props#] (apply reacl.core/instantiate clazz# ~?this props#))
-                              :local-state ~?state
-                              :dom-node (fn [dn#] (reacl.dom/dom-node ~?this dn#))
-                              :message-handler (reacl.core/make-message-handler ~?this)
-                              :this ~?this)))))))
+                     ~?render))))))
         
         ?handle `handle# ; name of the handler
         bind-handler
@@ -195,9 +210,7 @@
             (let [?this `this#]
               `(let [~?handle
                      (fn [msg# ~?this]
-                       (~(wrap-args&locals ?this ?handler)
-                        msg#
-                        (reacl.core/extract-local-state ~?this)))]
+                       (~(wrap-args&locals ?this ?handler) msg#))]
                ~?body)))
           identity)]
     (bind-handler
@@ -212,7 +225,7 @@
                                                                 (cljs.core/this-as
                                                                  ;; FIXME: should really bind ?rhs outside
                                                                  ~?this
-                                                                 (apply ~(wrap-args&locals ?this ?rhs) ~?this ~?args)))]))
+                                                                 (apply ~(wrap-args&locals ?this ?rhs) ~?args)))]))
                                                         lifecycle)
                                               ~@(mapcat (fn [[?name ?rhs]]
                                                           [(str ?name) 
@@ -261,6 +274,5 @@
        [handle-message <messager-handler-exp>]
 
        <event-handler-name> <event-handler-exp> ...))"
-  [?name ?app-state [& ?args] & ?clauses]
-  `(def ~?name (reacl.core/class ~?name ~?app-state [~@?args] ~@?clauses)))
-
+  [?name & ?stuff]
+  `(def ~?name (reacl.core/class ~?name ~@?stuff)))

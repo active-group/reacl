@@ -33,34 +33,31 @@
 (defrecord Comment [author text])
 
 (reacl/defclass comment
-  app-state [lens]
+  this app-state [lens]
   local [comment (lens/yank app-state lens)]
   render
-  (fn []
-    (let [author (:author comment)
-          text (:text comment)]
-      (dom/div {:className "comment"}
-               (dom/h2 {:className "commentAuthor"} author)
-               text))))
+  (let [author (:author comment)
+        text (:text comment)]
+    (dom/div {:className "comment"}
+             (dom/h2 {:className "commentAuthor"} author)
+             text)))
 
 (reacl/defclass comment-list
-  app-state [lens]
+  this app-state [lens]
   render
-  (fn [this]
-    (let [comments (lens/yank app-state lens)
-          nodes (map-indexed (fn [i _]
-                               (dom/keyed (str i) (reacl/instantiate comment this (lens/in lens (lens/at-index i)))))
-                             comments)]
-      (dom/div {:className "commentList"}
-               nodes))))
+  (let [comments (lens/yank app-state lens)
+        nodes (map-indexed (fn [i _]
+                             (dom/keyed (str i) (reacl/instantiate comment this (lens/in lens (lens/at-index i)))))
+                           comments)]
+    (dom/div {:className "commentList"}
+             nodes)))
 
 (reacl/defclass comment-box
-  app-state [lens]
+  this app-state [lens]
   render
-  (fn [this]
-    (dom/div {:className "commentBox"}
-             (dom/h1 "Comments")
-             (reacl/instantiate comment-list this lens)))
+  (dom/div {:className "commentBox"}
+           (dom/h1 "Comments")
+           (reacl/instantiate comment-list this lens))
   handle-message
   (fn [msg]
     (let [new-comments
@@ -69,7 +66,7 @@
                msg)]
       (reacl/return :app-state (lens/shove app-state lens new-comments))))
   component-will-mount
-  (fn [this]
+  (fn []
     (let [refresh
           (fn []
             (edn-xhr

@@ -8,18 +8,17 @@
 (defrecord Todo [text done?])
 
 (reacl/defclass to-do-item
-  todos [lens]
+  this todos [lens]
   render
-  (fn [this]
-    (let [todo (lens/yank todos lens)]
-      (dom/letdom
-       [checkbox (dom/input
-                  {:type "checkbox"
-                   :value (:done? todo)
-                   :onChange #(reacl/send-message! this
-                                                   (.-checked (dom/dom-node this checkbox)))})]
-       (dom/div checkbox
-                (:text todo)))))
+  (let [todo (lens/yank todos lens)]
+    (dom/letdom
+     [checkbox (dom/input
+                {:type "checkbox"
+                 :value (:done? todo)
+                 :onChange #(reacl/send-message! this
+                                                 (.-checked (dom/dom-node this checkbox)))})]
+     (dom/div checkbox
+              (:text todo))))
   handle-message
   (fn [checked?]
     (reacl/return :app-state
@@ -31,29 +30,28 @@
 (defrecord Submit [])
 
 (reacl/defclass to-do-app
-  todos []
+  this todos local-state []
   render
-  (fn [this & {:keys [local-state]}]
-    (dom/div
-     (dom/h3 "TODO")
-     (dom/div (map-indexed (fn [i todo]
-                             (dom/keyed (str i) (reacl/instantiate to-do-item this (lens/at-index i))))
-                           todos))
-     (dom/form
-      {:onSubmit (fn [e _]
-                    (.preventDefault e)
-                    (reacl/send-message! this (Submit.)))}
-      (dom/input {:onChange (fn [e]
-                              (reacl/send-message! this
-                                                   (New-text. (.. e -target -value))))
-                  :value local-state})
-      (dom/button
-       (str "Add #" (+ (count todos) 1))))))
+  (dom/div
+   (dom/h3 "TODO")
+   (dom/div (map-indexed (fn [i todo]
+                           (dom/keyed (str i) (reacl/instantiate to-do-item this (lens/at-index i))))
+                         todos))
+   (dom/form
+    {:onSubmit (fn [e _]
+                 (.preventDefault e)
+                 (reacl/send-message! this (Submit.)))}
+    (dom/input {:onChange (fn [e]
+                            (reacl/send-message! this
+                                                 (New-text. (.. e -target -value))))
+                :value local-state})
+    (dom/button
+     (str "Add #" (+ (count todos) 1)))))
 
   initial-state ""
 
   handle-message
-  (fn [msg local-state]
+  (fn [msg]
     (cond
      (instance? New-text msg)
      (reacl/return :local-state (:text msg))

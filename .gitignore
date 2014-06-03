@@ -11,3 +11,4 @@ pom.xml.asc
 /out
 /examples/*/out
 /examples/*/main.js
+/examples/*/main.map

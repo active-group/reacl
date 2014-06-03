@@ -58,7 +58,7 @@
   [n]
   (DomBinding. (atom nil) (name (gensym n))))
 
-(defn dom-node-ref
+(defn dom-node
   "Get the real DOM node associated with a binding.
 
   Needs the component object."

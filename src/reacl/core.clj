@@ -184,7 +184,7 @@
                      (~render ~?this
                               :instantiate (fn [clazz# & props#] (apply reacl.core/instantiate clazz# ~?this props#))
                               :local-state ~?state
-                              :dom-node (fn [dn#] (reacl.dom/dom-node-ref ~?this dn#))
+                              :dom-node (fn [dn#] (reacl.dom/dom-node ~?this dn#))
                               :message-handler (reacl.core/make-message-handler ~?this)
                               :this ~?this)))))))
         

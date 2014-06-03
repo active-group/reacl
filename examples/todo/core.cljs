@@ -10,14 +10,14 @@
 (reacl/defclass to-do-item
   todos [lens]
   render
-  (fn [this & {:keys [dom-node]}]
+  (fn [this]
     (let [todo (lens/yank todos lens)]
       (dom/letdom
        [checkbox (dom/input
                   {:type "checkbox"
                    :value (:done? todo)
                    :onChange #(reacl/send-message! this
-                                                   (.-checked (dom-node checkbox)))})]
+                                                   (.-checked (dom/dom-node this checkbox)))})]
        (dom/div checkbox
                 (:text todo)))))
   handle-message

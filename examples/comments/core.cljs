@@ -46,7 +46,7 @@
 (reacl/defclass comment-list
   app-state [lens]
   render
-  (fn [& {:keys [instantiate]}]
+  (fn [this & {:keys [instantiate]}]
     (let [comments (lens/yank app-state lens)
           nodes (map-indexed (fn [i _]
                                (dom/keyed (str i) (instantiate comment (lens/in lens (lens/at-index i)))))
@@ -57,7 +57,7 @@
 (reacl/defclass comment-box
   app-state [lens]
   render
-  (fn [& {:keys [instantiate]}]
+  (fn [this & {:keys [instantiate]}]
     (dom/div {:className "commentBox"}
              (dom/h1 "Comments")
              (instantiate comment-list lens)))
@@ -69,13 +69,13 @@
                msg)]
       (reacl/return :app-state (lens/shove app-state lens new-comments))))
   component-will-mount
-  (fn [comp]
+  (fn [this]
     (let [refresh
           (fn []
             (edn-xhr
              {:method :get
               :url "comments.edn"
-              :on-complete #(reacl/send-message! comp %)}))]
+              :on-complete #(reacl/send-message! this %)}))]
       (refresh)
       (js/setInterval refresh 2000))))
 

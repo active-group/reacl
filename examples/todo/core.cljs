@@ -10,7 +10,7 @@
 (reacl/defclass to-do-item
   todos [lens]
   render
-  (fn [& {:keys [dom-node message-handler]}]
+  (fn [this & {:keys [dom-node message-handler]}]
     (let [todo (lens/yank todos lens)]
       (dom/letdom
        [checkbox (dom/input
@@ -34,7 +34,7 @@
 (reacl/defclass to-do-app
   todos []
   render
-  (fn [& {:keys [local-state instantiate message-handler]}]
+  (fn [this & {:keys [local-state instantiate message-handler]}]
     (dom/div
      (dom/h3 "TODO")
      (dom/div (map-indexed (fn [i todo]

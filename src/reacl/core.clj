@@ -181,7 +181,8 @@
                   `(let [~@(mapcat (fn [p]
                                      [(first p) `(aget ~?this ~(str (first p)))])
                                     misc)]
-                     (~render :instantiate (fn [clazz# & props#] (apply reacl.core/instantiate clazz# ~?this props#))
+                     (~render ~?this
+                              :instantiate (fn [clazz# & props#] (apply reacl.core/instantiate clazz# ~?this props#))
                               :local-state ~?state
                               :dom-node (fn [dn#] (reacl.dom/dom-node-ref ~?this dn#))
                               :message-handler (reacl.core/make-message-handler ~?this)

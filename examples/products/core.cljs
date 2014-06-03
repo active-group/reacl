@@ -51,7 +51,7 @@
 (reacl/defclass search-bar
   app-state [filter-text in-stock-only on-user-input]
   render
-  (fn [& {:keys [dom-node]}]
+  (fn [this & {:keys [dom-node]}]
     (dom/letdom
      [textbox (dom/input
                {:type "text"
@@ -77,7 +77,7 @@
 (reacl/defclass filterable-product-table
   products []
   render
-  (fn [& {:keys [instantiate local-state]}]
+  (fn [this & {:keys [instantiate local-state]}]
     (dom/div
      (instantiate search-bar
                   (:filter-text local-state)

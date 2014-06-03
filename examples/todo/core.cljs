@@ -33,11 +33,11 @@
 (reacl/defclass to-do-app
   todos []
   render
-  (fn [this & {:keys [local-state instantiate]}]
+  (fn [this & {:keys [local-state]}]
     (dom/div
      (dom/h3 "TODO")
      (dom/div (map-indexed (fn [i todo]
-                             (dom/keyed (str i) (instantiate to-do-item (lens/at-index i))))
+                             (dom/keyed (str i) (reacl/instantiate to-do-item this (lens/at-index i))))
                            todos))
      (dom/form
       {:onSubmit (fn [e _]

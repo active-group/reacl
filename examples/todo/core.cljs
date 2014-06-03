@@ -10,15 +10,14 @@
 (reacl/defclass to-do-item
   todos [lens]
   render
-  (fn [this & {:keys [dom-node message-handler]}]
+  (fn [this & {:keys [dom-node]}]
     (let [todo (lens/yank todos lens)]
       (dom/letdom
        [checkbox (dom/input
                   {:type "checkbox"
                    :value (:done? todo)
-                   :onChange (message-handler
-                              (fn [_]
-                                (.-checked (dom-node checkbox))))})]
+                   :onChange #(reacl/send-message! this
+                                                   (.-checked (dom-node checkbox)))})]
        (dom/div checkbox
                 (:text todo)))))
   handle-message
@@ -34,20 +33,19 @@
 (reacl/defclass to-do-app
   todos []
   render
-  (fn [this & {:keys [local-state instantiate message-handler]}]
+  (fn [this & {:keys [local-state instantiate]}]
     (dom/div
      (dom/h3 "TODO")
      (dom/div (map-indexed (fn [i todo]
                              (dom/keyed (str i) (instantiate to-do-item (lens/at-index i))))
                            todos))
      (dom/form
-      {:onSubmit (message-handler
-                  (fn [e _]
+      {:onSubmit (fn [e _]
                     (.preventDefault e)
-                    (Submit.)))}
-      (dom/input {:onChange (message-handler
-                             (fn [e]
-                               (New-text. (.. e -target -value))))
+                    (reacl/send-message! this (Submit.)))}
+      (dom/input {:onChange (fn [e]
+                              (reacl/send-message! this
+                                                   (New-text. (.. e -target -value))))
                   :value local-state})
       (dom/button
        (str "Add #" (+ (count todos) 1))))))

@@ -14,7 +14,7 @@
 
 (def ^{:private true} special-tags
   (clojure.set/union (into #{} (map val lifecycle-name-map))
-                     #{'render 'handle-message 'initial-state 'component-will-mount}))
+                     #{'render 'handle-message 'initial-state 'component-will-mount 'local}))
 
 (defmacro class
   "Create a Reacl class.
@@ -29,6 +29,7 @@
    (reacl.core/class <name> <app-state> [<param> ...]
      render <renderer-exp>
      [initial-state <initial-state-exp>]
+     [local [<local-name> <local-expr>]]
      [<lifecycle-method-name> <lifecycle-method-exp> ...]
      [handle-message <messager-handler-exp>]
 
@@ -41,6 +42,9 @@
    of explicit arguments of instantiations (see below).  These names are
    bound in <renderer-exp>, <initial-state-exp> as well as all
    <event-handler-exp>s.
+
+   A `local` clause allows binding local variables that are computed
+   from <app-state> and <param> ...  The syntax is analogous to `let`.
 
    <renderer-exp> must evaluate to a function that renders the component,
    and hence must return a virtual dom node.  It gets passed several
@@ -89,7 +93,7 @@
    function.  This function's argument is always the component.  The
    remaining arguments are as for React.
 
-   Everything that's not a renderer, an initial-state, a
+   Everything that's not a renderer, an initial-state, a local clause, a
    handle-message method, or lifecycle method is assumed to be a binding
    for a function, typically an event handler.  These functions will all
    be bound under their corresponding <event-handler-name>s in
@@ -133,34 +137,46 @@
        (reacl/return :local-state \"\"
                      :app-state (concat todos [(Todo. local-state false)])))))"
   [?name ?app-state [& ?args] & ?clauses]
-  (let [map (apply hash-map ?clauses)
-        render (get map 'render)
+  (let [clause-map (apply hash-map ?clauses)
+        render (get clause-map 'render)
         wrap-args
         (fn [?this & ?body]
           `(let [~?app-state (reacl.core/extract-app-state ~?this)
                  [~@?args] (reacl.core/extract-args ~?this)] ; FIXME: what if empty?
              ~@?body))
-        initial-state (if-let [?expr (get map 'initial-state)]
-                        (let [?this `this#]
-                          `(fn [] 
-                             (cljs.core/this-as
-                              ~?this
-                              ~(wrap-args ?this `(reacl.core/make-local-state ~?expr)))))
-                        `(fn [] (reacl.core/make-local-state nil)))
+        ?locals-clauses (partition 2 (get clause-map 'local []))
+        ?initial-state (let [?state-expr (get clause-map 'initial-state)]
+                          (if (or ?state-expr (not (empty? ?locals-clauses)))
+                            (let [?this `this#]
+                              `(fn [] 
+                                 (cljs.core/this-as
+                                  ~?this
+                                  ~(wrap-args 
+                                    ?this
+                                    `(reacl.core/make-local-state [~@(map second ?locals-clauses)]
+                                                                  ~(or ?state-expr `nil))))))
+                            `(fn [] (reacl.core/make-local-state nil nil))))
+
+        wrap-args&locals
+        (fn [?this & ?body]
+          (wrap-args ?this
+                     `(let [[~@(map first ?locals-clauses)] (reacl.core/extract-locals ~?this)]
+                        ~@?body)))
+
         misc (filter (fn [e]
                        (not (contains? special-tags (key e))))
-                     map)
+                     clause-map)
         lifecycle (filter (fn [e]
                             (contains? lifecycle-name-map (key e)))
-                          map)
-        renderfn
+                          clause-map)
+        ?renderfn
         (let [?this `this#  ; looks like a bug in ClojureScript, this# produces a warning but works
               ?state `state#]
           `(fn []
              (cljs.core/this-as 
               ~?this
               (let [~?state (reacl.core/extract-local-state ~?this)]
-                ~(wrap-args
+                ~(wrap-args&locals
                   ?this
                   `(let [~@(mapcat (fn [p]
                                      [(first p) `(aget ~?this ~(str (first p)))])
@@ -176,19 +192,19 @@
         
         ?handle `handle# ; name of the handler
         bind-handler
-        (if-let [?handler (get map 'handle-message)]
+        (if-let [?handler (get clause-map 'handle-message)]
           (fn [?body]
             (let [?this `this#]
               `(let [~?handle
                      (fn [msg# ~?this]
-                       (~(wrap-args ?this ?handler)
+                       (~(wrap-args&locals ?this ?handler)
                         msg#
                         (reacl.core/extract-local-state ~?this)))]
                ~?body)))
           identity)]
     (bind-handler
-     `(js/React.createClass (cljs.core/js-obj "render" ~renderfn 
-                                              "getInitialState" ~initial-state 
+     `(js/React.createClass (cljs.core/js-obj "render" ~?renderfn 
+                                              "getInitialState" ~?initial-state 
                                               "displayName" ~(str ?name)
                                               ~@(mapcat (fn [[?name ?rhs]]
                                                           (let [?args `args#
@@ -198,7 +214,7 @@
                                                                 (cljs.core/this-as
                                                                  ;; FIXME: should really bind ?rhs outside
                                                                  ~?this
-                                                                 (apply ~(wrap-args ?this ?rhs) ~?this ~?args)))]))
+                                                                 (apply ~(wrap-args&locals ?this ?rhs) ~?this ~?args)))]))
                                                         lifecycle)
                                               ~@(mapcat (fn [[?name ?rhs]]
                                                           [(str ?name) 
@@ -207,10 +223,10 @@
                                                              `(fn [& ~?args]
                                                                 (cljs.core/this-as
                                                                  ~?this
-                                                                 (apply ~(wrap-args ?this ?rhs) ~?this ~?args))))])
+                                                                 (apply ~(wrap-args&locals ?this ?rhs) ~?this ~?args))))])
                                                         misc)
                                               ;; event handler, if there's a handle-message clause
-                                              ~@(if (contains? map 'handle-message)
+                                              ~@(if (contains? clause-map 'handle-message)
                                                   ["componentWillMount"
                                                    (let [?this `this#]
                                                      `(fn []
@@ -219,8 +235,8 @@
                                                          (do
                                                            (reacl.core/message-processor ~?this ~?handle)
                                                            ;; if there is a component-will-mount clause, tack it on
-                                                           ~@(if-let [?will-mount (get map 'component-will-mount)]
-                                                               [`(~(wrap-args ?this ?will-mount) ~?this)]
+                                                           ~@(if-let [?will-mount (get clause-map 'component-will-mount)]
+                                                               [`(~(wrap-args&locals ?this ?will-mount) ~?this)]
                                                                [])))))]
                                                   []))))))
 

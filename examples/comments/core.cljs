@@ -34,10 +34,10 @@
 
 (reacl/defclass comment
   app-state [lens]
+  local [comment (lens/yank app-state lens)]
   render
   (fn []
-    (let [comment (lens/yank app-state lens)
-          author (:author comment)
+    (let [author (:author comment)
           text (:text comment)]
       (dom/div {:className "comment"}
                (dom/h2 {:className "commentAuthor"} author)

@@ -15,16 +15,17 @@
              (concat args [(name (first clmp)) (second clmp)])))))
 
 (defn make-local-state
-  "Make a React state containing Reacl local state.
+  "Make a React state containing Reacl local variables and local state.
 
    For internal use."
-  [s]
-  #js {:reacl_local_state s})
+  [locals state]
+  #js {:reacl_locals locals
+       :reacl_local_state state})
 
 (defn set-local-state!
   "Set Reacl local state of a component.
 
-   For internal use."   
+   For internal use."
   [this local-state]
   (.setState this #js {:reacl_local_state local-state}))
 
@@ -62,6 +63,13 @@
    For internal use."
   [this]
   (.. this -props -reacl_args))
+
+(defn extract-locals
+  "Get the local bindings for a component.
+
+   For internal use."
+  [this]
+  (.. this -state -reacl_locals))
 
 (defn extract-channel
   "Get the component channel for a component

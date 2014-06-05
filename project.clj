@@ -12,7 +12,10 @@
                  [com.facebook/react "0.9.0.1"]]
 
   :plugins [[lein-cljsbuild "1.0.2"]
-            [com.cemerick/clojurescript.test "0.3.0"]]
+            ;; NB: This needs a version of clojurescript.test with the Nashorn runner,
+            ;; for example from the nashorn-runner branch from
+            ;; https://github.com/active-group/clojurescript.test
+            [com.cemerick/clojurescript.test "0.3.2-SNAPSHOT"]]
   
   :cljsbuild
   
@@ -44,5 +47,7 @@
                           :output-dir "examples/comments/out"
                           :source-map "examples/comments/main.map"
                           :optimizations :whitespace}}]
-   :test-commands {"unit-tests" ["slimerjs" :runner "target/tests.js"]}})
+   ;; React needs global binding to function, see
+   ;; http://augustl.com/blog/2014/jdk8_react_rendering_on_server/
+   :test-commands {"unit-tests" ["jrunscript" "-e" "var global = this" "-f" "target/tests.js" "-f" :nashorn-runner]}})
 

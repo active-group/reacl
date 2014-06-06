@@ -196,55 +196,52 @@
                   `(let [~@(mapcat (fn [p]
                                      [(first p) `(aget ~?this ~(str (first p)))])
                                     misc)]
-                     ~?render))))))
-        
-        ?handle `handle# ; name of the handler
-        bind-handler
-        (if-let [?handler (get clause-map 'handle-message)]
-          (fn [?body]
-            (let [?this `this#]
-              `(let [~?handle
-                     (fn [msg# ~?this]
-                       (~(wrap-args&locals ?this ?handler) msg#))]
-               ~?body)))
-          identity)]
-    (bind-handler
-     `(js/React.createClass (cljs.core/js-obj "render" ~?renderfn 
-                                              "getInitialState" ~?initial-state 
-                                              "displayName" ~(str ?name)
-                                              ~@(mapcat (fn [[?name ?rhs]]
+                     ~?render))))))]
+    `(js/React.createClass (cljs.core/js-obj "render" ~?renderfn 
+                                             "getInitialState" ~?initial-state 
+                                             "displayName" ~(str ?name)
+                                             ~@(mapcat (fn [[?name ?rhs]]
+                                                         (let [?args `args#
+                                                               ?this `this#]
+                                                           [(str (get lifecycle-name-map ?name))
+                                                            `(fn [& ~?args]
+                                                               (cljs.core/this-as
+                                                                ;; FIXME: should really bind ?rhs outside
+                                                                ~?this
+                                                                (apply ~(wrap-args&locals ?this ?rhs) ~?args)))]))
+                                                       lifecycle)
+                                             ~@(mapcat (fn [[?name ?rhs]]
+                                                         [(str ?name) 
                                                           (let [?args `args#
                                                                 ?this `this#]
-                                                            [(str (get lifecycle-name-map ?name))
-                                                             `(fn [& ~?args]
-                                                                (cljs.core/this-as
-                                                                 ;; FIXME: should really bind ?rhs outside
-                                                                 ~?this
-                                                                 (apply ~(wrap-args&locals ?this ?rhs) ~?args)))]))
-                                                        lifecycle)
-                                              ~@(mapcat (fn [[?name ?rhs]]
-                                                          [(str ?name) 
-                                                           (let [?args `args#
-                                                                 ?this `this#]
-                                                             `(fn [& ~?args]
-                                                                (cljs.core/this-as
-                                                                 ~?this
-                                                                 (apply ~(wrap-args&locals ?this ?rhs) ~?this ~?args))))])
-                                                        misc)
-                                              ;; event handler, if there's a handle-message clause
-                                              ~@(if (contains? clause-map 'handle-message)
-                                                  ["componentWillMount"
-                                                   (let [?this `this#]
-                                                     `(fn []
-                                                        (cljs.core/this-as
-                                                         ~?this
-                                                         (do
-                                                           (reacl.core/message-processor ~?this ~?handle)
-                                                           ;; if there is a component-will-mount clause, tack it on
-                                                           ~@(if-let [?will-mount (get clause-map 'component-will-mount)]
-                                                               [`(~(wrap-args&locals ?this ?will-mount) ~?this)]
-                                                               [])))))]
-                                                  []))))))
+                                                            `(fn [& ~?args]
+                                                               (cljs.core/this-as
+                                                                ~?this
+                                                                (apply ~(wrap-args&locals ?this ?rhs) ~?this ~?args))))])
+                                                       misc)
+                                             ;; message handler, if there's one specified
+                                             ~@(if-let [?handler (get clause-map 'handle-message)]
+                                                 ["__handleMessage"
+                                                  (let [?this `this#]
+                                                    `(fn [msg#]
+                                                       (cljs.core/this-as
+                                                        ~?this
+                                                        (~(wrap-args&locals ?this ?handler) msg#))))]
+                                                 [])
+                                             ;; event handler, if there's a handle-message clause
+                                             ~@(if (contains? clause-map 'handle-message)
+                                                 ["componentWillMount"
+                                                  (let [?this `this#]
+                                                    `(fn []
+                                                       (cljs.core/this-as
+                                                        ~?this
+                                                        (do
+                                                          (reacl.core/message-processor ~?this)
+                                                          ;; if there is a component-will-mount clause, tack it on
+                                                          ~@(if-let [?will-mount (get clause-map 'component-will-mount)]
+                                                              [`(~(wrap-args&locals ?this ?will-mount) ~?this)]
+                                                              [])))))]
+                                                 [])))))
 
 (defmacro defclass
   "Define a Reacl class.

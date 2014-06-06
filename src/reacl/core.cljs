@@ -187,11 +187,12 @@
 
   This accepts a component and a message handler, and creates an event
   handler suitable for sticking into the DOM."
-  [comp handle]
-  (let [c (extract-channel comp)]
+  [comp]
+  (let [c (extract-channel comp)
+        handle (.-__handleMessage comp)]
     (go
       (loop []
         (let [msg (<! c)]
-          (let [st (handle msg comp)]
+          (let [st (handle msg)]
             (set-state! comp st)
             (recur)))))))

@@ -8,6 +8,7 @@ pom.xml.asc
 /.lein-*
 /.nrepl-port
 /repl
+/.repl
 /out
 /examples/*/out
 /examples/*/main.js

@@ -15,7 +15,8 @@
             ;; NB: This needs a version of clojurescript.test with the Nashorn runner,
             ;; for example from the nashorn-runner branch from
             ;; https://github.com/active-group/clojurescript.test
-            [com.cemerick/clojurescript.test "0.3.2-SNAPSHOT"]]
+            [com.cemerick/clojurescript.test "0.3.2-SNAPSHOT"]
+            [org.bodil/lein-nashorn "0.1.2"]]
   
   :cljsbuild
   

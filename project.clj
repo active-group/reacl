@@ -22,7 +22,7 @@
   
   { :builds [{:id "test"
               :source-paths ["src" "test"]
-              :compiler {:preamble ["react/react_with_addons.min.js"]
+              :compiler {:preamble ["react/react_with_addons.js"] ; TestUtils aren't in minified version
                          :output-to "target/tests.js"
                          :optimizations :whitespace
                          :pretty-print true}}

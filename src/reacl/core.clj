@@ -226,6 +226,7 @@
                                                     `(fn [msg#]
                                                        (cljs.core/this-as
                                                         ~?this
+                                                        (cljs.core/println "__handleMessage " ~?this)
                                                         (~(wrap-args&locals ?this ?handler) msg#))))]
                                                  [])
                                              ;; event handler, if there's a handle-message clause

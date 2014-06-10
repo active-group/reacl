@@ -47,3 +47,8 @@
     (is (= "<div><input type=\"checkbox\" value=\"false\">foo</div>"
            (render item)))))
 
+(deftest handle-message-simple
+  (let [item (reacl/instantiate-toplevel to-do-item (Todo. "foo" false) lens/id)]
+    (js/React.addons.TestUtils.renderIntoDocument item)
+    (let [[app-state _] (reacl/handle-message->state item true)]
+      (is (= app-state (Todo. "foo" true))))))

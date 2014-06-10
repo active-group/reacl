@@ -179,6 +179,26 @@
   [comp msg]
   (put! (extract-channel comp) msg))
 
+(defn- handle-message
+  "Handle a message for a Reacl component.
+
+  For internal use.
+
+  This returns a State object."
+  [comp msg]
+  (.__handleMessage comp msg))
+
+(defn handle-message->state
+  "Handle a message for a Reacl component.
+
+  For internal use.
+
+  This returns application state and local state."
+  [comp msg]
+  (let [ps (handle-message comp msg)]
+    [(or (:app-state ps) (extract-app-state comp))
+     (or (:local-state ps) (extract-local-state comp))]))
+
 (defn message-processor
   "Process messages for a Reacl component.
 
@@ -188,11 +208,10 @@
   This accepts a component and a message handler, and creates an event
   handler suitable for sticking into the DOM."
   [comp]
-  (let [c (extract-channel comp)
-        handle (.-__handleMessage comp)]
+  (let [c (extract-channel comp)]
     (go
       (loop []
         (let [msg (<! c)]
-          (let [st (handle msg)]
+          (let [st (handle-message comp msg)]
             (set-state! comp st)
             (recur)))))))

@@ -24,31 +24,31 @@
               (:text todo))))
   handle-message
   (fn [checked?]
-    (println "handle-message")
     (reacl/return :app-state
                   (lens/shove todos
                               (lens/in lens :done?)
                               checked?))))
 
 
-(defn render
+(defn render-to-text
   [dom]
   (js/React.renderComponentToStaticMarkup dom))
 
 (deftest dom
   (let [d (dom/h1 "Hello, world!")]
     (is (= "<h1>Hello, world!</h1>"
-           (render d)))))
+           (render-to-text d)))))
 
 (deftest simple
   (let [item (reacl/instantiate-toplevel to-do-item (Todo. "foo" false) lens/id)]
     (is (= (reacl/extract-app-state item)
            (Todo. "foo" false)))
     (is (= "<div><input type=\"checkbox\" value=\"false\">foo</div>"
-           (render item)))))
+           (render-to-text item)))))
 
 (deftest handle-message-simple
-  (let [item (reacl/instantiate-toplevel to-do-item (Todo. "foo" false) lens/id)]
-    (js/React.addons.TestUtils.renderIntoDocument item)
+  (let [div (js/document.createElement "div")
+        preview (reacl/instantiate-toplevel to-do-item (Todo. "foo" false) lens/id)
+        item (js/React.renderComponent preview div)]
     (let [[app-state _] (reacl/handle-message->state item true)]
       (is (= app-state (Todo. "foo" true))))))

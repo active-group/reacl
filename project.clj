@@ -20,10 +20,16 @@
   
   :cljsbuild
   
-  { :builds [{:id "test"
-              :source-paths ["src" "test"]
+  { :builds [{:id "test-nodom"
+              :source-paths ["src" "test-nodom"]
               :compiler {:preamble ["react/react_with_addons.js"] ; TestUtils aren't in minified version
-                         :output-to "target/tests.js"
+                         :output-to "target/test-nodom.js"
+                         :optimizations :whitespace
+                         :pretty-print true}}
+             {:id "test-dom"
+              :source-paths ["src" "test-dom"]
+              :compiler {:preamble ["react/react_with_addons.js"] ; TestUtils aren't in minified version
+                         :output-to "target/test-dom.js"
                          :optimizations :whitespace
                          :pretty-print true}}
               ;; examples
@@ -50,5 +56,11 @@
                           :optimizations :whitespace}}]
    ;; React needs global binding to function, see
    ;; http://augustl.com/blog/2014/jdk8_react_rendering_on_server/
-   :test-commands {"unit-tests" ["jrunscript" "-e" "var global = this" "-f" "target/tests.js" "-f" :nashorn-runner]}})
+   :test-commands {"nashorn" ["jrunscript" "-e" "var global = this" "-f" "target/test-nodom.js" "-f" :nashorn-runner]
+                   "phantom" ["phantomjs" :runner 
+                              "window.literal_js_executed=true"
+                              "test/vendor/es5-shim.js"
+                              "test/vendor/es5-sham.js"
+                              "test/vendor/console-polyfill.js"
+                              "target/test-dom.js"]}})
 

@@ -36,16 +36,17 @@ restricted to JavaScript hashmaps.)
 
 When a component wants to manipulate the application state, that
 typically happens inside an event handler: That event handler should
-pass a *message* to the component - a value communicating what just
-happened.  THe component can declare a *message handler* that receives
+send a *message* to the component - a value communicating what just
+happened.  The component can declare a *message handler* that receives
 the message, and returns a new application state and/or new local
 state.
 
 The key to tying these aspects together are the `reacl.core/defclass`
 macro for defining a Reacl class (just a React component class, but
-implementing Reacl's internal protocols), and the
-`reacl.core/message-handler` function for implementing
-"message-passing event handlers".
+implementing Reacl's internal protocols), as the
+`reacl.core/instantiate` function for making a component object from a
+class, and the `reacl.core/send-message!` for sending a message to a
+component.
 
 In addition to this core model, Reacl also provides a convenience
 layer on React's virtual dom (which can be used independently), as
@@ -74,10 +75,10 @@ Check out the very simple example for managing a to-do list in file
 (don't
 expect [TodoMVC](http://todomvc.com/)).  We use this namespace header:
 
-    (ns examples.products.core
-      (:require [reacl.core :as reacl :include-macros true]
-                [reacl.dom :as dom :include-macros true]))
-
+	(ns examples.todo.core
+	  (:require [reacl.core :as reacl :include-macros true]
+				[reacl.dom :as dom :include-macros true]
+				[reacl.lens :as lens]))
 
 First of all, we define a record type for to-dos, with a descriptive
 text and a flag indicating that it's done:
@@ -88,19 +89,17 @@ Here is a component class for a single item, which allows marking the
 `done?` field as done:
 
 	(reacl/defclass to-do-item
-	  todos [lens]
+	  this todos [lens]
 	  render
-	  (fn [& {:keys [dom-node message-handler]}]
-		(let [todo (lens/yank todos lens)]
-		  (dom/letdom
-		   [checkbox (dom/input
-					  {:type "checkbox"
-					   :value (:done? todo)
-					   :onChange (message-handler
-								  (fn [_]
-									(.-checked (dom-node checkbox))))})]
-		   (dom/div checkbox
-					(:text todo)))))
+	  (let [todo (lens/yank todos lens)]
+		(dom/letdom
+		 [checkbox (dom/input
+					{:type "checkbox"
+					 :value (:done? todo)
+					 :onChange #(reacl/send-message! this
+													 (.-checked (dom/dom-node this checkbox)))})]
+		 (dom/div checkbox
+				  (:text todo))))
 	  handle-message
 	  (fn [checked?]
 		(reacl/return :app-state
@@ -109,21 +108,21 @@ Here is a component class for a single item, which allows marking the
 								  checked?))))
 
 The class is called `to-do-item`.  Within the component code, the
-application state is accessible as `todos`, and the component accepts a
-single parameter `lens`, which is a lens for accessing the to-do item
-managed by this component within the application state.
+component is accessible as `this`, the application state is accessible
+as `todos`, and the component accepts a single parameter `lens`, which
+is a lens for accessing the to-do item managed by this component
+within the application state.
 
-The component class defines a `render` function.  Within that
-function, we need access to the real DOM node of the checkbox, so we
-bind the `dom-node` keyword parameter in the render function.
-
-The code first extracts the to-do item managed by this component via
-`lens/yank`, creates an `input` DOM element, binds it to `checkbox`
-via `letdom` (because the event handler will want to access via
-`dom-node`), and uses that to create a `div` for the entire to-do item.
+The component class defines a `render` expression.  The code first
+extracts the to-do item managed by this component via `lens/yank`,
+creates an `input` DOM element, binds it to `checkbox` via
+`dom/letdom` (because the event handler will want to access via
+`dom/dom-node`), and uses that to create a `div` for the entire to-do
+item.
 
 The message handler specified as the `onChange` attribute extracts the
-value of the checked flag, and returns it as a message.
+value of the checked flag, and sends it as a message to the component
+`this` with the `reacl/send-message` function.
 
 That message eventually ends up in the `handle-message` function,
 which is expected to use `reacl/return` to construct a return value
@@ -139,48 +138,46 @@ Here's the todo application for managing a list of `to-do-item`s:
 	(defrecord Submit [])
 
 	(reacl/defclass to-do-app
-	  todos []
+	  this todos local-state []
 	  render
-	  (fn [& {:keys [local-state instantiate message-handler]}]
-		(dom/div
-		 (dom/h3 "TODO")
-		 (dom/div (map-indexed (fn [i todo]
-								 (dom/keyed (str i) (instantiate to-do-item (lens/at-index i))))
-							   todos))
-		 (dom/form
-		  {:onSubmit (message-handler
-					  (fn [e _]
-						(.preventDefault e)
-						(Submit.)))}
-		  (dom/input {:onChange (message-handler
-								 (fn [e]
-								   (New-text. (.. e -target -value))))
-					  :value local-state})
-		  (dom/button
-		   (str "Add #" (+ (count todos) 1))))))
+	  (dom/div
+	   (dom/h3 "TODO")
+	   (dom/div (map-indexed (fn [i todo]
+							   (dom/keyed (str i) (reacl/instantiate to-do-item this (lens/at-index i))))
+							 todos))
+	   (dom/form
+		{:onSubmit (fn [e _]
+					 (.preventDefault e)
+					 (reacl/send-message! this (Submit.)))}
+		(dom/input {:onChange (fn [e]
+								(reacl/send-message! this
+													 (New-text. (.. e -target -value))))
+					:value local-state})
+		(dom/button
+		 (str "Add #" (+ (count todos) 1)))))
 
 	  initial-state ""
 
 	  handle-message
-	  (fn [msg local-state]
+	  (fn [msg]
 		(cond
 		 (instance? New-text msg)
 		 (reacl/return :local-state (:text msg))
 
 		 (instance? Submit msg)
 		 (reacl/return :local-state ""
-					   :app-state (concat todos [(Todo. local-state false)])))))
-
-Since this component will need to instantiate `to-do-item`
-subcomponent, it binds `instantiate` in the render method.  Moreover,
-to help React identify the individual to-do items in the list, it uses
+					   :app-state (concat todos [(Todo. local-state
+					   false)])))))
+				   
+To help React identify the individual to-do items in the list, it uses
 a list of `dom/keyed` elements that attach string keys to the
 individual items.
 
 This component supports two different user actions: By typing, the
 user submits a new description for the to-do item in progress.  That
 encoded with a `New-text` message.  Also, the user can press return or
-press the `Add` button, which submits the current to-do item.
+press the `Add` button, which submits the current to-do item.  The
+event handlers for these actions send these objects as messages.
 
 This component does have a component state, namely the description of
 the to-do item that's being entered.  `initial-state` specifies it as

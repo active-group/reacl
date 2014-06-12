@@ -9,7 +9,7 @@ Your `project.clj` should contain something like this:
 
 	  :dependencies [[org.clojure/clojure "1.6.0"]
 					 [org.clojure/clojurescript "0.0-2173" :scope "provided"]
-					 [reacl "0.2.0"]]
+					 [reacl "0.3.0"]]
 
 ## Model
 

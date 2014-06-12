@@ -166,8 +166,7 @@ Here's the todo application for managing a list of `to-do-item`s:
 
 		 (instance? Submit msg)
 		 (reacl/return :local-state ""
-					   :app-state (concat todos [(Todo. local-state
-					   false)])))))
+					   :app-state (concat todos [(Todo. local-state false)])))))
 				   
 To help React identify the individual to-do items in the list, it uses
 a list of `dom/keyed` elements that attach string keys to the

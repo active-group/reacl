@@ -189,7 +189,7 @@ appended.
 
 That's it.  Hopefully that's enough to get you started.  Be sure to
 also check out the [`products` example](examples/products/core.cljs)
-or the [`comments´ example](examples/comments/core.cljs)
+or the [`comments` example](examples/comments/core.cljs)
 
 ## License
 

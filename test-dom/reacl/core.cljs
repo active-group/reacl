@@ -34,6 +34,12 @@
   [dom]
   (js/React.renderComponentToStaticMarkup dom))
 
+(defn instantiate&mount
+  [clazz app-state & args]
+  (let [preview (apply reacl/instantiate-toplevel clazz app-state args)
+        div (js/document.createElement "div")]
+    (js/React.renderComponent preview div)))
+
 (deftest dom
   (let [d (dom/h1 "Hello, world!")]
     (is (= "<h1>Hello, world!</h1>"
@@ -47,8 +53,6 @@
            (render-to-text item)))))
 
 (deftest handle-message-simple
-  (let [div (js/document.createElement "div")
-        preview (reacl/instantiate-toplevel to-do-item (Todo. "foo" false) lens/id)
-        item (js/React.renderComponent preview div)]
+  (let [item (instantiate&mount to-do-item (Todo. "foo" false) lens/id)]
     (let [[app-state _] (reacl/handle-message->state item true)]
       (is (= app-state (Todo. "foo" true))))))

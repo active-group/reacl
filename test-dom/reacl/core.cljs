@@ -34,6 +34,7 @@
   [dom]
   (js/React.renderComponentToStaticMarkup dom))
 
+; see http://stackoverflow.com/questions/22463156/updating-react-component-state-in-jasmine-test
 (defn instantiate&mount
   [clazz app-state & args]
   (let [preview (apply reacl/instantiate-toplevel clazz app-state args)

@@ -34,7 +34,7 @@
 
   <name> is a name for the class, for debugging purposes.
 
-  A number of names are bound in the varioous expressions in the body
+  A number of names are bound in the various expressions in the body
   of reacl.core/class:
 
   - <this-name> is bound to the component object itself
@@ -76,7 +76,7 @@
     this todos local-state []
     render
     (dom/div
-     (dom/h3 "TODO")
+     (dom/h3 \"TODO\")
      (dom/div (map-indexed (fn [i todo]
 			     (dom/keyed (str i) (reacl/instantiate to-do-item this (lens/at-index i))))
 			   todos))
@@ -89,9 +89,9 @@
 						   (New-text. (.. e -target -value))))
 		  :value local-state})
       (dom/button
-       (str "Add #" (+ (count todos) 1)))))
+       (str \"Add #\" (+ (count todos) 1)))))
 
-    initial-state ""
+    initial-state \"\"
 
     handle-message
     (fn [msg]
@@ -100,7 +100,7 @@
        (reacl/return :local-state (:text msg))
 
        (instance? Submit msg)
-       (reacl/return :local-state ""
+       (reacl/return :local-state \"\"
 		     :app-state (concat todos [(Todo. local-state false)])))))"
   [?name & ?stuff]
 

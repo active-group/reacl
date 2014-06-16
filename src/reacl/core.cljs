@@ -78,33 +78,54 @@
   [this]
   (.. this -props -reacl_channel))
 
+(defrecord ApplicationState
+    [state])
+  
 (defn instantiate
   "Internal function to instantiate a Reacl component.
 
-   `clazz' is the Reacl class.
-   `component' is the component from which the Reacl component is instantiated
-   `app-state' is the app-state.
-   `args` are the arguments to the component."
-  [clazz component & args]
-  (clazz #js {:reacl_top_level (constantly (extract-toplevel component))
-              :reacl_app_state (extract-app-state component)
-              :reacl_args args
-              :reacl_channel (chan)}))
+  `clazz' is the Reacl class.
+  `component-or-app-state' is the component from which the Reacl component is instantiated,
+                           or an ApplicationState object with the application state
+                           when it's at the top level.
+  `args` are the arguments to the component."
+  [clazz component-or-app-state & args]
+  (if (instance? ApplicationState component-or-app-state)
+    (let [app-state (:state component-or-app-state)
+          placeholder (atom nil)
+          component (clazz #js {:reacl_top_level (fn [] @placeholder)
+                                :reacl_app_state app-state
+                                :reacl_args args
+                                :reacl_channel (chan)})]
+      (reset! placeholder component)
+      component)
+    (let [component component-or-app-state]
+      (clazz #js {:reacl_top_level (constantly (extract-toplevel component))
+                  :reacl_app_state (extract-app-state component)
+                  :reacl_args args
+                  :reacl_channel (chan)})))) 
 
 (defn instantiate-toplevel
   "Instantiate a Reacl component at the top level.
 
-   `clazz' is the Reacl class.
-   `app-state' is the app-state.
-   `args` are the arguments to the component."
+  `clazz' is the Reacl class.
+  `app-state' is the application state
+  `args` are the arguments to the component."
+
   [clazz app-state & args]
-  (let [placeholder (atom nil)
-        component (clazz #js {:reacl_top_level (fn [] @placeholder)
-                              :reacl_app_state app-state
-                              :reacl_args args
-                              :reacl_channel (chan)})] ; FIXME: abstract over this and instantiate
-    (reset! placeholder component)
-    component))
+  (apply clazz (ApplicationState. app-state) args))
+
+(defn render-component
+  "Instantiate and render a component into the DOM.
+
+  - `element' is the DOM element
+  - `clazz` is the Reacl clazz
+  - `app-state' is the application state
+  - `args' are the arguments of the component."
+  [element clazz app-state & args]
+  (js/React.renderComponent
+   (apply instantiate-toplevel clazz app-state args)
+   element))
 
 (defrecord State
     ^{:doc "Composite object for app state and local state.

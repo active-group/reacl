@@ -43,10 +43,8 @@ state.
 
 The key to tying these aspects together are the `reacl.core/defclass`
 macro for defining a Reacl class (just a React component class, but
-implementing Reacl's internal protocols), as the
-`reacl.core/instantiate` function for making a component object from a
-class, and the `reacl.core/send-message!` for sending a message to a
-component.
+implementing Reacl's internal protocols), and the
+`reacl.core/send-message!` for sending a message to a component.
 
 In addition to this core model, Reacl also provides a convenience
 layer on React's virtual dom (which can be used independently), as
@@ -143,7 +141,7 @@ Here's the todo application for managing a list of `to-do-item`s:
 	  (dom/div
 	   (dom/h3 "TODO")
 	   (dom/div (map-indexed (fn [i todo]
-							   (dom/keyed (str i) (reacl/instantiate to-do-item this (lens/at-index i))))
+							   (dom/keyed (str i) (to-do-item this (lens/at-index i))))
 							 todos))
 	   (dom/form
 		{:onSubmit (fn [e _]
@@ -171,6 +169,10 @@ Here's the todo application for managing a list of `to-do-item`s:
 To help React identify the individual to-do items in the list, it uses
 a list of `dom/keyed` elements that attach string keys to the
 individual items.
+
+Each to-do-item is instantiated by calling the class as a function,
+with the component that is instantiating (the "parent" component) as
+its first argument followed by the class arguments.
 
 This component supports two different user actions: By typing, the
 user submits a new description for the to-do item in progress.  That

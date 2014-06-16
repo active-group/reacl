@@ -76,13 +76,13 @@
   this products local-state []
   render
   (dom/div
-   (reacl/instantiate search-bar this
-                      (:filter-text local-state)
-                      (:in-stock-only local-state)
-                      handle-user-input)
-   (reacl/instantiate product-table this
-                      (:filter-text local-state)
-                      (:in-stock-only local-state)))
+   (search-bar this
+               (:filter-text local-state)
+               (:in-stock-only local-state)
+               handle-user-input)
+   (product-table this
+                  (:filter-text local-state)
+                  (:in-stock-only local-state)))
   initial-state
   {:filter-text ""
    :in-stock-only false}
@@ -102,6 +102,6 @@
    {:category "Electronics" :price "$399.99" :stocked false :name "iPhone 5"}
    {:category "Electronics" :price "$199.99" :stocked true :name "Nexus 7"}])
 
-(js/React.renderComponent
- (reacl/instantiate-toplevel filterable-product-table products)
- (.getElementById js/document "content"))
+(reacl/render-component
+ (.getElementById js/document "content")
+ filterable-product-table products)

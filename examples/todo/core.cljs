@@ -35,7 +35,7 @@
   (dom/div
    (dom/h3 "TODO")
    (dom/div (map-indexed (fn [i todo]
-                           (dom/keyed (str i) (reacl/instantiate to-do-item this (lens/at-index i))))
+                           (dom/keyed (str i) (to-do-item this (lens/at-index i))))
                          todos))
    (dom/form
     {:onSubmit (fn [e _]
@@ -60,6 +60,6 @@
      (reacl/return :local-state ""
                    :app-state (concat todos [(Todo. local-state false)])))))
 
-(js/React.renderComponent
- (reacl/instantiate-toplevel to-do-app [])
- (.getElementById js/document "content"))
+(reacl/render-component
+ (.getElementById js/document "content")
+ to-do-app [])

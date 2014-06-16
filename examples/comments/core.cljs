@@ -47,7 +47,7 @@
   render
   (let [comments (lens/yank app-state lens)
         nodes (map-indexed (fn [i _]
-                             (dom/keyed (str i) (reacl/instantiate comment this (lens/in lens (lens/at-index i)))))
+                             (dom/keyed (str i) (comment this (lens/in lens (lens/at-index i)))))
                            comments)]
     (dom/div {:className "commentList"}
              nodes)))
@@ -57,7 +57,7 @@
   render
   (dom/div {:className "commentBox"}
            (dom/h1 "Comments")
-           (reacl/instantiate comment-list this lens))
+           (comment-list this lens))
   handle-message
   (fn [msg]
     (let [new-comments
@@ -76,6 +76,6 @@
       (refresh)
       (js/setInterval refresh 2000))))
 
-(js/React.renderComponent
- (reacl/instantiate-toplevel comment-box [] lens/id)
- (.getElementById js/document "content"))
+(reacl/render-component
+ (.getElementById js/document "content")
+ comment-box [] lens/id)

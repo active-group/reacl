@@ -76,7 +76,16 @@
 
   For internal use."
   [this]
-  (.. this -props -reacl_channel))
+  (.. this -state -reacl_channel))
+
+(defn initialize-channel!
+  "Set Reacl channel of a component, returning it.
+
+   For internal use."
+  [this]
+  (let [c (chan)]
+    (.setState this #js {:reacl_channel c})
+    c))
 
 (defrecord ApplicationState
     [state])
@@ -95,15 +104,13 @@
           placeholder (atom nil)
           component (clazz #js {:reacl_top_level (fn [] @placeholder)
                                 :reacl_app_state app-state
-                                :reacl_args args
-                                :reacl_channel (chan)})]
+                                :reacl_args args})]
       (reset! placeholder component)
       component)
     (let [component component-or-app-state]
       (clazz #js {:reacl_top_level (constantly (extract-toplevel component))
                   :reacl_app_state (extract-app-state component)
-                  :reacl_args args
-                  :reacl_channel (chan)})))) 
+                  :reacl_args args})))) 
 
 (defn instantiate-toplevel
   "Instantiate a Reacl component at the top level.
@@ -228,11 +235,10 @@
 
   This accepts a component and a message handler, and creates an event
   handler suitable for sticking into the DOM."
-  [comp]
-  (let [c (extract-channel comp)]
-    (go
-      (loop []
-        (let [msg (<! c)]
-          (let [st (handle-message comp msg)]
-            (set-state! comp st)
-            (recur)))))))
+  [comp c]
+  (go
+    (loop []
+      (let [msg (<! c)]
+        (let [st (handle-message comp msg)]
+          (set-state! comp st)
+          (recur))))))

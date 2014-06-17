@@ -203,7 +203,8 @@
                                                              (cljs.core/this-as
                                                               ~?this
                                                               (do
-                                                                (reacl.core/message-processor ~?this)
+                                                                (let [ch# (reacl.core/initialize-channel! ~?this)]
+                                                                  (reacl.core/message-processor ~?this ch#))
                                                                 ;; if there is a component-will-mount clause, tack it on
                                                                 ~@(if-let [?will-mount (get clause-map 'component-will-mount)]
                                                                     [`(~(wrap-args&locals ?this ?will-mount) ~?this)]

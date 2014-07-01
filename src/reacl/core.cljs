@@ -50,6 +50,13 @@
   [this]
   ((.. this -props -reacl_top_level)))
 
+(defn set-toplevel!
+  "Extract toplevel component of a Reacl component.
+
+   For internal use."
+  [this toplevel]
+  ((.. this -props -reacl_top_level) toplevel))
+
 (defn set-app-state!
   "Set the application state associated with a Reacl component.
 
@@ -102,10 +109,14 @@
   (if (instance? ApplicationState component-or-app-state)
     (let [app-state (:state component-or-app-state)
           placeholder (atom nil)
-          component (clazz #js {:reacl_top_level (fn [] @placeholder)
+          component (clazz #js {:reacl_top_level (fn 
+                                                   ;; get
+                                                   ([] @placeholder)
+                                                   ;; set
+                                                   ([toplevel]
+                                                      (reset! placeholder toplevel)))
                                 :reacl_app_state app-state
                                 :reacl_args args})]
-      (reset! placeholder component)
       component)
     (let [component component-or-app-state]
       (clazz #js {:reacl_top_level (constantly (extract-toplevel component))
@@ -130,9 +141,12 @@
   - `app-state' is the application state
   - `args' are the arguments of the component."
   [element clazz app-state & args]
-  (js/React.renderComponent
-   (apply instantiate-toplevel clazz app-state args)
-   element))
+  (let [instance
+        (js/React.renderComponent
+         (apply instantiate-toplevel clazz app-state args)
+         element)]
+    (set-toplevel! instance instance)
+    instance))
 
 (defrecord State
     ^{:doc "Composite object for app state and local state.

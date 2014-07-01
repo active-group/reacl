@@ -56,7 +56,7 @@
                           :optimizations :whitespace}}]
    ;; React needs global binding to function, see
    ;; http://augustl.com/blog/2014/jdk8_react_rendering_on_server/
-   :test-commands {"nashorn" ["jrunscript" "-e" "var global = this" "-f" "target/test-nodom.js" "-f" :nashorn-runner]
+   :test-commands {"nashorn" ["jrunscript" "-e" "var global = this" "-f" :nashorn-runner "target/test-nodom.js"]
                    "phantom" ["phantomjs" :runner 
                               "window.literal_js_executed=true"
                               "test/vendor/es5-shim.js"

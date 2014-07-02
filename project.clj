@@ -9,7 +9,7 @@
   :dependencies [[org.clojure/clojure "1.6.0"]
                  [org.clojure/clojurescript "0.0-2173" :scope "provided"]
                  [org.clojure/core.async "0.1.303.0-886421-alpha" :scope "provided"]
-                 [com.facebook/react "0.10.0.0-SNAPSHOT"]]
+                 [com.facebook/react "0.10.0"]]
 
   :plugins [[lein-cljsbuild "1.0.2"]
             ;; NB: This needs a version of clojurescript.test with the Nashorn runner,

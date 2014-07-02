@@ -119,9 +119,9 @@
                                 :reacl_args args})]
       component)
     (let [component component-or-app-state]
-      (clazz #js {:reacl_top_level (constantly (extract-toplevel component))
+      (clazz #js {:reacl_top_level (fn [] (extract-toplevel component))
                   :reacl_app_state (extract-app-state component)
-                  :reacl_args args})))) 
+                  :reacl_args args}))))
 
 (defn instantiate-toplevel
   "Instantiate a Reacl component at the top level.

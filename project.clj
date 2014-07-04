@@ -9,7 +9,7 @@
   :dependencies [[org.clojure/clojure "1.6.0"]
                  [org.clojure/clojurescript "0.0-2173" :scope "provided"]
                  [org.clojure/core.async "0.1.303.0-886421-alpha" :scope "provided"]
-                 [com.facebook/react "0.10.0"]]
+                 [com.facebook/react "0.10.0.1"]]
 
   :plugins [[lein-cljsbuild "1.0.2"]
             ;; NB: This needs a version of clojurescript.test with the Nashorn runner,
@@ -25,12 +25,14 @@
               :compiler {:preamble ["react/react_with_addons.js"] ; TestUtils aren't in minified version
                          :output-to "target/test-nodom.js"
                          :optimizations :whitespace
+                         :externs ["react/externs/react.js"]
                          :pretty-print true}}
              {:id "test-dom"
               :source-paths ["src" "test-dom"]
               :compiler {:preamble ["react/react_with_addons.js"] ; TestUtils aren't in minified version
                          :output-to "target/test-dom.js"
                          :optimizations :whitespace
+                         :externs ["react/externs/react.js"]
                          :pretty-print true}}
               ;; examples
               {:id "products"
@@ -39,6 +41,7 @@
                           :output-to "examples/products/main.js"
                           :output-dir "examples/products/out"
                           :source-map "examples/products/main.map"
+                          :externs ["react/externs/react.js"]
                           :optimizations :whitespace}}
               {:id "todo"
                :source-paths ["src" "examples/todo"]
@@ -46,6 +49,7 @@
                           :output-to "examples/todo/main.js"
                           :output-dir "examples/todo/out"
                           :source-map "examples/todo/main.map"
+                          :externs ["react/externs/react.js"]
                           :optimizations :whitespace}}
               {:id "comments"
                :source-paths ["src" "examples/comments"]
@@ -53,6 +57,7 @@
                           :output-to "examples/comments/main.js"
                           :output-dir "examples/comments/out"
                           :source-map "examples/comments/main.map"
+                          :externs ["react/externs/react.js"]
                           :optimizations :whitespace}}]
    ;; React needs global binding to function, see
    ;; http://augustl.com/blog/2014/jdk8_react_rendering_on_server/

@@ -57,3 +57,17 @@
   (let [item (instantiate&mount to-do-item (Todo. "foo" false) lens/id)]
     (let [[app-state _] (reacl/handle-message->state item true)]
       (is (= app-state (Todo. "foo" true))))))
+
+(reacl/defclass foo
+  this app-state [bar]
+  local [baz (+ bar 15)
+         bla (+ baz 7)]
+  render
+  (dom/div (str baz) (str bla)))
+
+(deftest locals-sequential
+  (let [item (reacl/instantiate-toplevel foo 12)]
+    (is (= "<div>27 34</div>")
+        (render-to-text item))))
+
+  

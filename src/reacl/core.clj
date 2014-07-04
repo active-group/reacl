@@ -123,7 +123,8 @@
                  ~?app-state (reacl.core/extract-app-state ~?this)
                  [~@?args] (reacl.core/extract-args ~?this)] ; FIXME: what if empty?
              ~@?body))
-        ?locals-clauses (partition 2 (get clause-map 'local []))
+        ?locals-clauses (get clause-map 'local [])
+        ?locals-ids (map first (partition 2 ?locals-clauses))
         ?initial-state (let [?state-expr (get clause-map 'initial-state)]
                           (if (or ?state-expr (not (empty? ?locals-clauses)))
                             (let [?this `this#]
@@ -132,15 +133,16 @@
                                   ~?this
                                   ~(wrap-args 
                                     ?this
-                                    `(reacl.core/make-local-state [~@(map second ?locals-clauses)]
-                                                                  ~(or ?state-expr `nil))))))
+                                    `(let ~?locals-clauses
+                                       (reacl.core/make-local-state [~@?locals-ids]
+                                                                    ~(or ?state-expr `nil)))))))
                             `(fn [] (reacl.core/make-local-state nil nil))))
 
         wrap-args&locals
         (fn [?this & ?body]
           (wrap-args ?this
                      `(let [~?local-state (reacl.core/extract-local-state ~?this)
-                            [~@(map first ?locals-clauses)] (reacl.core/extract-locals ~?this)]
+                            [~@?locals-ids] (reacl.core/extract-locals ~?this)]
                         ~@?body)))
 
         misc (filter (fn [e]

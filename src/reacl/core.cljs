@@ -34,28 +34,29 @@
 
    For internal use."
   [this]
-  (.. this -state -reacl_local_state))
+  ; otherweise Closure :advanced screws it up
+  (aget (.-state this) "reacl_local_state")) 
 
 (defn extract-app-state
   "Extract applications state from a Reacl component.
 
    For internal use."
   [this]
-  (.. this -props -reacl_app_state))
+  (aget (.-props this) "reacl_app_state"))
 
 (defn extract-toplevel
   "Extract toplevel component of a Reacl component.
 
    For internal use."
   [this]
-  ((.. this -props -reacl_top_level)))
+  ((aget (.-props this) "reacl_top_level")))
 
 (defn set-toplevel!
   "Extract toplevel component of a Reacl component.
 
    For internal use."
   [this toplevel]
-  ((.. this -props -reacl_top_level) toplevel))
+  ((aget (.-props this) "reacl_top_level") toplevel))
 
 (defn set-app-state!
   "Set the application state associated with a Reacl component.
@@ -69,21 +70,21 @@
 
    For internal use."
   [this]
-  (.. this -props -reacl_args))
+  (aget (.-props this) "reacl_args"))
 
 (defn extract-locals
   "Get the local bindings for a component.
 
    For internal use."
   [this]
-  (.. this -state -reacl_locals))
+  (aget (.-state this) "reacl_locals"))
 
 (defn extract-channel
   "Get the component channel for a component
 
   For internal use."
   [this]
-  (.. this -state -reacl_channel))
+  (aget (.-state this) "reacl_channel"))
 
 (defn initialize-channel!
   "Set Reacl channel of a component, returning it.
@@ -107,7 +108,7 @@
   `args` are the arguments to the component."
   [clazz component-or-app-state & args]
   (if (instance? ApplicationState component-or-app-state)
-    (let [app-state (:state component-or-app-state)
+    (let [app-state (.-state component-or-app-state)
           placeholder (atom nil)
           component (clazz #js {:reacl_top_level (fn 
                                                    ;; get
@@ -228,7 +229,7 @@
 
   This returns a State object."
   [comp msg]
-  (.__handleMessage comp msg))
+  ((aget comp "__handleMessage") msg))
 
 (defn handle-message->state
   "Handle a message for a Reacl component.

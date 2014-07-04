@@ -42,7 +42,7 @@
 
    For internal use."
   [this]
-  (aget (.-props this) "reacl_app_state"))
+  ((aget (.-props this) "reacl_app_state_fn")))
 
 (defn extract-toplevel
   "Extract toplevel component of a Reacl component.
@@ -63,7 +63,7 @@
 
    For internal use."
   [this app-state]
-  (.setProps (extract-toplevel this)  #js {:reacl_app_state app-state}))
+  ((aget (.-props this) "reacl_app_state_fn") app-state))
 
 (defn extract-args
   "Get the component args for a component.
@@ -97,7 +97,15 @@
 
 (defrecord ApplicationState
     [state])
-  
+
+(defn- make-app-state-fn-prop
+  [toplevel-atom app-state]
+  (fn
+    ([] app-state)
+    ([new-app-state]
+       (.setProps @toplevel-atom 
+                  #js {:reacl_app_state_fn (make-app-state-fn-prop toplevel-atom new-app-state)}))))
+
 (defn instantiate
   "Internal function to instantiate a Reacl component.
 
@@ -109,19 +117,13 @@
   [clazz component-or-app-state & args]
   (if (instance? ApplicationState component-or-app-state)
     (let [app-state (.-state component-or-app-state)
-          placeholder (atom nil)
-          component (clazz #js {:reacl_top_level (fn 
-                                                   ;; get
-                                                   ([] @placeholder)
-                                                   ;; set
-                                                   ([toplevel]
-                                                      (reset! placeholder toplevel)))
-                                :reacl_app_state app-state
+          toplevel-atom (atom nil)
+          component (clazz #js {:reacl_toplevel_atom toplevel-atom ;; NB: only to be used by render-component
+                                :reacl_app_state_fn (make-app-state-fn-prop toplevel-atom app-state)
                                 :reacl_args args})]
       component)
     (let [component component-or-app-state]
-      (clazz #js {:reacl_top_level (fn [] (extract-toplevel component))
-                  :reacl_app_state (extract-app-state component)
+      (clazz #js {:reacl_app_state_fn (aget (.-props component) "reacl_app_state_fn")
                   :reacl_args args}))))
 
 (defn instantiate-toplevel
@@ -146,7 +148,7 @@
         (js/React.renderComponent
          (apply instantiate-toplevel clazz app-state args)
          element)]
-    (set-toplevel! instance instance)
+    (reset! (aget (.-props instance) "reacl_toplevel_atom") instance)
     instance))
 
 (defrecord State

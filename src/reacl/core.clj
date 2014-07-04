@@ -212,8 +212,15 @@
                                                                     [`(~(wrap-args&locals ?this ?will-mount) ~?this)]
                                                                     [])))))]
                                                        [])))]
-       (fn [component# & args#]
-         (apply reacl.core/instantiate clazz# component# args#)))))
+       (reify
+         cljs.core/IFn
+         (~'-invoke [this# component# & args#]
+           (-instantiate this# component# args#))
+         reacl.core/IReaclClass
+         (~'-instantiate [this# component# args#]
+           (reacl.core/instantiate-internal clazz# component# args#))
+         (~'-instantiate-toplevel [this# app-state# args#]
+           (reacl.core/instantiate-toplevel-internal clazz# app-state# args#))))))
 
 (defmacro defclass
   "Define a Reacl class.

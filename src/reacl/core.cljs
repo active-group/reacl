@@ -98,6 +98,10 @@
 (defrecord ApplicationState
     [state])
 
+(defprotocol IReaclClass
+  (-instantiate [clazz component args])
+  (-instantiate-toplevel [clazz app-state args]))
+
 (defn- make-app-state-fn-prop
   [toplevel-atom app-state]
   (fn
@@ -106,25 +110,27 @@
        (.setProps @toplevel-atom 
                   #js {:reacl_app_state_fn (make-app-state-fn-prop toplevel-atom new-app-state)}))))
 
-(defn instantiate
+(defn instantiate-internal
   "Internal function to instantiate a Reacl component.
 
-  `clazz' is the Reacl class.
-  `component-or-app-state' is the component from which the Reacl component is instantiated,
-                           or an ApplicationState object with the application state
-                           when it's at the top level.
+  `clazz' is the React class (not the Reacl class ...).
+  `component' is the component from which the Reacl component is instantiated.
   `args` are the arguments to the component."
-  [clazz component-or-app-state & args]
-  (if (instance? ApplicationState component-or-app-state)
-    (let [app-state (.-state component-or-app-state)
-          toplevel-atom (atom nil)
-          component (clazz #js {:reacl_toplevel_atom toplevel-atom ;; NB: only to be used by render-component
-                                :reacl_app_state_fn (make-app-state-fn-prop toplevel-atom app-state)
-                                :reacl_args args})]
-      component)
-    (let [component component-or-app-state]
-      (clazz #js {:reacl_app_state_fn (aget (.-props component) "reacl_app_state_fn")
-                  :reacl_args args}))))
+  [clazz component args]
+  (clazz #js {:reacl_app_state_fn (aget (.-props component) "reacl_app_state_fn")
+              :reacl_args args}))
+
+(defn instantiate-toplevel-internal
+  "Internal function to instantiate a Reacl component.
+
+  `clazz' is the React class (not the Reacl class ...).
+  `state' is the  application state.
+  `args` are the arguments to the component."
+  [clazz app-state args]
+  (let [toplevel-atom (atom nil)]
+    (clazz #js {:reacl_toplevel_atom toplevel-atom ;; NB: only to be used by render-component
+                :reacl_app_state_fn (make-app-state-fn-prop toplevel-atom app-state)
+                :reacl_args args})))
 
 (defn instantiate-toplevel
   "Instantiate a Reacl component at the top level.
@@ -134,7 +140,7 @@
   `args` are the arguments to the component."
 
   [clazz app-state & args]
-  (apply clazz (ApplicationState. app-state) args))
+  (-instantiate-toplevel clazz app-state args))
 
 (defn render-component
   "Instantiate and render a component into the DOM.

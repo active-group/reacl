@@ -14,14 +14,6 @@
       (recur (nnext clmp)
              (concat args [(name (first clmp)) (second clmp)])))))
 
-(defn make-local-state
-  "Make a React state containing Reacl local variables and local state.
-
-   For internal use."
-  [locals state]
-  #js {:reacl_locals locals
-       :reacl_local_state state})
-
 (defn set-local-state!
   "Set Reacl local state of a component.
 
@@ -42,7 +34,7 @@
 
    For internal use."
   [this]
-  ((aget (.-props this) "reacl_app_state_fn")))
+  ((aget (.-state this) "reacl_app_state_fn")))
 
 (defn extract-toplevel
   "Extract toplevel component of a Reacl component.
@@ -63,7 +55,7 @@
 
    For internal use."
   [this app-state]
-  ((aget (.-props this) "reacl_app_state_fn") app-state))
+  ((aget (.-state this) "reacl_app_state_fn") app-state))
 
 (defn extract-args
   "Get the component args for a component.
@@ -107,17 +99,37 @@
   (fn
     ([] app-state)
     ([new-app-state]
-       (.setProps @toplevel-atom 
+       (.setState @toplevel-atom 
                   #js {:reacl_app_state_fn (make-app-state-fn-prop toplevel-atom new-app-state)}))))
+
+(defn make-local-state
+  "Make a React state containing Reacl local variables and local state.
+
+   For internal use."
+  [this locals local-state]
+  (let [props (.-props this)
+        toplevel-atom (aget props "reacl_toplevel_atom")
+        state (.-state this)]
+    #js {:reacl_locals locals
+         :reacl_app_state_fn (if (nil? toplevel-atom)
+                               ;; not toplevel: get the app-state fn from the parent
+                               (aget (.-state (aget props "reacl_parent")) "reacl_app_state_fn")
+                               ;; toplevel: create app-state fn afresh
+                               (let [app-state-atom (aget props "reacl_initial_app_state_atom")
+                                     app-state-fn (make-app-state-fn-prop toplevel-atom @app-state-atom)]
+                                 (reset! app-state-atom nil) ; GC
+                                 app-state-fn))
+         :reacl_local_state state}))
 
 (defn instantiate-internal
   "Internal function to instantiate a Reacl component.
 
   `clazz' is the React class (not the Reacl class ...).
-  `component' is the component from which the Reacl component is instantiated.
+  `parent' is the component from which the Reacl component is instantiated.
   `args` are the arguments to the component."
-  [clazz component args]
-  (clazz #js {:reacl_app_state_fn (aget (.-props component) "reacl_app_state_fn")
+  [clazz parent args]
+  (clazz #js {:reacl_toplevel_atom nil
+              :reacl_parent parent
               :reacl_args args}))
 
 (defn instantiate-toplevel-internal
@@ -127,9 +139,10 @@
   `state' is the  application state.
   `args` are the arguments to the component."
   [clazz app-state args]
-  (let [toplevel-atom (atom nil)]
+  (let [toplevel-atom (atom nil)
+        initial-app-state-atom (atom app-state)]
     (clazz #js {:reacl_toplevel_atom toplevel-atom ;; NB: only to be used by render-component
-                :reacl_app_state_fn (make-app-state-fn-prop toplevel-atom app-state)
+                :reacl_initial_app_state_atom initial-app-state-atom
                 :reacl_args args})))
 
 (defn instantiate-toplevel

@@ -126,17 +126,21 @@
         ?locals-clauses (get clause-map 'local [])
         ?locals-ids (map first (partition 2 ?locals-clauses))
         ?initial-state (let [?state-expr (get clause-map 'initial-state)]
+                         (let [?this `this#]
                           (if (or ?state-expr (not (empty? ?locals-clauses)))
-                            (let [?this `this#]
                               `(fn [] 
                                  (cljs.core/this-as
                                   ~?this
                                   ~(wrap-args 
                                     ?this
                                     `(let ~?locals-clauses
-                                       (reacl.core/make-local-state [~@?locals-ids]
+                                       (reacl.core/make-local-state ~?this
+                                                                    [~@?locals-ids]
                                                                     ~(or ?state-expr `nil)))))))
-                            `(fn [] (reacl.core/make-local-state nil nil))))
+                            `(fn [] 
+                               (cljs.core/this-as
+                                ~?this
+                                (reacl.core/make-local-state ~?this nil nil)))))
 
         wrap-args&locals
         (fn [?this & ?body]

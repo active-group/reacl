@@ -117,37 +117,33 @@
         [[& ?args] & ?clauses] ?stuff
 
         clause-map (apply hash-map ?clauses)
-        wrap-args
-        (fn [?this & ?body]
-          `(let [~?component ~?this ; FIXME: instead bind ?component directly
-                 ~?app-state (reacl.core/extract-app-state ~?this)
-                 [~@?args] (reacl.core/extract-args ~?this)] ; FIXME: what if empty?
-             ~@?body))
         ?locals-clauses (get clause-map 'local [])
         ?locals-ids (map first (partition 2 ?locals-clauses))
         ?initial-state (let [?state-expr (get clause-map 'initial-state)]
                          (let [?this `this#]
-                          (if (or ?state-expr (not (empty? ?locals-clauses)))
-                              `(fn [] 
-                                 (cljs.core/this-as
-                                  ~?this
-                                  ~(wrap-args 
-                                    ?this
-                                    `(let ~?locals-clauses
-                                       (reacl.core/make-local-state ~?this
-                                                                    [~@?locals-ids]
-                                                                    ~(or ?state-expr `nil)))))))
-                            `(fn [] 
-                               (cljs.core/this-as
-                                ~?this
-                                (reacl.core/make-local-state ~?this nil nil)))))
-
+                           (if (or ?state-expr (not (empty? ?locals-clauses)))
+                             `(fn [] 
+                                (cljs.core/this-as
+                                 ~?this
+                                 (let [~?component ~?this ; FIXME: instead bind ?component directly
+                                       [~@?args] (reacl.core/extract-args ~?this) ; FIXME: what if empty?
+                                       ~?app-state (reacl.core/extract-initial-app-state-internal ~?this)
+                                       ~@?locals-clauses]
+                                   (reacl.core/make-local-state ~?this
+                                                                [~@?locals-ids]
+                                                                ~(or ?state-expr `nil)))))
+                             `(fn [] 
+                                (cljs.core/this-as
+                                 ~?this
+                                 (reacl.core/make-local-state ~?this nil nil))))))
         wrap-args&locals
         (fn [?this & ?body]
-          (wrap-args ?this
-                     `(let [~?local-state (reacl.core/extract-local-state ~?this)
-                            [~@?locals-ids] (reacl.core/extract-locals ~?this)]
-                        ~@?body)))
+          `(let [~?component ~?this ; FIXME: instead bind ?component directly
+                 ~?app-state (reacl.core/extract-app-state ~?this)
+                 [~@?args] (reacl.core/extract-args ~?this) ; FIXME: what if empty?
+                 ~?local-state (reacl.core/extract-local-state ~?this)
+                 [~@?locals-ids] (reacl.core/extract-locals ~?this)]
+             ~@?body))
 
         misc (filter (fn [e]
                        (not (contains? special-tags (key e))))
@@ -224,7 +220,10 @@
          (~'-instantiate [this# component# args#]
            (reacl.core/instantiate-internal clazz# component# args#))
          (~'-instantiate-toplevel [this# app-state# args#]
-           (reacl.core/instantiate-toplevel-internal clazz# app-state# args#))))))
+           (reacl.core/instantiate-toplevel-internal clazz# app-state# args#))
+         (~'-instantiate-embedded [this# app-state# app-state-callback# args#]
+           (reacl.core/instantiate-embedded-internal clazz# app-state# app-state-callback# args#))))))
+           
 
 (defmacro defclass
   "Define a Reacl class.

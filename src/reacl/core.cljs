@@ -87,20 +87,32 @@
     (.setState this #js {:reacl_channel c})
     c))
 
-(defrecord ApplicationState
-    [state])
-
 (defprotocol IReaclClass
   (-instantiate [clazz component args])
-  (-instantiate-toplevel [clazz app-state args]))
+  (-instantiate-toplevel [clazz app-state args])
+  (-instantiate-embedded [clazz app-state app-state-callback args]))
 
-(defn- make-app-state-fn-prop
+(defn- make-app-state-fn
+  "Make a function suitable for use as reacl_app_state_fn state field; for internal use."
   [toplevel-atom app-state]
   (fn
     ([] app-state)
     ([new-app-state]
-       (.setState @toplevel-atom 
-                  #js {:reacl_app_state_fn (make-app-state-fn-prop toplevel-atom new-app-state)}))))
+       (let [toplevel @toplevel-atom]
+       (.setState toplevel
+                  #js {:reacl_app_state_fn (make-app-state-fn toplevel-atom new-app-state)})
+       (if-let [callback (aget (.-props toplevel) "reacl_app_state_callback")]
+         (callback new-app-state))))))
+
+(defn extract-initial-app-state-internal
+  "Extract the initial app state at an early stage; for internal use."
+  [this]
+  (let [props (.-props this)
+        toplevel-atom (aget props "reacl_toplevel_atom")
+        state (.-state this)]
+    (if (nil? toplevel-atom)
+      ((aget (.-state (aget props "reacl_parent")) "reacl_app_state_fn"))
+      @(aget props "reacl_initial_app_state_atom"))))
 
 (defn make-local-state
   "Make a React state containing Reacl local variables and local state.
@@ -116,10 +128,10 @@
                                (aget (.-state (aget props "reacl_parent")) "reacl_app_state_fn")
                                ;; toplevel: create app-state fn afresh
                                (let [app-state-atom (aget props "reacl_initial_app_state_atom")
-                                     app-state-fn (make-app-state-fn-prop toplevel-atom @app-state-atom)]
+                                     app-state-fn (make-app-state-fn toplevel-atom @app-state-atom)]
                                  (reset! app-state-atom nil) ; GC
                                  app-state-fn))
-         :reacl_local_state state}))
+         :reacl_local_state local-state}))
 
 (defn instantiate-internal
   "Internal function to instantiate a Reacl component.
@@ -128,22 +140,35 @@
   `parent' is the component from which the Reacl component is instantiated.
   `args` are the arguments to the component."
   [clazz parent args]
-  (clazz #js {:reacl_toplevel_atom nil
-              :reacl_parent parent
+  (clazz #js {:reacl_parent parent
               :reacl_args args}))
 
 (defn instantiate-toplevel-internal
   "Internal function to instantiate a Reacl component.
 
   `clazz' is the React class (not the Reacl class ...).
-  `state' is the  application state.
+  `app-state' is the  application state.
   `args` are the arguments to the component."
   [clazz app-state args]
+  (clazz #js {:reacl_toplevel_atom (atom nil) ;; NB: set by render-component, consumed by make-local-state
+              :reacl_initial_app_state_atom (atom app-state)
+              :reacl_args args}))
+
+(defn instantiate-embedded-internal
+  "Internal function to instantiate an embedded Reacl component.
+
+  `clazz' is the React class (not the Reacl class ...).
+  `app-state' is the  application state.
+  `app-state-callback' is a function called with a new app state on changes.
+  `args` are the arguments to the component."
+  [clazz app-state app-state-callback args]
   (let [toplevel-atom (atom nil)
-        initial-app-state-atom (atom app-state)]
-    (clazz #js {:reacl_toplevel_atom toplevel-atom ;; NB: only to be used by render-component
-                :reacl_initial_app_state_atom initial-app-state-atom
-                :reacl_args args})))
+        component (clazz #js {:reacl_toplevel_atom toplevel-atom
+                              :reacl_initial_app_state_atom (atom app-state)
+                              :reacl_app_state_callback app-state-callback
+                              :reacl_args args})]
+    (reset! toplevel-atom component)
+    component))
 
 (defn instantiate-toplevel
   "Instantiate a Reacl component at the top level.
@@ -169,6 +194,20 @@
          element)]
     (reset! (aget (.-props instance) "reacl_toplevel_atom") instance)
     instance))
+
+(defn embed
+  "Embed a Reacl component.
+
+  This creates a component with its own application state that can be
+  embedded in a surrounding application.  Any changes to the app state 
+  lead to the callback being invoked.
+
+  `clazz' is the Reacl class.
+  `app-state' is the application state.
+  `app-state-callback' is a function called with a new app state on changes.
+  `args` are the arguments to the component."
+  [clazz app-state app-state-callback & args]
+  (-instantiate-embedded clazz app-state app-state-callback args))
 
 (defrecord State
     ^{:doc "Composite object for app state and local state.

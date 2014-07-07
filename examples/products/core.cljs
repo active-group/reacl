@@ -23,7 +23,7 @@
        (dom/td (str (:price product))))))
 
 (reacl/defclass product-table
-  this products [filter-text in-stock-only]
+  this products [filter-text in-stock-only?]
   render
   (let [rows
         (mapcat (fn [product last-product]
@@ -31,7 +31,7 @@
                     (if (or (= (. (:name product) indexOf filter-text)
                                -1)
                             (and (not (:stocked product))
-                                 in-stock-only))
+                                 in-stock-only?))
                       []
                       (let [prefix
                             (if (not= cat
@@ -47,52 +47,59 @@
        (dom/th "Price")))
      (dom/tbody rows))))
 
+(defrecord SearchParams
+    [filter-text
+     in-stock-only?])
+
+(defrecord NewFilterText [text])
+(defrecord NewInStockOnly [value])
+
 (reacl/defclass search-bar
-  this app-state [filter-text in-stock-only on-user-input]
+  this params []
   render
   (dom/letdom
    [textbox (dom/input
              {:type "text"
               :placeholder "Search..."
-              :value filter-text
-              :onChange (fn [e]
-                          (on-user-input
-                           (.-value (dom/dom-node this textbox))
-                           (.-checked (dom/dom-node this checkbox))))})
+              :value (:filter-text params)
+              :onChange (fn [_]
+                          (reacl/send-message! this (NewFilterText. (.-value (dom/dom-node this textbox)))))})
     checkbox (dom/input
               {:type "checkbox"
-               :value in-stock-only
-               :onChange (fn [e]
-                           (on-user-input
-                            (.-value (dom/dom-node this textbox))
-                            (.-checked (dom/dom-node this checkbox))))})]
+               :value (:in-stock-only params)
+               :onChange (fn [_]
+                          (reacl/send-message! this (NewInStockOnly. (.-checked (dom/dom-node this checkbox)))))})]
    (dom/form
     textbox
     (dom/p
      checkbox
-     "Only show products in stock"))))
+     "Only show products in stock")))
+
+  handle-message
+  (fn [msg]
+    (cond
+     (instance? NewFilterText msg)
+     (reacl/return :app-state (assoc params :filter-text (:text msg)))
+
+     (instance? NewInStockOnly msg)
+     (reacl/return :app-state (assoc params :in-stock-only? (:value msg))))))
 
 (reacl/defclass filterable-product-table
-  this products local-state []
+  this products search-params []
   render
   (dom/div
-   (search-bar this
-               (:filter-text local-state)
-               (:in-stock-only local-state)
-               handle-user-input)
+   (reacl/embed search-bar
+                search-params
+                #(reacl/send-message! this %))
    (product-table this
-                  (:filter-text local-state)
-                  (:in-stock-only local-state)))
-  initial-state
-  {:filter-text ""
-   :in-stock-only false}
+                  (:filter-text search-params)
+                  (:in-stock-only? search-params)))
+
+  initial-state (SearchParams. "" false)
   
-  handle-user-input
-  (reacl/event-handler
-   (fn [filter-text in-stock-only]
-     (reacl/return :local-state
-                   {:filter-text filter-text
-                    :in-stock-only in-stock-only}))))
+  handle-message
+  (fn [msg]
+    (reacl/return :local-state msg)))
 
 (def products
   [{:category "Sporting Goods" :price "$49.99" :stocked true :name "Football"}

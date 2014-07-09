@@ -27,35 +27,31 @@
    For internal use."
   [this]
   ; otherweise Closure :advanced screws it up
-  (aget (.-state this) "reacl_local_state")) 
-
-(defn extract-app-state
-  "Extract applications state from a Reacl component.
-
-   For internal use."
-  [this]
-  ((aget (.-state this) "reacl_app_state_fn")))
+  (aget (.-state this) "reacl_local_state"))
 
 (defn extract-toplevel
   "Extract toplevel component of a Reacl component.
 
    For internal use."
   [this]
-  ((aget (.-props this) "reacl_top_level")))
+  @(aget (.-props this) "reacl_toplevel_atom"))
 
-(defn set-toplevel!
-  "Extract toplevel component of a Reacl component.
+(defn extract-app-state
+  "Extract applications state from a Reacl component.
 
    For internal use."
-  [this toplevel]
-  ((aget (.-props this) "reacl_top_level") toplevel))
+  [this]
+  @(aget (.-props this) "reacl_app_state_atom"))
 
 (defn set-app-state!
   "Set the application state associated with a Reacl component.
 
    For internal use."
   [this app-state]
-  ((aget (.-state this) "reacl_app_state_fn") app-state))
+  (let [toplevel (extract-toplevel this)
+        app-state-atom (aget (.-props toplevel) "reacl_app_state_atom")]
+    (reset! app-state-atom app-state)
+    (.setState toplevel #js {:reacl_app_state app-state})))
 
 (defn extract-args
   "Get the component args for a component.
@@ -92,28 +88,6 @@
   (-instantiate-toplevel [clazz app-state args])
   (-instantiate-embedded [clazz app-state app-state-callback args]))
 
-(defn- make-app-state-fn
-  "Make a function suitable for use as reacl_app_state_fn state field; for internal use."
-  [toplevel-atom app-state]
-  (fn
-    ([] app-state)
-    ([new-app-state]
-       (let [toplevel @toplevel-atom]
-       (.setState toplevel
-                  #js {:reacl_app_state_fn (make-app-state-fn toplevel-atom new-app-state)})
-       (if-let [callback (aget (.-props toplevel) "reacl_app_state_callback")]
-         (callback new-app-state))))))
-
-(defn extract-initial-app-state-internal
-  "Extract the initial app state at an early stage; for internal use."
-  [this]
-  (let [props (.-props this)
-        toplevel-atom (aget props "reacl_toplevel_atom")
-        state (.-state this)]
-    (if (nil? toplevel-atom)
-      ((aget (.-state (aget props "reacl_parent")) "reacl_app_state_fn"))
-      @(aget props "reacl_initial_app_state_atom"))))
-
 (defn make-local-state
   "Make a React state containing Reacl local variables and local state.
 
@@ -123,14 +97,7 @@
         toplevel-atom (aget props "reacl_toplevel_atom")
         state (.-state this)]
     #js {:reacl_locals locals
-         :reacl_app_state_fn (if (nil? toplevel-atom)
-                               ;; not toplevel: get the app-state fn from the parent
-                               (aget (.-state (aget props "reacl_parent")) "reacl_app_state_fn")
-                               ;; toplevel: create app-state fn afresh
-                               (let [app-state-atom (aget props "reacl_initial_app_state_atom")
-                                     app-state-fn (make-app-state-fn toplevel-atom @app-state-atom)]
-                                 (reset! app-state-atom nil) ; GC
-                                 app-state-fn))
+         :reacl_app_state @(aget props "reacl_app_state_atom")
          :reacl_local_state local-state}))
 
 (defn instantiate-internal
@@ -140,8 +107,10 @@
   `parent' is the component from which the Reacl component is instantiated.
   `args` are the arguments to the component."
   [clazz parent args]
-  (clazz #js {:reacl_parent parent
-              :reacl_args args}))
+  (let [props (.-props parent)]
+    (clazz #js {:reacl_toplevel_atom (aget props "reacl_toplevel_atom")
+                :reacl_app_state_atom (aget props "reacl_app_state_atom")
+                :reacl_args args})))
 
 (defn instantiate-toplevel-internal
   "Internal function to instantiate a Reacl component.
@@ -150,8 +119,8 @@
   `app-state' is the  application state.
   `args` are the arguments to the component."
   [clazz app-state args]
-  (clazz #js {:reacl_toplevel_atom (atom nil) ;; NB: set by render-component, consumed by make-local-state
-              :reacl_initial_app_state_atom (atom app-state)
+  (clazz #js {:reacl_toplevel_atom (atom nil) ;; NB: set by render-component
+              :reacl_app_state_atom (atom app-state)
               :reacl_args args}))
 
 (defn instantiate-embedded-internal
@@ -164,9 +133,9 @@
   [clazz app-state app-state-callback args]
   (let [toplevel-atom (atom nil)
         component (clazz #js {:reacl_toplevel_atom toplevel-atom
-                              :reacl_initial_app_state_atom (atom app-state)
-                              :reacl_app_state_callback app-state-callback
-                              :reacl_args args})]
+                              :reacl_app_state_atom (atom app-state)
+                              :reacl_args args
+                              :reacl_app_state_callback app-state-callback})]
     (reset! toplevel-atom component)
     component))
 

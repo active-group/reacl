@@ -127,7 +127,7 @@
                                  ~?this
                                  (let [~?component ~?this ; FIXME: instead bind ?component directly
                                        [~@?args] (reacl.core/extract-args ~?this) ; FIXME: what if empty?
-                                       ~?app-state (reacl.core/extract-initial-app-state-internal ~?this)
+                                       ~?app-state (reacl.core/extract-app-state ~?this)
                                        ~@?locals-clauses]
                                    (reacl.core/make-local-state ~?this
                                                                 [~@?locals-ids]

@@ -34,7 +34,7 @@
 
    For internal use."
   [this]
-  @(aget (.-props this) "reacl_toplevel_atom"))
+  ((aget (.-props this) "reacl_get_toplevel")))
 
 (defn extract-app-state
   "Extract applications state from a Reacl component.
@@ -89,7 +89,7 @@
 (defprotocol IReaclClass
   (-instantiate [clazz component args])
   (-instantiate-toplevel [clazz app-state args])
-  (-instantiate-embedded [clazz app-state app-state-callback args]))
+  (-instantiate-embedded [clazz component app-state app-state-callback args]))
 
 (defn make-local-state
   "Make a React state containing Reacl local variables and local state.
@@ -97,7 +97,6 @@
    For internal use."
   [this locals local-state]
   (let [props (.-props this)
-        toplevel-atom (aget props "reacl_toplevel_atom")
         state (.-state this)]
     #js {:reacl_locals locals
          :reacl_app_state @(aget props "reacl_app_state_atom")
@@ -111,7 +110,7 @@
   `args` are the arguments to the component."
   [clazz parent args]
   (let [props (.-props parent)]
-    (clazz #js {:reacl_toplevel_atom (aget props "reacl_toplevel_atom")
+    (clazz #js {:reacl_get_toplevel (aget props "reacl_get_toplevel")
                 :reacl_app_state_atom (aget props "reacl_app_state_atom")
                 :reacl_args args})))
 
@@ -122,25 +121,30 @@
   `app-state' is the  application state.
   `args` are the arguments to the component."
   [clazz app-state args]
-  (clazz #js {:reacl_toplevel_atom (atom nil) ;; NB: set by render-component
-              :reacl_app_state_atom (atom app-state)
-              :reacl_args args}))
+  (let [toplevel-atom (atom nil)] ;; NB: set by render-component
+    (clazz #js {:reacl_toplevel_atom toplevel-atom
+                :reacl_get_toplevel (fn [] @toplevel-atom)
+                :reacl_app_state_atom (atom app-state)
+                :reacl_args args})))
 
 (defn instantiate-embedded-internal
   "Internal function to instantiate an embedded Reacl component.
 
   `clazz' is the React class (not the Reacl class ...).
+  `parent' is the component from which the Reacl component is instantiated.
   `app-state' is the  application state.
   `app-state-callback' is a function called with a new app state on changes.
   `args` are the arguments to the component."
-  [clazz app-state app-state-callback args]
+  [clazz parent app-state app-state-callback args]
   (let [toplevel-atom (atom nil)
-        component (clazz #js {:reacl_toplevel_atom toplevel-atom
-                              :reacl_app_state_atom (atom app-state)
-                              :reacl_args args
-                              :reacl_app_state_callback app-state-callback})]
-    (reset! toplevel-atom component)
-    component))
+        ;; React will replace whatever is returned by (clazz ...) on mounting.
+        ;; This is the only way to get at the mounted component, it seems.
+        ref (str (gensym "embedded"))]
+    (clazz #js {:reacl_get_toplevel (fn [] (aget (.-refs parent) ref))
+                :reacl_app_state_atom (atom app-state)
+                :reacl_args args
+                :reacl_app_state_callback app-state-callback
+                :ref ref})))
 
 (defn instantiate-toplevel
   "Instantiate a Reacl component at the top level.
@@ -175,11 +179,12 @@
   lead to the callback being invoked.
 
   `clazz' is the Reacl class.
+  `parent' is the component from which the Reacl component is instantiated.
   `app-state' is the application state.
   `app-state-callback' is a function called with a new app state on changes.
   `args` are the arguments to the component."
-  [clazz app-state app-state-callback & args]
-  (-instantiate-embedded clazz app-state app-state-callback args))
+  [clazz parent app-state app-state-callback & args]
+  (-instantiate-embedded clazz parent app-state app-state-callback args))
 
 (defrecord State
     ^{:doc "Composite object for app state and local state.

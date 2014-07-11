@@ -221,8 +221,8 @@
            (reacl.core/instantiate-internal clazz# component# args#))
          (~'-instantiate-toplevel [this# app-state# args#]
            (reacl.core/instantiate-toplevel-internal clazz# app-state# args#))
-         (~'-instantiate-embedded [this# app-state# app-state-callback# args#]
-           (reacl.core/instantiate-embedded-internal clazz# app-state# app-state-callback# args#))))))
+         (~'-instantiate-embedded [this# component# app-state# app-state-callback# args#]
+           (reacl.core/instantiate-embedded-internal clazz# component# app-state# app-state-callback# args#))))))
            
 
 (defmacro defclass

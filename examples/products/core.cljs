@@ -88,7 +88,7 @@
   this products search-params []
   render
   (dom/div
-   (reacl/embed search-bar
+   (reacl/embed search-bar this
                 search-params
                 #(reacl/send-message! this %))
    (product-table this

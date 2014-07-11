@@ -49,9 +49,12 @@
    For internal use."
   [this app-state]
   (let [toplevel (extract-toplevel this)
-        app-state-atom (aget (.-props toplevel) "reacl_app_state_atom")]
+        toplevel-props (.-props toplevel)
+        app-state-atom (aget toplevel-props "reacl_app_state_atom")]
     (reset! app-state-atom app-state)
-    (.setState toplevel #js {:reacl_app_state app-state})))
+    (.setState toplevel #js {:reacl_app_state app-state})
+    (if-let [callback (aget toplevel-props "reacl_app_state_callback")]
+      (callback app-state))))
 
 (defn extract-args
   "Get the component args for a component.

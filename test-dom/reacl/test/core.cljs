@@ -37,9 +37,8 @@
 ; see http://stackoverflow.com/questions/22463156/updating-react-component-state-in-jasmine-test
 (defn instantiate&mount
   [clazz app-state & args]
-  (let [preview (apply reacl/instantiate-toplevel clazz app-state args)
-        div (js/document.createElement "div")]
-    (js/React.renderComponent preview div)))
+  (let [div (js/document.createElement "div")]
+    (apply reacl/render-component div clazz app-state args)))
 
 (deftest dom
   (let [d (dom/h1 "Hello, world!")]
@@ -59,15 +58,60 @@
       (is (= app-state (Todo. "foo" true))))))
 
 (reacl/defclass foo
-  this app-state [bar]
-  local [baz (+ bar 15)
-         bla (+ baz 7)]
+  this [bar]
+  local [baz (do
+               (println "computing baz" bar)
+               (+ bar 15))
+         bla (do
+               (println "computing bla" baz)
+               (+ baz 7))]
   render
-  (dom/div (str baz) (str bla)))
+  (do
+    (println "baz " baz "bla " bla)
+    (dom/span (dom/div (str baz)) (dom/div (str bla)))))
+
+(defn dom-with-tag
+  [comp tag-name]
+  (js/React.addons.TestUtils.findRenderedDOMComponentWithTag comp tag-name))
+
+(defn doms-with-tag
+  [comp tag-name]
+  (into []
+        (js/React.addons.TestUtils.scryRenderedDOMComponentsWithTag comp tag-name)))
+
+(defn dom-content
+  [comp]
+  (.-textContent (.getDOMNode comp)))
 
 (deftest locals-sequential
-  (let [item (reacl/instantiate-toplevel foo 12)]
-    (is (= "<div>27 34</div>")
-        (render-to-text item))))
+  (let [item (instantiate&mount foo nil 12)
+        divs (doms-with-tag item "div")]
+    (is (= ["27" "34"]
+           (map dom-content divs)))))
 
-  
+(reacl/defclass bar
+  this app-state local-state []
+  render
+  (do
+    (println "render " local-state)
+    (dom/span
+     (dom/button {:onClick (fn [_]
+                             (reacl/send-message! this 2))}
+                 "2")
+     (foo this local-state)))
+  initial-state (do (println "initial-state" this) 1)
+  handle-message
+  (fn [new]
+    (println "new" new)
+    (reacl/return :local-state new)))
+
+(deftest local-change
+  (let [item (instantiate&mount bar nil)
+        button (dom-with-tag item "button")]
+    (println "sending message")
+    ;; (reacl/send-message! item 2)
+    (js/React.addons.TestUtils.Simulate.click button)
+    (.forceUpdate item)
+    (println "sent message")
+    (is (= ["17" "24"]
+           (map dom-content (doms-with-tag item "div"))))))

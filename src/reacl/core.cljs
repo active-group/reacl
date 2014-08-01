@@ -68,7 +68,7 @@
 
    For internal use."
   [this]
-  (aget (.-state this) "reacl_locals"))
+  (aget (.-props this) "reacl_locals"))
 
 (defn extract-channel
   "Get the component channel for a component
@@ -82,7 +82,7 @@
 
    For internal use."
   [this]
-  (let [c (chan)]
+  (let [c (chan 0)]
     (.setState this #js {:reacl_channel c})
     c))
 
@@ -95,37 +95,38 @@
   "Make a React state containing Reacl local variables and local state.
 
    For internal use."
-  [this locals local-state]
-  (let [props (.-props this)
-        state (.-state this)]
-    #js {:reacl_locals locals
-         :reacl_app_state @(aget props "reacl_app_state_atom")
-         :reacl_local_state local-state}))
+  [this local-state]
+  #js {:reacl_local_state local-state
+       :reacl_app_state @(aget (.-props this) "reacl_app_state_atom")})
 
 (defn instantiate-internal
   "Internal function to instantiate a Reacl component.
 
   `clazz' is the React class (not the Reacl class ...).
   `parent' is the component from which the Reacl component is instantiated.
-  `args` are the arguments to the component."
-  [clazz parent args]
+  `args' are the arguments to the component.
+  `locals' are the local variables of the components."
+  [clazz parent args locals]
   (let [props (.-props parent)]
     (clazz #js {:reacl_get_toplevel (aget props "reacl_get_toplevel")
                 :reacl_app_state_atom (aget props "reacl_app_state_atom")
-                :reacl_args args})))
+                :reacl_args args
+                :reacl_locals locals})))
 
 (defn instantiate-toplevel-internal
   "Internal function to instantiate a Reacl component.
 
   `clazz' is the React class (not the Reacl class ...).
   `app-state' is the  application state.
-  `args` are the arguments to the component."
-  [clazz app-state args]
+  `args' are the arguments to the component.
+  `locals' are the local variables of the components."
+  [clazz app-state args locals]
   (let [toplevel-atom (atom nil)] ;; NB: set by render-component
     (clazz #js {:reacl_toplevel_atom toplevel-atom
                 :reacl_get_toplevel (fn [] @toplevel-atom)
                 :reacl_app_state_atom (atom app-state)
-                :reacl_args args})))
+                :reacl_args args
+                :reacl_locals locals})))
 
 (defn instantiate-embedded-internal
   "Internal function to instantiate an embedded Reacl component.
@@ -134,8 +135,9 @@
   `parent' is the component from which the Reacl component is instantiated.
   `app-state' is the  application state.
   `app-state-callback' is a function called with a new app state on changes.
-  `args` are the arguments to the component."
-  [clazz parent app-state app-state-callback args]
+  `args' are the arguments to the component.
+  `locals' are the local variables of the components."
+  [clazz parent app-state app-state-callback args locals]
   (let [toplevel-atom (atom nil)
         ;; React will replace whatever is returned by (clazz ...) on mounting.
         ;; This is the only way to get at the mounted component, it seems.
@@ -143,6 +145,7 @@
     (clazz #js {:reacl_get_toplevel (fn [] (aget (.-refs parent) ref))
                 :reacl_app_state_atom (atom app-state)
                 :reacl_args args
+                :reacl_locals locals
                 :reacl_app_state_callback app-state-callback
                 :ref ref})))
 

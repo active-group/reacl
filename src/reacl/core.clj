@@ -119,23 +119,11 @@
         clause-map (apply hash-map ?clauses)
         ?locals-clauses (get clause-map 'local [])
         ?locals-ids (map first (partition 2 ?locals-clauses))
-        ?initial-state (let [?state-expr (get clause-map 'initial-state)]
-                         (let [?this `this#]
-                           (if (or ?state-expr (not (empty? ?locals-clauses)))
-                             `(fn [] 
-                                (cljs.core/this-as
-                                 ~?this
-                                 (let [~?component ~?this ; FIXME: instead bind ?component directly
-                                       [~@?args] (reacl.core/extract-args ~?this) ; FIXME: what if empty?
-                                       ~?app-state (reacl.core/extract-app-state ~?this)
-                                       ~@?locals-clauses]
-                                   (reacl.core/make-local-state ~?this
-                                                                [~@?locals-ids]
-                                                                ~(or ?state-expr `nil)))))
-                             `(fn [] 
-                                (cljs.core/this-as
-                                 ~?this
-                                 (reacl.core/make-local-state ~?this nil nil))))))
+        ?initial-state `(fn [] 
+                          (cljs.core/this-as
+                           ~?component
+                           (reacl.core/make-local-state ~?component
+                                                        ~(or (get clause-map 'initial-state) `nil))))
         wrap-args&locals
         (fn [?this & ?body]
           `(let [~?component ~?this ; FIXME: instead bind ?component directly
@@ -186,7 +174,7 @@
                                                                   `(fn [& ~?args]
                                                                      (cljs.core/this-as
                                                                       ~?this
-                                                                      (apply ~(wrap-args&locals ?this ?rhs) ~?this ~?args))))])
+                                                                      (clsj.core/apply ~(wrap-args&locals ?this ?rhs) ~?this ~?args))))])
                                                              misc)
                                                    ;; message handler, if there's one specified
                                                    ~@(if-let [?handler (get clause-map 'handle-message)]
@@ -211,18 +199,24 @@
                                                                 ~@(if-let [?will-mount (get clause-map 'component-will-mount)]
                                                                     [`(~(wrap-args&locals ?this ?will-mount) ~?this)]
                                                                     [])))))]
-                                                       [])))]
+                                                       [])))
+           compute-locals# (fn [~?app-state ~@?args]
+                             (let ~?locals-clauses
+                               [~@?locals-ids]))]
        (reify
          cljs.core/IFn
          (~'-invoke [this# component# & args#]
            (-instantiate this# component# args#))
          reacl.core/IReaclClass
          (~'-instantiate [this# component# args#]
-           (reacl.core/instantiate-internal clazz# component# args#))
+           (reacl.core/instantiate-internal clazz# component# 
+                                            args# (cljs.core/apply compute-locals# (reacl.core/extract-app-state component#) args#)))
          (~'-instantiate-toplevel [this# app-state# args#]
-           (reacl.core/instantiate-toplevel-internal clazz# app-state# args#))
+           (reacl.core/instantiate-toplevel-internal clazz# app-state# 
+                                                     args# (cljs.core/apply compute-locals# app-state# args#)))
          (~'-instantiate-embedded [this# component# app-state# app-state-callback# args#]
-           (reacl.core/instantiate-embedded-internal clazz# component# app-state# app-state-callback# args#))))))
+           (reacl.core/instantiate-embedded-internal clazz# component# app-state# app-state-callback# 
+                                                     args# (cljs.core/apply compute-locals# app-state# args#)))))))
            
 
 (defmacro defclass

@@ -174,7 +174,7 @@
                                                                   `(fn [& ~?args]
                                                                      (cljs.core/this-as
                                                                       ~?this
-                                                                      (clsj.core/apply ~(wrap-args&locals ?this ?rhs) ~?this ~?args))))])
+                                                                      (cljs.core/apply ~(wrap-args&locals ?this ?rhs) ~?this ~?args))))])
                                                              misc)
                                                    ;; message handler, if there's one specified
                                                    ~@(if-let [?handler (get clause-map 'handle-message)]

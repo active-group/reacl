@@ -1,8 +1,6 @@
 (ns ^{:author "Michael Sperber"
       :doc "Reacl core functionality."}
-  reacl.core
-  (:require-macros [cljs.core.async.macros :refer [go]])
-  (:require [cljs.core.async :refer [put! chan <!]]))
+  reacl.core)
 
 (defn- jsmap
   "Convert a Clojure map to a JavaScript hashmap."
@@ -69,22 +67,6 @@
    For internal use."
   [this]
   (aget (.-props this) "reacl_locals"))
-
-(defn extract-channel
-  "Get the component channel for a component
-
-  For internal use."
-  [this]
-  (aget (.-state this) "reacl_channel"))
-
-(defn initialize-channel!
-  "Set Reacl channel of a component, returning it.
-
-   For internal use."
-  [this]
-  (let [c (chan 0)]
-    (.setState this #js {:reacl_channel c})
-    c))
 
 (defprotocol IReaclClass
   (-instantiate [clazz component args])
@@ -241,27 +223,6 @@
           ps (apply f (concat args [local-state]))]
       (set-state! component ps))))
 
-(defn make-message-handler
-  "Make a message handler for a Reacl component.
-
-  For internal use.
-
-  This returns a function that takes a function `f'.
-
-  It returns a function with that applies `f' to its own arguments and
-  sends the result value as a message to the component."
-  [this]
-  (let [ch (extract-channel this)]
-    (fn [f]
-      (fn [& args]
-        (let [msg (apply f args)]
-          (put! ch msg))))))
-
-(defn send-message!
-  "Send a message to a Reacl component."
-  [comp msg]
-  (put! (extract-channel comp) msg))
-
 (defn- handle-message
   "Handle a message for a Reacl component.
 
@@ -282,18 +243,9 @@
     [(or (:app-state ps) (extract-app-state comp))
      (or (:local-state ps) (extract-local-state comp))]))
 
-(defn message-processor
-  "Process messages for a Reacl component.
+(defn send-message!
+  "Send a message to a Reacl component."
+  [comp msg]
+  (let [st (handle-message comp msg)]
+    (set-state! comp st)))
 
-  For internal use.  This implements the `handle-message' clause in
-  reacl.core/class.
-
-  This accepts a component and a message handler, and creates an event
-  handler suitable for sticking into the DOM."
-  [comp c]
-  (go
-    (loop []
-      (let [msg (<! c)]
-        (let [st (handle-message comp msg)]
-          (set-state! comp st)
-          (recur))))))

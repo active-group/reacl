@@ -59,16 +59,10 @@
 
 (reacl/defclass foo
   this [bar]
-  local [baz (do
-               (println "computing baz" bar)
-               (+ bar 15))
-         bla (do
-               (println "computing bla" baz)
-               (+ baz 7))]
+  local [baz (+ bar 15)
+         bla (+ baz 7)]
   render
-  (do
-    (println "baz " baz "bla " bla)
-    (dom/span (dom/div (str baz)) (dom/div (str bla)))))
+  (dom/span (dom/div (str baz)) (dom/div (str bla))))
 
 (defn dom-with-tag
   [comp tag-name]
@@ -92,26 +86,14 @@
 (reacl/defclass bar
   this app-state local-state []
   render
-  (do
-    (println "render " local-state)
-    (dom/span
-     (dom/button {:onClick (fn [_]
-                             (reacl/send-message! this 2))}
-                 "2")
-     (foo this local-state)))
-  initial-state (do (println "initial-state" this) 1)
+  (dom/span (foo this local-state))
+  initial-state 1
   handle-message
   (fn [new]
-    (println "new" new)
     (reacl/return :local-state new)))
 
 (deftest local-change
-  (let [item (instantiate&mount bar nil)
-        button (dom-with-tag item "button")]
-    (println "sending message")
-    ;; (reacl/send-message! item 2)
-    (js/React.addons.TestUtils.Simulate.click button)
-    (.forceUpdate item)
-    (println "sent message")
+  (let [item (instantiate&mount bar nil)]
+    (reacl/send-message! item 2)
     (is (= ["17" "24"]
            (map dom-content (doms-with-tag item "div"))))))

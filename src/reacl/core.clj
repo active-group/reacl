@@ -4,7 +4,7 @@
   (:refer-clojure :exclude [class]))
 
 (def ^{:private true} lifecycle-name-map
-  { ;; 'component-will-mount is in special-tags
+  {'component-will-mount 'componentWillMount
    'component-did-mount 'componentDidMount
    'component-will-receive-props 'componentWillReceiveProps
    'should-component-update? 'shouldComponentUpdate
@@ -184,21 +184,6 @@
                                                              (cljs.core/this-as
                                                               ~?this
                                                               (~(wrap-args&locals ?this ?handler) msg#))))]
-                                                       [])
-                                                   ;; event handler, if there's a handle-message clause
-                                                   ~@(if (contains? clause-map 'handle-message)
-                                                       ["componentWillMount"
-                                                        (let [?this `this#]
-                                                          `(fn []
-                                                             (cljs.core/this-as
-                                                              ~?this
-                                                              (do
-                                                                (let [ch# (reacl.core/initialize-channel! ~?this)]
-                                                                  (reacl.core/message-processor ~?this ch#))
-                                                                ;; if there is a component-will-mount clause, tack it on
-                                                                ~@(if-let [?will-mount (get clause-map 'component-will-mount)]
-                                                                    [`(~(wrap-args&locals ?this ?will-mount) ~?this)]
-                                                                    [])))))]
                                                        [])))
            compute-locals# (fn [~?app-state ~@?args]
                              (let ~?locals-clauses

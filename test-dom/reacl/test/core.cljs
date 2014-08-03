@@ -58,9 +58,9 @@
       (is (= app-state (Todo. "foo" true))))))
 
 (reacl/defclass foo
-  this [bar]
-  local [baz (+ bar 15)
-         bla (+ baz 7)]
+  this bam [bar]
+  local [baz (+ bam 15)
+         bla (+ bar 7)]
   render
   (dom/span (dom/div (str baz)) (dom/div (str bla))))
 
@@ -78,9 +78,9 @@
   (.-textContent (.getDOMNode comp)))
 
 (deftest locals-sequential
-  (let [item (instantiate&mount foo nil 12)
+  (let [item (instantiate&mount foo 42 12)
         divs (doms-with-tag item "div")]
-    (is (= ["27" "34"]
+    (is (= ["57" "19"]
            (map dom-content divs)))))
 
 (reacl/defclass bar
@@ -93,7 +93,7 @@
     (reacl/return :local-state new)))
 
 (deftest local-change
-  (let [item (instantiate&mount bar nil)]
+  (let [item (instantiate&mount bar 5)]
     (reacl/send-message! item 2)
-    (is (= ["17" "24"]
+    (is (= ["20" "9"]
            (map dom-content (doms-with-tag item "div"))))))

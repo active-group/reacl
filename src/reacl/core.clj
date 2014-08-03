@@ -122,8 +122,11 @@
         ?initial-state `(fn [] 
                           (cljs.core/this-as
                            ~?component
-                           (reacl.core/make-local-state ~?component
-                                                        ~(or (get clause-map 'initial-state) `nil))))
+                           (let [[~@?args] (reacl.core/extract-args ~?component) ; FIXME: what if empty?
+                                 ~?app-state (reacl.core/extract-app-state ~?component)
+                                 [~@?locals-ids] (reacl.core/extract-locals ~?component)]
+                             (reacl.core/make-local-state ~?component
+                                                          ~(or (get clause-map 'initial-state) `nil)))))
         wrap-args&locals
         (fn [?this & ?body]
           `(let [~?component ~?this ; FIXME: instead bind ?component directly

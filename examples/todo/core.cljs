@@ -9,8 +9,10 @@
 
 (defrecord Todo [id text done?])
 
+(defrecord Delete [todo])
+
 (reacl/defclass to-do-item
-  this app-state [lens]
+  this app-state [parent lens]
   render
   (let [todo (lens/yank app-state lens)]
     (dom/letdom
@@ -20,6 +22,9 @@
                  :onChange #(reacl/send-message! this
                                                  (.-checked (dom/dom-node this checkbox)))})]
      (dom/div checkbox
+              (dom/button {:onClick #(reacl/send-message! parent
+                                                           (Delete. todo))}
+                          "Zap")
               (:text todo))))
   handle-message
   (fn [checked?]
@@ -38,7 +43,7 @@
    (dom/h3 "TODO")
    (dom/div (lens/map-keyed :id
                             (fn [todo id lens]
-                              (dom/keyed (str id) (to-do-item this (lens/in :todos lens))))
+                              (dom/keyed (str id) (to-do-item this this (lens/in :todos lens))))
                             (:todos app-state)))
    (dom/form
     {:onSubmit (fn [e _]
@@ -64,7 +69,13 @@
        (reacl/return :local-state ""
                      :app-state (assoc app-state
                                   :todos (concat (:todos app-state) [(Todo. next-id local-state false)])
-                                  :next-id (+ 1 next-id)))))))
+                                  :next-id (+ 1 next-id))))
+
+     (instance? Delete msg)
+     (let [id (:id (:todo msg))]
+       (reacl/return :app-state
+                     (assoc app-state
+                       :todos (remove (fn [todo] (= id (:id todo))) (:todos app-state))))))))
 
 (reacl/render-component
  (.getElementById js/document "content")

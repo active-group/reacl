@@ -8,8 +8,8 @@ framework.  This is very different from David Nolen's Om framework.
 Your `project.clj` should contain something like this:
 
 	  :dependencies [[org.clojure/clojure "1.6.0"]
-					 [org.clojure/clojurescript "0.0-2173" :scope "provided"]
-					 [reacl "0.4.0"]]
+					 [org.clojure/clojurescript "0.0-2280" :scope "provided"]
+					 [reacl "0.5.0"]]
 
 ## Model
 

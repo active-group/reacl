@@ -7,10 +7,10 @@
   :jvm-opts ^:replace ["-Xmx512m" "-server"]
 
   :dependencies [[org.clojure/clojure "1.6.0"]
-                 [org.clojure/clojurescript "0.0-2173" :scope "provided"]
+                 [org.clojure/clojurescript "0.0-2280" :scope "provided"]
                  [com.facebook/react "0.11.1"]]
 
-  :plugins [[lein-cljsbuild "1.0.2"]
+  :plugins [[lein-cljsbuild "1.0.3"]
             ;; NB: This needs a version of clojurescript.test with the Nashorn runner,
             ;; for example from the nashorn-runner branch from
             ;; https://github.com/active-group/clojurescript.test

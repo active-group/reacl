@@ -8,7 +8,7 @@
 
   :dependencies [[org.clojure/clojure "1.6.0"]
                  [org.clojure/clojurescript "0.0-2173" :scope "provided"]
-                 [com.facebook/react "0.10.0.1"]]
+                 [com.facebook/react "0.11.1"]]
 
   :plugins [[lein-cljsbuild "1.0.2"]
             ;; NB: This needs a version of clojurescript.test with the Nashorn runner,

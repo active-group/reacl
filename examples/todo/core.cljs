@@ -5,12 +5,14 @@
 
 (enable-console-print!)
 
-(defrecord Todo [text done?])
+(defrecord TodosApp [next-id todos])
+
+(defrecord Todo [id text done?])
 
 (reacl/defclass to-do-item
-  this todos [lens]
+  this app-state [lens]
   render
-  (let [todo (lens/yank todos lens)]
+  (let [todo (lens/yank app-state lens)]
     (dom/letdom
      [checkbox (dom/input
                 {:type "checkbox"
@@ -22,7 +24,7 @@
   handle-message
   (fn [checked?]
     (reacl/return :app-state
-                  (lens/shove todos
+                  (lens/shove app-state
                               (lens/in lens :done?)
                               checked?))))
 
@@ -30,13 +32,14 @@
 (defrecord Submit [])
 
 (reacl/defclass to-do-app
-  this todos local-state []
+  this app-state local-state []
   render
   (dom/div
    (dom/h3 "TODO")
-   (dom/div (map-indexed (fn [i todo]
-                           (dom/keyed (str i) (to-do-item this (lens/at-index i))))
-                         todos))
+   (dom/div (lens/map-keyed :id
+                            (fn [todo id lens]
+                              (dom/keyed (str id) (to-do-item this (lens/in :todos lens))))
+                            (:todos app-state)))
    (dom/form
     {:onSubmit (fn [e _]
                  (.preventDefault e)
@@ -46,7 +49,7 @@
                                                  (New-text. (.. e -target -value))))
                 :value local-state})
     (dom/button
-     (str "Add #" (+ (count todos) 1)))))
+     (str "Add #" (:next-id app-state)))))
 
   initial-state ""
 
@@ -57,9 +60,12 @@
      (reacl/return :local-state (:text msg))
      
      (instance? Submit msg)
-     (reacl/return :local-state ""
-                   :app-state (concat todos [(Todo. local-state false)])))))
+     (let [next-id (:next-id app-state)]
+       (reacl/return :local-state ""
+                     :app-state (assoc app-state
+                                  :todos (concat (:todos app-state) [(Todo. next-id local-state false)])
+                                  :next-id (+ 1 next-id)))))))
 
 (reacl/render-component
  (.getElementById js/document "content")
- to-do-app [])
+ to-do-app (TodosApp. 0 []))

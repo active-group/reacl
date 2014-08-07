@@ -38,3 +38,22 @@
          (lens/yank 'baz lens/id))
       (= 'bar
          (lens/shove 'baz lens/id 'bar))))
+
+(deftest at-key
+  (is (= {:k 'bar :v 'baz}
+         (lens/yank [{:k 'foo :v 'bar} {:k 'bar :v 'baz} {:k 'bla :v 'bam}]
+                    (lens/at-key :k 'bar))))
+  (is (= [{:k 'foo :v 'bar} {:k 'bar :v 'blam} {:k 'bla :v 'bam}]
+         (lens/shove [{:k 'foo :v 'bar} {:k 'bar :v 'baz} {:k 'bla :v 'bam}]
+                     (lens/at-key :k 'bar)
+                     {:k 'bar :v 'blam}))))
+
+(deftest map-keyed
+  (let [d [{:k 'foo :v 'bar} {:k 'bar :v 'baz} {:k 'bla :v 'bam}]]
+    (is (= [[{:k 'foo :v 'bar} 'foo 'foo]
+            [{:k 'bar :v 'baz} 'bar 'bar]
+            [{:k 'bla :v 'bam} 'bla 'bla]]
+           (lens/map-keyed :k
+                           (fn [el key lens]
+                             [el key (:k (lens/yank d lens))])
+                           d)))))

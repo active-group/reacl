@@ -1,5 +1,7 @@
 (ns reacl.lens)
 
+(enable-console-print!)
+
 (defprotocol Lens
   (-yank [lens data])
   (-shove [lens data v]))
@@ -42,6 +44,27 @@
             (concat front
                     [v]
                     (rest back))))))
+
+(defn at-key
+  [extract-key key]
+  (lens (fn [coll]
+          (some (fn [el]
+                  (and (= key (extract-key el))
+                       el))
+                coll))
+        (fn [coll v]
+          (map (fn [el]
+                 (if (= key (extract-key el))
+                   v
+                   el))
+               coll))))
+                       
+(defn map-keyed
+  [extract-key f coll]
+  (map (fn [el]
+         (let [key (extract-key el)]
+           (f el key (at-key extract-key key))))
+       coll))
 
 (defrecord Path
     [path]

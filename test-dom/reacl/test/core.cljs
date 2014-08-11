@@ -85,9 +85,9 @@
 
 (reacl/defclass bar
   this app-state local-state []
+  initial-state 1
   render
   (dom/span (foo this local-state))
-  initial-state 1
   handle-message
   (fn [new]
     (reacl/return :local-state new)))
@@ -96,4 +96,19 @@
   (let [item (instantiate&mount bar 5)]
     (reacl/send-message! item 2)
     (is (= ["20" "29"]
+           (map dom-content (doms-with-tag item "div"))))))
+
+(reacl/defclass blam
+  this app-state []
+  local [braf (+ app-state 7)]
+  render
+  (dom/div (str braf))
+  handle-message
+  (fn [new]
+    (reacl/return :app-state new)))
+
+(deftest local-app-state-change
+  (let [item (instantiate&mount blam 5)]
+    (reacl/send-message! item 6)
+    (is (= ["13"]
            (map dom-content (doms-with-tag item "div"))))))

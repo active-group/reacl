@@ -187,10 +187,12 @@
                                                              (cljs.core/this-as
                                                               ~?this
                                                               (~(wrap-args&locals ?this ?handler) msg#))))]
-                                                       [])))
-           compute-locals# (fn [~?app-state ~@?args]
-                             (let ~?locals-clauses
-                               [~@?locals-ids]))]
+                                                       [])
+                                                   "statics"
+                                                   (cljs.core/js-obj "__computeLocals"
+                                                                     (fn [~?app-state ~@?args]
+                                                                       (let ~?locals-clauses
+                                                                         [~@?locals-ids])))))]
        (reify
          cljs.core/IFn
          (~'-invoke [this# component# & args#]
@@ -198,13 +200,13 @@
          reacl.core/IReaclClass
          (~'-instantiate [this# component# args#]
            (reacl.core/instantiate-internal clazz# component# 
-                                            args# (cljs.core/apply compute-locals# (reacl.core/extract-app-state component#) args#)))
+                                            args# (reacl.core/compute-locals clazz# (reacl.core/extract-app-state component#) args#)))
          (~'-instantiate-toplevel [this# app-state# args#]
            (reacl.core/instantiate-toplevel-internal clazz# app-state# 
-                                                     args# (cljs.core/apply compute-locals# app-state# args#)))
+                                                     args# (reacl.core/compute-locals clazz# app-state# args#)))
          (~'-instantiate-embedded [this# component# app-state# app-state-callback# args#]
            (reacl.core/instantiate-embedded-internal clazz# component# app-state# app-state-callback# 
-                                                     args# (cljs.core/apply compute-locals# app-state# args#)))))))
+                                                     args# (reacl.core/compute-locals clazz# app-state# args#)))))))
            
 
 (defmacro defclass

@@ -68,6 +68,13 @@
   [this]
   (aget (.-props this) "reacl_locals"))
 
+(defn compute-locals
+  "Compute the locals.
+
+  For internal use."
+  [clazz app-state args]
+  (apply (aget clazz "__computeLocals") app-state args))
+
 (defprotocol IReaclClass
   (-instantiate [clazz component args])
   (-instantiate-toplevel [clazz app-state args])

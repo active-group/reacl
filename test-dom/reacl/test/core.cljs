@@ -60,7 +60,7 @@
 (reacl/defclass foo
   this bam [bar]
   local [baz (+ bam 15)
-         bla (+ bar 7)]
+         bla (+ baz bar 7)]
   render
   (dom/span (dom/div (str baz)) (dom/div (str bla))))
 
@@ -80,7 +80,7 @@
 (deftest locals-sequential
   (let [item (instantiate&mount foo 42 12)
         divs (doms-with-tag item "div")]
-    (is (= ["57" "19"]
+    (is (= ["57" "76"]
            (map dom-content divs)))))
 
 (reacl/defclass bar
@@ -95,5 +95,5 @@
 (deftest local-change
   (let [item (instantiate&mount bar 5)]
     (reacl/send-message! item 2)
-    (is (= ["20" "9"]
+    (is (= ["20" "29"]
            (map dom-content (doms-with-tag item "div"))))))

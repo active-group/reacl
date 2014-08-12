@@ -81,7 +81,13 @@
 (defprotocol IReaclClass
   (-instantiate [clazz component args])
   (-instantiate-toplevel [clazz app-state args])
-  (-instantiate-embedded [clazz component app-state app-state-callback args]))
+  (-instantiate-embedded [clazz component app-state app-state-callback args])
+  (-react-class [clazz]))
+
+(defn react-class
+  "Extract the React class from a Reacl class."
+  [clazz]
+  (-react-class clazz))
 
 (defn make-local-state
   "Make a React state containing Reacl local variables and local state.

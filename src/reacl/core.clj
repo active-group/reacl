@@ -206,7 +206,8 @@
                                                      args# (reacl.core/compute-locals clazz# app-state# args#)))
          (~'-instantiate-embedded [this# component# app-state# app-state-callback# args#]
            (reacl.core/instantiate-embedded-internal clazz# component# app-state# app-state-callback# 
-                                                     args# (reacl.core/compute-locals clazz# app-state# args#)))))))
+                                                     args# (reacl.core/compute-locals clazz# app-state# args#)))
+         (~'-react-class [this#] clazz#)))))
            
 
 (defmacro defclass

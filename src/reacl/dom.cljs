@@ -56,7 +56,7 @@
 (defn make-dom-binding
   "Make an empty DOM binding from a ref name."
   [n]
-  (DomBinding. (atom nil) (name (gensym n))))
+  (DomBinding. (atom nil) n))
 
 (defn dom-node
   "Get the real DOM node associated with a binding.

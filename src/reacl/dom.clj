@@ -54,7 +54,18 @@
   (let [pairs (partition 2 clauses)]
     `(let [~@(mapcat (fn [p]
                        (let [lhs (first p)]
-                         [lhs `(reacl.dom/make-dom-binding ~(str lhs))]))
+                         (cond
+                          (symbol? lhs)
+                          `[~lhs (reacl.dom/make-dom-binding '~(gensym lhs))]
+                          
+                          (and (list? lhs)
+                               (= (count lhs) 2)
+                               (= :literally (first lhs))
+                               (symbol? (second lhs)))
+                          `[~(second lhs) (reacl.dom/make-dom-binding '~(second lhs))]
+                          
+                          :else
+                          (throw (Exception. (str "Not a valid letdom lhs " lhs))))))
                      pairs)]
        ~@(map (fn [p]
                 (let [lhs (first p)
@@ -63,7 +74,3 @@
                                                ~(second p))))
               pairs)
        ~body0 ~@bodies)))
-
-       
-                             
-        

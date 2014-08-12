@@ -41,19 +41,6 @@
   [this]
   @(aget (.-props this) "reacl_app_state_atom"))
 
-(defn set-app-state!
-  "Set the application state associated with a Reacl component.
-
-   For internal use."
-  [this app-state]
-  (let [toplevel (extract-toplevel this)
-        toplevel-props (.-props toplevel)
-        app-state-atom (aget toplevel-props "reacl_app_state_atom")]
-    (reset! app-state-atom app-state)
-    (.setState toplevel #js {:reacl_app_state app-state})
-    (if-let [callback (aget toplevel-props "reacl_app_state_callback")]
-      (callback app-state))))
-
 (defn extract-args
   "Get the component args for a component.
 
@@ -74,6 +61,22 @@
   For internal use."
   [clazz app-state args]
   (apply (aget clazz "__computeLocals") app-state args))
+
+(defn set-app-state!
+  "Set the application state associated with a Reacl component.
+
+   For internal use."
+  [this app-state]
+  (let [toplevel (extract-toplevel this)
+        toplevel-props (.-props toplevel)
+        app-state-atom (aget toplevel-props "reacl_app_state_atom")]
+    (reset! app-state-atom app-state)
+    (.setState toplevel #js {:reacl_app_state app-state})
+    (when (identical? this toplevel)
+      (.setProps toplevel #js {:reacl_locals 
+                               (compute-locals (.-constructor this) app-state (extract-args this))}))
+    (if-let [callback (aget toplevel-props "reacl_app_state_callback")]
+      (callback app-state))))
 
 (defprotocol IReaclClass
   (-instantiate [clazz component args])

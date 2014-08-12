@@ -56,7 +56,7 @@
                        (let [lhs (first p)]
                          (cond
                           (symbol? lhs)
-                          `[~lhs (reacl.dom/make-dom-binding '~(gensym lhs))]
+                          `[~lhs (reacl.dom/make-dom-binding (cljs.core/gensym '~lhs))]
                           
                           (and (list? lhs)
                                (= (count lhs) 2)

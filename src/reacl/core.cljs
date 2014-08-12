@@ -48,16 +48,42 @@
   [this]
   (aget (.-props this) "reacl_args"))
 
-(defn extract-locals
-  "Get the local bindings for a component.
+(declare embedded?)
+
+(defn extract-initial-locals
+  "Get the initial local bindings for a component.
 
    For internal use."
   [this]
   (aget (.-props this) "reacl_locals"))
 
+; The locals are difficult: We want them to be like props on the one
+; hand, but they should have new bindings when the app state changes.
+
+; The latter means we cannot generally put them in the component
+; state, as the component state survives app-state changes.
+
+; The former means we cannot update them, which we want to do on the
+; top-level and embedded components when the app state changes.
+
+; So we have to use a three-pronged strategy:
+
+; - For non-top-level, non-embedded components there's no problem, as
+;   the components get re-instantiated as a matter of the usual routine.
+; - For top-level components, we use setProps to update the locals.
+; - For embedded components, we start in props and, on update,
+;   transfer to the state.
+
+(defn extract-locals
+  "Get the local bindings for a component.
+
+   For internal use."
+  [this]
+  (or (aget (.-state this) "reacl_locals") ; updated version in the embedded case
+      (aget (.-props this) "reacl_locals")))
+
 (defn compute-locals
   "Compute the locals.
-
   For internal use."
   [clazz app-state args]
   (apply (aget clazz "__computeLocals") app-state args))
@@ -73,8 +99,10 @@
     (reset! app-state-atom app-state)
     (.setState toplevel #js {:reacl_app_state app-state})
     (when (identical? this toplevel)
-      (.setProps toplevel #js {:reacl_locals 
-                               (compute-locals (.-constructor this) app-state (extract-args this))}))
+      (let [locals (compute-locals (.-constructor this) app-state (extract-args this))]
+        (if (embedded? this)
+          (.setState toplevel #js {:reacl_locals locals})
+          (.setProps toplevel #js {:reacl_locals locals}))))
     (if-let [callback (aget toplevel-props "reacl_app_state_callback")]
       (callback app-state))))
 
@@ -146,6 +174,11 @@
                 :reacl_locals locals
                 :reacl_app_state_callback app-state-callback
                 :ref ref})))
+
+(defn- embedded?
+  "Check if a Reacl component is embedded."
+  [comp]
+  (some? (aget (.-props comp ) "reacl_app_state_callback")))
 
 (defn instantiate-toplevel
   "Instantiate a Reacl component at the top level.

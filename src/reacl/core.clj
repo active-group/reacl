@@ -124,7 +124,7 @@
                            ~?component
                            (let [[~@?args] (reacl.core/extract-args ~?component) ; FIXME: what if empty?
                                  ~?app-state (reacl.core/extract-app-state ~?component)
-                                 [~@?locals-ids] (reacl.core/extract-locals ~?component)]
+                                 [~@?locals-ids] (reacl.core/extract-initial-locals ~?component)]
                              (reacl.core/make-local-state ~?component
                                                           ~(or (get clause-map 'initial-state) `nil)))))
         wrap-args&locals

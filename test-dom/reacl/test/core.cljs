@@ -73,6 +73,10 @@
   (into []
         (js/React.addons.TestUtils.scryRenderedDOMComponentsWithTag comp tag-name)))
 
+(defn dom-with-class
+  [comp clazz]
+  (js/React.addons.TestUtils.findRenderedComponentWithType comp (reacl/react-class clazz)))
+
 (defn dom-content
   [comp]
   (.-textContent (.getDOMNode comp)))
@@ -112,3 +116,16 @@
     (reacl/send-message! item 6)
     (is (= ["13"]
            (map dom-content (doms-with-tag item "div"))))))
+
+(reacl/defclass blaz
+  this app-state []
+  render
+  (dom/span (reacl/embed blam this 5 (fn [_] nil))))
+  
+(deftest local-app-state-change-embed
+  (let [item (instantiate&mount blaz 5)
+        embedded (dom-with-class item blam)]
+    (reacl/send-message! embedded 6)
+    (is (= ["13"]
+           (map dom-content (doms-with-tag item "div"))))))
+  

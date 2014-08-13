@@ -56,13 +56,13 @@
                        (let [lhs (first p)]
                          (cond
                           (symbol? lhs)
-                          `[~lhs (reacl.dom/make-dom-binding (cljs.core/gensym '~lhs))]
+                          `[~lhs (reacl.dom/make-dom-binding '~lhs false)]
                           
                           (and (list? lhs)
                                (= (count lhs) 2)
                                (= :literally (first lhs))
                                (symbol? (second lhs)))
-                          `[~(second lhs) (reacl.dom/make-dom-binding '~(second lhs))]
+                          `[~(second lhs) (reacl.dom/make-dom-binding '~(second lhs) true)]
                           
                           :else
                           (throw (Exception. (str "Not a valid letdom lhs " lhs))))))

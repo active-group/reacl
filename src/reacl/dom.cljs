@@ -47,26 +47,34 @@
 (defprotocol IDomBinding
   (binding-get-dom [this])
   (binding-set-dom! [this v])
-  (binding-get-ref [this ])
-  (binding-set-ref! [this v]))
+  (binding-get-ref [this])
+  (binding-set-ref! [this v])
+  (binding-get-literally? [this]))
 
 (deftype DomBinding
     ^{:doc "Composite object
   containing an atom containing DOM object and a name for referencing.
   This is needed for `letdom'."}
- [^{:unsynchronized-mutable true} dom ^{:unsynchronized-mutable true} ref]
+ [^{:unsynchronized-mutable true} dom ^{:unsynchronized-mutable true} ref literally?]
   IDomBinding
   (binding-get-dom [_] dom)
   (binding-set-dom! [this v] (set! dom v))
   (binding-get-ref [_] ref)
   (binding-set-ref! [this v] (set! ref v))
+  (binding-get-literally? [_] literally?)
   HasDom
   (-get-dom [_] dom))
 
 (defn make-dom-binding
-  "Make an empty DOM binding from a ref name."
-  [n]
-  (DomBinding. nil n))
+  "Make an empty DOM binding from a ref name.
+
+  If literally? is not true, gensym the name."
+  [n literally?]
+  (DomBinding. nil 
+               (if literally?
+                 n
+                 (gensym n))
+               literally?))
 
 (defn dom-node
   "Get the real DOM node associated with a binding.
@@ -131,6 +139,7 @@
   (if-let [ref (aget (.-props dom) "ref")]
     ;; it already has a ref, hopefully unique
     (do
+      (assert (not (binding-get-literally? dn)))
       (binding-set-ref! dn ref)
       (binding-set-dom! dn dom))
     (binding-set-dom! dn

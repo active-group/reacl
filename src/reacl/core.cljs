@@ -48,39 +48,28 @@
   [this]
   (aget (.-props this) "reacl_args"))
 
-(declare embedded?)
-
-(defn extract-initial-locals
-  "Get the initial local bindings for a component.
-
-   For internal use."
-  [this]
-  (aget (.-props this) "reacl_locals"))
-
 ; The locals are difficult: We want them to be like props on the one
 ; hand, but they should have new bindings when the app state changes.
 
 ; The latter means we cannot generally put them in the component
 ; state, as the component state survives app-state changes.
 
-; The former means we cannot update them, which we want to do on the
-; top-level and embedded components when the app state changes.
+; So we need to put them in the props and make them mutable, by
+; sticking an atom in the props.
 
-; So we have to use a three-pronged strategy:
+; For updating the locals, we use a two-pronged strategy:
 
 ; - For non-top-level, non-embedded components there's no problem, as
 ;   the components get re-instantiated as a matter of the usual routine.
-; - For top-level components, we use setProps to update the locals.
-; - For embedded components, we start in props and, on update,
-;   transfer to the state.
+; - For top-level and embedded components, we reset the atom to update
+;   the locals.
 
 (defn extract-locals
   "Get the local bindings for a component.
 
    For internal use."
   [this]
-  (or (aget (.-state this) "reacl_locals") ; updated version in the embedded case
-      (aget (.-props this) "reacl_locals")))
+  @(aget (.-props this) "reacl_locals"))
 
 (defn compute-locals
   "Compute the locals.
@@ -97,12 +86,10 @@
         toplevel-props (.-props toplevel)
         app-state-atom (aget toplevel-props "reacl_app_state_atom")]
     (reset! app-state-atom app-state)
-    (.setState toplevel #js {:reacl_app_state app-state})
     (when (identical? this toplevel)
-      (let [locals (compute-locals (.-constructor this) app-state (extract-args this))]
-        (if (embedded? this)
-          (.setState toplevel #js {:reacl_locals locals})
-          (.setProps toplevel #js {:reacl_locals locals}))))
+      (reset! (aget toplevel-props "reacl_locals") 
+              (compute-locals (.-constructor this) app-state (extract-args this))))
+    (.setState toplevel #js {:reacl_app_state app-state})
     (if-let [callback (aget toplevel-props "reacl_app_state_callback")]
       (callback app-state))))
 
@@ -137,7 +124,7 @@
     (clazz #js {:reacl_get_toplevel (aget props "reacl_get_toplevel")
                 :reacl_app_state_atom (aget props "reacl_app_state_atom")
                 :reacl_args args
-                :reacl_locals locals})))
+                :reacl_locals (atom locals)})))
 
 (defn instantiate-toplevel-internal
   "Internal function to instantiate a Reacl component.
@@ -152,7 +139,7 @@
                 :reacl_get_toplevel (fn [] @toplevel-atom)
                 :reacl_app_state_atom (atom app-state)
                 :reacl_args args
-                :reacl_locals locals})))
+                :reacl_locals (atom locals)})))
 
 (defn instantiate-embedded-internal
   "Internal function to instantiate an embedded Reacl component.
@@ -171,7 +158,7 @@
     (clazz #js {:reacl_get_toplevel (fn [] (aget (.-refs parent) ref))
                 :reacl_app_state_atom (atom app-state)
                 :reacl_args args
-                :reacl_locals locals
+                :reacl_locals (atom locals)
                 :reacl_app_state_callback app-state-callback
                 :ref ref})))
 

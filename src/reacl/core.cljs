@@ -207,6 +207,18 @@
   [clazz parent app-state app-state-callback & args]
   (-instantiate-embedded clazz parent app-state app-state-callback args))
 
+(defrecord KeepState
+    ^{:doc "Type of a unique value to distinguish nil from no change of state.
+            For internal use in reacl.core/return and reacl.core/set-state!."
+      :private true}
+  [])
+
+(def ^{:doc "Single value of type KeepState.
+             Can be used in reacl.core/return to indicate no (application or local)
+             state change, which is different from setting it to nil."
+       }
+  keep-state (KeepState.))
+
 (defrecord State
     ^{:doc "Composite object for app state and local state.
             For internal use in reacl.core/return."
@@ -219,16 +231,26 @@
    Has two optional keyword arguments:
 
    `app-state` is for a new app state.
-   `local-state` is for a new component-local state."
-  [&{:keys [app-state local-state]}]
-  (State. app-state local-state))
+   `local-state` is for a new component-local state.
+
+   A state can be set to nil. To keep a state unchanged, do not specify
+   that option, or specify the value reacl.core/keep-state."
+  [& args]
+  (let [args-map (apply hash-map args)
+        app-state (if (contains? args-map :app-state)
+                    (get args-map :app-state)
+                    keep-state)
+        local-state (if (contains? args-map :local-state)
+                      (get args-map :local-state)
+                      keep-state)]
+    (State. app-state local-state)))
 
 (defn set-state!
   "Set the app state and component state according to what return returned."
   [component ps]
-  (if (not (nil? (:local-state ps)))
+  (if (not (= keep-state (:local-state ps)))
     (set-local-state! component (:local-state ps)))
-  (if (not (nil? (:app-state ps)))
+  (if (not (= keep-state (:app-state ps)))
     (set-app-state! component (:app-state ps))))
 
 (defn event-handler

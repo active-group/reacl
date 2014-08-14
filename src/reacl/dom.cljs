@@ -81,7 +81,7 @@
 
   Needs the component object."
   [this binding]
-  (. (aget (.-refs this) (:ref binding)) getDOMNode))
+  (. (aget (.-refs this) (binding-get-ref binding)) getDOMNode))
 
 (defrecord KeyedDom
     ^{:doc "DOM with a key, for use as sequences of sub-elements."}

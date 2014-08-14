@@ -11,14 +11,15 @@
   Moreover, the `letdom' form constructing virtual DOM elements for
   easy reference in an event handler."}
   reacl.dom
-  (:require-macros [reacl.dom :refer [defdom]]))
+  (:require-macros [reacl.dom :refer [defdom]])
+  (:refer-clojure :exclude (meta map)))
 
 (defn- map->obj
   "Convert a Clojure map with keyword keys to a JavaScript hashmap with string keys."
   [mp]
   (apply js-obj
          (apply concat
-                (map (fn [e] [(name (key e)) (val e)]) mp))))
+                (cljs.core/map (fn [e] [(name (key e)) (val e)]) mp))))
 
 (defn- attributes
   "Convert attributes represented as a Clojure map to a React map.
@@ -28,14 +29,14 @@
   [mp]
   (apply js-obj
          (apply concat
-                (map (fn [e]
-                       (let [k (key e)
-                             v0 (val e)
-                             v (case k
-                                 :style (map->obj v0)
-                                 v0)]
-                         [(name k) v]))
-                     mp))))
+                (cljs.core/map (fn [e]
+                                 (let [k (key e)
+                                       v0 (val e)
+                                       v (case k
+                                           :style (map->obj v0)
+                                           v0)]
+                                   [(name k) v]))
+                               mp))))
 
 (defprotocol HasDom
   "General protocol for objects that contain or map to a virtual DOM object.
@@ -110,12 +111,12 @@
 
    ;; sequence of KeyedDom
    (seq? arg) (to-array
-               (map (fn [rd]
-                      (set-dom-key (normalize-arg (:dom rd)) (:key rd)))
-                    arg))
+               (cljs.core/map (fn [rd]
+                                (set-dom-key (normalize-arg (:dom rd)) (:key rd)))
+                              arg))
 
    ;; deprecated
-   (array? arg) (to-array (map normalize-arg arg))
+   (array? arg) (to-array (cljs.core/map normalize-arg arg))
 
    :else arg))
 
@@ -128,7 +129,7 @@
                         (not (satisfies? HasDom maybe)))
                  [(attributes maybe) rest]
                  [nil (cons maybe rest)])]
-           (apply f mp (map normalize-arg args))))
+           (apply f mp (cljs.core/map normalize-arg args))))
     ([] (f nil))))
 
 (defn set-dom-binding!

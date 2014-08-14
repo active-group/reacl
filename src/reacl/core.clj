@@ -188,6 +188,16 @@
                                                               ~?this
                                                               (~(wrap-args&locals ?this ?handler) msg#))))]
                                                        [])
+
+                                                   "shouldComponentUpdate"
+                                                   ~(let [?this `this#
+                                                          ?next-props `next-props#
+                                                          ?next-state `next-state#]
+                                                      `(fn [~?next-props ~?next-state]
+                                                         (cljs.core/this-as
+                                                          ~?this
+                                                          (reacl.core/should-component-update? ~?this ~?next-props ~?next-state))))
+
                                                    "statics"
                                                    (cljs.core/js-obj "__computeLocals"
                                                                      (fn [~?app-state ~@?args]
@@ -208,7 +218,6 @@
            (reacl.core/instantiate-embedded-internal clazz# component# app-state# app-state-callback# 
                                                      args# (reacl.core/compute-locals clazz# app-state# args#)))
          (~'-react-class [this#] clazz#)))))
-           
 
 (defmacro defclass
   "Define a Reacl class.

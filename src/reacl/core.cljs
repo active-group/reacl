@@ -19,13 +19,20 @@
   [this local-state]
   (.setState this #js {:reacl_local_state local-state}))
 
+(defn- state-extract-local-state
+  "Extract local state from the state of a Reacl component.
+
+   For internal use."
+  [state]
+  ; otherweise Closure :advanced screws it up
+  (aget state "reacl_local_state"))
+
 (defn extract-local-state
   "Extract local state from a Reacl component.
 
    For internal use."
   [this]
-  ; otherweise Closure :advanced screws it up
-  (aget (.-state this) "reacl_local_state"))
+  (state-extract-local-state (.-state this)))
 
 (defn extract-toplevel
   "Extract toplevel component of a Reacl component.
@@ -41,12 +48,19 @@
   [this]
   @(aget (.-props this) "reacl_app_state_atom"))
 
+(defn- props-extract-args
+  "Get the component args for a component from its props.
+
+   For internal use."
+  [props]
+  (aget props "reacl_args"))
+
 (defn extract-args
   "Get the component args for a component.
 
    For internal use."
   [this]
-  (aget (.-props this) "reacl_args"))
+  (props-extract-args (.-props this)))
 
 ; The locals are difficult: We want them to be like props on the one
 ; hand, but they should have new bindings when the app state changes.
@@ -109,8 +123,25 @@
 
    For internal use."
   [this local-state]
-  #js {:reacl_local_state local-state
-       :reacl_app_state @(aget (.-props this) "reacl_app_state_atom")})
+  #js {:reacl_local_state local-state})
+
+(declare toplevel? embedded?)
+
+(defn should-component-update?
+  "Implements shouldComponentUpdate for React.
+
+  For internal use only."
+  [this next-props next-state]
+  (let [state (.-state this)]
+    (or (and (not (toplevel? this))
+             (not (embedded? this)))
+        (and (not (.hasOwnProperty state "reacl_app_state"))
+             (.hasOwnProperty next-state "reacl_app_state")) ; it was not set before, now it's set
+        (not= (aget state "reacl_app_state") (aget next-state "reacl_app_state"))
+        (not= (extract-args this)
+              (props-extract-args next-props))
+        (not= (extract-local-state this)
+              (state-extract-local-state next-state)))))
 
 (defn instantiate-internal
   "Internal function to instantiate a Reacl component.
@@ -140,6 +171,11 @@
                 :reacl_app_state_atom (atom app-state)
                 :reacl_args args
                 :reacl_locals (atom locals)})))
+
+(defn- toplevel?
+  "Is this component toplevel?"
+  [this]
+  (aget (.-props this) "reacl_toplevel_atom"))
 
 (defn instantiate-embedded-internal
   "Internal function to instantiate an embedded Reacl component.

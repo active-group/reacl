@@ -70,6 +70,8 @@
                               "target/test-dom.js"]}}
 
    :codox {:language :clojurescript
-           :defaults {:doc/format :markdown}})
+           :defaults {:doc/format :markdown}
+           :src-dir-uri "http://github.com/active-group/reacl/blob/master/"
+           :src-linenum-anchor-prefix "L"})
 
 

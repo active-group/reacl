@@ -15,6 +15,7 @@
             ;; for example from the nashorn-runner branch from
             ;; https://github.com/active-group/clojurescript.test
             [com.cemerick/clojurescript.test "0.3.2-SNAPSHOT"]
+            [codox "0.8.10"]
             [org.bodil/lein-nashorn "0.1.2"]]
   
   :cljsbuild
@@ -66,5 +67,9 @@
                               "test/vendor/es5-shim.js"
                               "test/vendor/es5-sham.js"
                               "test/vendor/console-polyfill.js"
-                              "target/test-dom.js"]}})
+                              "target/test-dom.js"]}}
+
+   :codox {:language :clojurescript
+           :defaults {:doc/format :markdown}})
+
 

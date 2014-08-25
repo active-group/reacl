@@ -14,17 +14,17 @@
   (:require-macros [reacl.dom :refer [defdom]])
   (:refer-clojure :exclude (meta map)))
 
-(defn- map->obj
+(defn- ^:no-doc map->obj
   "Convert a Clojure map with keyword keys to a JavaScript hashmap with string keys."
   [mp]
   (apply js-obj
          (apply concat
                 (cljs.core/map (fn [e] [(name (key e)) (val e)]) mp))))
 
-(defn- attributes
+(defn- ^:no-doc attributes
   "Convert attributes represented as a Clojure map to a React map.
 
-  This knows about :style, and expects a Clojure map for the value."
+  This knows about `:style`, and expects a Clojure map for the value."
 
   [mp]
   (apply js-obj
@@ -41,21 +41,22 @@
 (defprotocol HasDom
   "General protocol for objects that contain or map to a virtual DOM object.
 
-  This is needed for `letdom', which wraps the DOM nodes on its
+  This is needed for [[letdom]], which wraps the DOM nodes on its
   right-hand sides."  
   (-get-dom [thing]))
 
-(defprotocol IDomBinding
+(defprotocol ^:no-doc IDomBinding
   (binding-get-dom [this])
   (binding-set-dom! [this v])
   (binding-get-ref [this])
   (binding-set-ref! [this v])
   (binding-get-literally? [this]))
 
-(deftype DomBinding
-    ^{:doc "Composite object
+(deftype ^{:doc "Composite object
   containing an atom containing DOM object and a name for referencing.
-  This is needed for `letdom'."}
+  This is needed for [[letdom]]."
+           :no-doc true}
+    DomBinding
  [^{:unsynchronized-mutable true} dom ^{:unsynchronized-mutable true} ref literally?]
   IDomBinding
   (binding-get-dom [_] dom)
@@ -69,7 +70,7 @@
 (defn make-dom-binding
   "Make an empty DOM binding from a ref name.
 
-  If literally? is not true, gensym the name."
+  If `literally?` is not true, gensym the name."
   [n literally?]
   (DomBinding. nil 
                (if literally?
@@ -84,8 +85,9 @@
   [this binding]
   (. (aget (.-refs this) (binding-get-ref binding)) getDOMNode))
 
-(defrecord KeyedDom
-    ^{:doc "DOM with a key, for use as sequences of sub-elements."}
+(defrecord ^{:doc "DOM with a key, for use as sequences of sub-elements."
+             :no-doc true}
+    KeyedDom
     [key dom])
 
 (defn keyed
@@ -93,17 +95,17 @@
   [key dom]
   (KeyedDom. key dom))
 
-(defn- set-dom-key
+(defn- ^:no-doc set-dom-key
   "Attach a key property to a DOM object."
   [dom key]
   (js/React.addons.cloneWithProps dom #js {:key key}))
 
-(defn- normalize-arg
+(defn- ^:no-doc normalize-arg
   "Normalize the argument to a DOM-constructing function.
 
-  In particular, each HasDom objects is mapped to its DOM object.
+  In particular, each [[HasDom]] object is mapped to its DOM object.
 
-  Also, sequences of KeyeDDom sub-elements are mapped to their
+  Also, sequences of [[KeyeDom]] sub-elements are mapped to their
   respective DOM elements."
   [arg]
   (cond
@@ -120,7 +122,7 @@
 
    :else arg))
 
-(defn dom-function
+(defn ^:no-doc dom-function
   "Internal function for constructing wrappers for DOM-construction function."
   [f]
   (fn ([maybe & rest]
@@ -132,7 +134,7 @@
            (apply f mp (cljs.core/map normalize-arg args))))
     ([] (f nil))))
 
-(defn set-dom-binding!
+(defn ^:no-doc set-dom-binding!
   "Internal function for use by `letdom'.
 
   This sets the dom field of a DomBinding object, providing a :ref attribute."

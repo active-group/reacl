@@ -20,88 +20,88 @@
   "Create a Reacl class.
 
   This is a regular React class, with some convenience added - binding
-  of this, app-state, parameters etc - and implementing Reacl-specific
-  protocols, particularly for event handling.
+  of `this`, application state, parameters etc - and implementing
+  Reacl-specific protocols, particularly for event handling.
 
   The syntax is
 
-  (reacl.core/class <name> [<this-name> [<app-state-name> [<local-state-name>]]] [<param> ...]
-    render <renderer-exp>
-    [initial-state <initial-state-exp>]
-    [local [<local-name> <local-expr>]]
-    [handle-message <messager-handler-exp>]
-    [<lifecycle-method-name> <lifecycle-method-exp> ...])
+      (reacl.core/class <name> [<this-name> [<app-state-name> [<local-state-name>]]] [<param> ...]
+        render <renderer-exp>
+        [initial-state <initial-state-exp>]
+        [local [<local-name> <local-expr>]]
+        [handle-message <messager-handler-exp>]
+        [<lifecycle-method-name> <lifecycle-method-exp> ...])
 
-  <name> is a name for the class, for debugging purposes.
+  `<name>` is a name for the class, for debugging purposes.
 
   A number of names are bound in the various expressions in the body
   of reacl.core/class:
 
-  - <this-name> is bound to the component object itself
-  - <app-state-name> is bound to the global application state
-  - <local-state-name> is bound to the componnet-local state
-  - the <param> ... names are the explicit arguments of instantiations
+  - `<this-name>` is bound to the component object itself
+  - `<app-state-name>` is bound to the global application state
+  - `<local-state-name>` is bound to the componnet-local state
+  - the `<param>` ... names are the explicit arguments of instantiations
 
   A `local` clause allows binding additional local variables upon
   instantiation.  The syntax is analogous to `let`.
 
-  <renderer-exp> is an expression that renders the component, and
+  `<renderer-exp>` is an expression that renders the component, and
   hence must return a virtual dom node.
 
-  The handle-message function accepts a message sent to the
-  component via reacl.core/send-message!.  It's expected to
+  The `handle-message` function accepts a message sent to the
+  component via [[reacl.core/send-message!]].  It's expected to
   return a value specifying a new application state and/or
-  component-local state, via reacl.core/return.
+  component-local state, via [[reacl.core/return]].
 
   A lifecycle method can be one of:
 
-    component-will-mount component-did-mount
-    component-will-receive-props should-component-update? 
-    component-will-update component-did-update component-will-unmount
+    `component-will-mount` `component-did-mount`
+    `component-will-receive-props` `should-component-update?`
+    `component-will-update` `component-did-update` `component-will-unmount`
 
   These correspond to React's lifecycle methods, see here:
 
   http://facebook.github.io/react/docs/component-specs.html
 
-  Each right-hand-side <lifecycle-method-exp>s should evaluate to a
+  Each right-hand-side `<lifecycle-method-exp>`s should evaluate to a
   function.  This function's argument is always the component.  The
   remaining arguments are as for React.
 
   Example:
 
-  (defrecord New-text [text])
-  (defrecord Submit [])
+      (defrecord New-text [text])
+      (defrecord Submit [])
 
-  (reacl/defclass to-do-app
-    this todos local-state []
-    render
-    (dom/div
-     (dom/h3 \"TODO\")
-     (dom/div (map-indexed (fn [i todo]
-			     (dom/keyed (str i) (to-do-item this (lens/at-index i))))
-			   todos))
-     (dom/form
-      {:onSubmit (fn [e _]
-		   (.preventDefault e)
-		   (reacl/send-message! this (Submit.)))}
-      (dom/input {:onChange (fn [e]
-			      (reacl/send-message! this
-						   (New-text. (.. e -target -value))))
-		  :value local-state})
-      (dom/button
-       (str \"Add #\" (+ (count todos) 1)))))
+      (reacl/defclass to-do-app
+        this todos local-state []
+        render
+        (dom/div
+         (dom/h3 \"TODO\")
+         (dom/div (map-indexed (fn [i todo]
+                                 (dom/keyed (str i) (to-do-item this (lens/at-index i))))
+                               todos))
+         (dom/form
+          {:onSubmit (fn [e _]
+                       (.preventDefault e)
+                       (reacl/send-message! this (Submit.)))}
+          (dom/input {:onChange (fn [e]
+                                  (reacl/send-message! this
+                                                       (New-text. (.. e -target -value))))
+                      :value local-state})
+          (dom/button
+           (str \"Add #\" (+ (count todos) 1)))))
 
-    initial-state \"\"
+        initial-state \"\"
 
-    handle-message
-    (fn [msg]
-      (cond
-       (instance? New-text msg)
-       (reacl/return :local-state (:text msg))
+        handle-message
+        (fn [msg]
+          (cond
+           (instance? New-text msg)
+           (reacl/return :local-state (:text msg))
 
-       (instance? Submit msg)
-       (reacl/return :local-state \"\"
-		     :app-state (concat todos [(Todo. local-state false)])))))"
+           (instance? Submit msg)
+           (reacl/return :local-state \"\"
+                         :app-state (concat todos [(Todo. local-state false)])))))"
   [?name & ?stuff]
 
   (let [[?component ?stuff] (if (symbol? (first ?stuff))
@@ -220,27 +220,27 @@
          (~'-react-class [this#] clazz#)))))
 
 (defmacro defclass
-  "Define a Reacl class.
+  "Define a Reacl class, see [[class]] for documentation.
 
-   The syntax is
+  The syntax is
 
-   (reacl.core/defclass <name> <app-state> [<param> ...]
-     render <renderer-exp>
-     [initial-state <initial-state-exp>]
-     [<lifecycle-method-name> <lifecycle-method-exp> ...]
-     [handle-message <messager-handler-exp>]
+      (reacl.core/defclass <name> <app-state> [<param> ...]
+        render <renderer-exp>
+        [initial-state <initial-state-exp>]
+        [<lifecycle-method-name> <lifecycle-method-exp> ...]
+        [handle-message <messager-handler-exp>]
 
-     <event-handler-name> <event-handler-exp> ...)
+        <event-handler-name> <event-handler-exp> ...)
 
-   This expands to this:
+  This expands to this:
 
-   (def <name>
-     (reacl.core/class <name> <app-state> [<param> ...]
-       render <renderer-exp>
-       [initial-state <initial-state-exp>]
-       [<lifecycle-method-name> <lifecycle-method-exp> ...]
-       [handle-message <messager-handler-exp>]
+      (def <name>
+        (reacl.core/class <name> <app-state> [<param> ...]
+          render <renderer-exp>
+          [initial-state <initial-state-exp>]
+          [<lifecycle-method-name> <lifecycle-method-exp> ...]
+          [handle-message <messager-handler-exp>]
 
-       <event-handler-name> <event-handler-exp> ...))"
+          <event-handler-name> <event-handler-exp> ...))"
   [?name & ?stuff]
   `(def ~?name (reacl.core/class ~?name ~@?stuff)))

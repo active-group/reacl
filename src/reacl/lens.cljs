@@ -68,6 +68,7 @@
    value of the last one, in a data structure that the first one is put
    over."
   [l1 & lmore]
+  (assert (not-any? #(not (satisfies? Lens %)) (cons l1 lmore)))
   (loop [res l1
          lmore lmore]
     (if (empty? lmore)

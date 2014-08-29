@@ -2,7 +2,7 @@
       :doc "Reacl core functionality."}
   reacl.core)
 
-(defn- jsmap
+(defn- ^:no-doc jsmap
   "Convert a Clojure map to a JavaScript hashmap."
   [clmp]
   (loop [clmp clmp
@@ -12,14 +12,14 @@
       (recur (nnext clmp)
              (concat args [(name (first clmp)) (second clmp)])))))
 
-(defn set-local-state!
+(defn ^:no-doc set-local-state!
   "Set Reacl local state of a component.
 
    For internal use."
   [this local-state]
   (.setState this #js {:reacl_local_state local-state}))
 
-(defn- state-extract-local-state
+(defn- ^:no-doc state-extract-local-state
   "Extract local state from the state of a Reacl component.
 
    For internal use."
@@ -27,35 +27,35 @@
   ; otherweise Closure :advanced screws it up
   (aget state "reacl_local_state"))
 
-(defn extract-local-state
+(defn ^:no-doc extract-local-state
   "Extract local state from a Reacl component.
 
    For internal use."
   [this]
   (state-extract-local-state (.-state this)))
 
-(defn extract-toplevel
+(defn ^:no-doc extract-toplevel
   "Extract toplevel component of a Reacl component.
 
    For internal use."
   [this]
   ((aget (.-props this) "reacl_get_toplevel")))
 
-(defn extract-app-state
+(defn ^:no-doc extract-app-state
   "Extract applications state from a Reacl component.
 
    For internal use."
   [this]
   @(aget (.-props this) "reacl_app_state_atom"))
 
-(defn- props-extract-args
+(defn- ^:no-doc props-extract-args
   "Get the component args for a component from its props.
 
    For internal use."
   [props]
   (aget props "reacl_args"))
 
-(defn extract-args
+(defn ^:no-doc extract-args
   "Get the component args for a component.
 
    For internal use."
@@ -78,20 +78,20 @@
 ; - For top-level and embedded components, we reset the atom to update
 ;   the locals.
 
-(defn extract-locals
+(defn ^:no-doc extract-locals
   "Get the local bindings for a component.
 
    For internal use."
   [this]
   @(aget (.-props this) "reacl_locals"))
 
-(defn compute-locals
+(defn ^:no-doc compute-locals
   "Compute the locals.
   For internal use."
   [clazz app-state args]
   (apply (aget clazz "__computeLocals") app-state args))
 
-(defn set-app-state!
+(defn ^:no-doc set-app-state!
   "Set the application state associated with a Reacl component.
 
    For internal use."
@@ -107,7 +107,7 @@
     (if-let [callback (aget toplevel-props "reacl_app_state_callback")]
       (callback app-state))))
 
-(defprotocol IReaclClass
+(defprotocol ^:no-doc IReaclClass
   (-instantiate [clazz component args])
   (-instantiate-toplevel [clazz app-state args])
   (-instantiate-embedded [clazz component app-state app-state-callback args])
@@ -118,7 +118,7 @@
   [clazz]
   (-react-class clazz))
 
-(defn make-local-state
+(defn ^:no-doc make-local-state
   "Make a React state containing Reacl local variables and local state.
 
    For internal use."
@@ -127,8 +127,8 @@
 
 (declare toplevel? embedded?)
 
-(defn should-component-update?
-  "Implements shouldComponentUpdate for React.
+(defn ^:no-doc should-component-update?
+  "Implements [[shouldComponentUpdate]] for React.
 
   For internal use only."
   [this next-props next-state]
@@ -143,13 +143,13 @@
         (not= (extract-local-state this)
               (state-extract-local-state next-state)))))
 
-(defn instantiate-internal
+(defn ^:no-doc instantiate-internal
   "Internal function to instantiate a Reacl component.
 
-  `clazz' is the React class (not the Reacl class ...).
-  `parent' is the component from which the Reacl component is instantiated.
-  `args' are the arguments to the component.
-  `locals' are the local variables of the components."
+  - `clazz` is the React class (not the Reacl class ...).
+  - `parent` is the component from which the Reacl component is instantiated.
+  - `args` are the arguments to the component.
+  - `locals` are the local variables of the components."
   [clazz parent args locals]
   (let [props (.-props parent)]
     (clazz #js {:reacl_get_toplevel (aget props "reacl_get_toplevel")
@@ -157,13 +157,13 @@
                 :reacl_args args
                 :reacl_locals (atom locals)})))
 
-(defn instantiate-toplevel-internal
+(defn ^:no-doc instantiate-toplevel-internal
   "Internal function to instantiate a Reacl component.
 
-  `clazz' is the React class (not the Reacl class ...).
-  `app-state' is the  application state.
-  `args' are the arguments to the component.
-  `locals' are the local variables of the components."
+  - `clazz` is the React class (not the Reacl class ...).
+  - `app-state` is the  application state.
+  - `args` are the arguments to the component.
+  - `locals` are the local variables of the components."
   [clazz app-state args locals]
   (let [toplevel-atom (atom nil)] ;; NB: set by render-component
     (clazz #js {:reacl_toplevel_atom toplevel-atom
@@ -172,12 +172,12 @@
                 :reacl_args args
                 :reacl_locals (atom locals)})))
 
-(defn- toplevel?
+(defn- ^:no-doc toplevel?
   "Is this component toplevel?"
   [this]
   (aget (.-props this) "reacl_toplevel_atom"))
 
-(defn instantiate-embedded-internal
+(defn ^:no-doc instantiate-embedded-internal
   "Internal function to instantiate an embedded Reacl component.
 
   `clazz' is the React class (not the Reacl class ...).
@@ -198,7 +198,7 @@
                 :reacl_app_state_callback app-state-callback
                 :ref ref})))
 
-(defn- embedded?
+(defn- ^:no-doc embedded?
   "Check if a Reacl component is embedded."
   [comp]
   (some? (aget (.-props comp ) "reacl_app_state_callback")))
@@ -206,20 +206,19 @@
 (defn instantiate-toplevel
   "Instantiate a Reacl component at the top level.
 
-  `clazz' is the Reacl class.
-  `app-state' is the application state
-  `args` are the arguments to the component."
-
+  - `clazz` is the Reacl class.
+  - `app-state` is the application state
+  - `args` are the arguments to the component."
   [clazz app-state & args]
   (-instantiate-toplevel clazz app-state args))
 
 (defn render-component
   "Instantiate and render a component into the DOM.
 
-  - `element' is the DOM element
+  - `element` is the DOM element
   - `clazz` is the Reacl clazz
-  - `app-state' is the application state
-  - `args' are the arguments of the component."
+  - `app-state` is the application state
+  - `args` are the arguments of the component."
   [element clazz app-state & args]
   (let [instance
         (js/React.renderComponent
@@ -235,30 +234,32 @@
   embedded in a surrounding application.  Any changes to the app state 
   lead to the callback being invoked.
 
-  `clazz' is the Reacl class.
-  `parent' is the component from which the Reacl component is instantiated.
-  `app-state' is the application state.
-  `app-state-callback' is a function called with a new app state on changes.
-  `args` are the arguments to the component."
+  - `clazz` is the Reacl class.
+  - `parent` is the component from which the Reacl component is instantiated.
+  - `app-state` is the application state.
+  - `app-state-callback` is a function called with a new app state on changes.
+  - `args` are the arguments to the component."
   [clazz parent app-state app-state-callback & args]
   (-instantiate-embedded clazz parent app-state app-state-callback args))
 
-(defrecord KeepState
-    ^{:doc "Type of a unique value to distinguish nil from no change of state.
-            For internal use in reacl.core/return and reacl.core/set-state!."
-      :private true}
+(defrecord ^{:doc "Type of a unique value to distinguish nil from no change of state.
+            For internal use in [[reacl.core/return]] and [[reacl.core/set-state!]]."
+             :private true
+             :no-doc true} 
+    KeepState
   [])
 
 (def ^{:doc "Single value of type KeepState.
              Can be used in reacl.core/return to indicate no (application or local)
              state change, which is different from setting it to nil."
-       }
+       :no-doc true}
   keep-state (KeepState.))
 
-(defrecord State
-    ^{:doc "Composite object for app state and local state.
+(defrecord ^{:doc "Composite object for app state and local state.
             For internal use in reacl.core/return."
-      :private true}
+             :private true
+             :no-doc true}
+    State
     [app-state local-state])
 
 (defn return
@@ -266,11 +267,11 @@
 
    Has two optional keyword arguments:
 
-   `app-state` is for a new app state.
-   `local-state` is for a new component-local state.
+   - `:app-state` is for a new app state.
+   - `:local-state` is for a new component-local state.
 
    A state can be set to nil. To keep a state unchanged, do not specify
-   that option, or specify the value reacl.core/keep-state."
+   that option, or specify the value [[reacl.core/keep-state]]."
   [& args]
   (let [args-map (apply hash-map args)
         app-state (if (contains? args-map :app-state)
@@ -293,10 +294,10 @@
   "Create a Reacl event handler from a function.
 
    `f` must be a function that returns a return value created by
-   reacl.core/return, with a new application state and/or component-local
+   [[reacl.core/return]], with a new application state and/or component-local
    state.
 
-   reacl.core/event-handler turns that function `f` into an event
+   [[reacl.core/event-handler]] turns that function `f` into an event
    handler, that is, a function that sets the new application state
    and/or component-local state.  `f` gets passed any argument the event
    handler gets passed, plus, as its last argument, the component-local
@@ -304,11 +305,11 @@
 
    This example event handler can be used with onSubmit, for example:
 
-   (reacl/event-handler
-    (fn [e _ text]
-      (.preventDefault e)
-      (reacl/return :app-state (concat todos [{:text text :done? false}])
-                    :local-state \"\")))
+       (reacl/event-handler
+        (fn [e _ text]
+          (.preventDefault e)
+          (reacl/return :app-state (concat todos [{:text text :done? false}])
+                        :local-state \"\")))
 
    Note that `text` is the component-local state."
   [f]
@@ -317,7 +318,7 @@
           ps (apply f (concat args [local-state]))]
       (set-state! component ps))))
 
-(defn- handle-message
+(defn- ^:no-doc handle-message
   "Handle a message for a Reacl component.
 
   For internal use.
@@ -326,7 +327,7 @@
   [comp msg]
   ((aget comp "__handleMessage") msg))
 
-(defn handle-message->state
+(defn ^:no-doc handle-message->state
   "Handle a message for a Reacl component.
 
   For internal use.

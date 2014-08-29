@@ -11,6 +11,10 @@ Your `project.clj` should contain something like this:
 					 [org.clojure/clojurescript "0.0-2280" :scope "provided"]
 					 [reacl "0.5.0"]]
 
+## API Documentation
+
+[Here](http://active-group.github.io/reacl/).
+
 ## Model
 
 The central idea of Reacl is this: Reacl programs are pure.  They

@@ -83,6 +83,8 @@
          (lens/shove [7] lens/tail [15])))
   (is (= [nil 15]
          (lens/shove [] lens/tail [15])))
+  (is (= [15]
+         (lens/shove [15] lens/tail nil)))
   (is (= [42]
          (lens/shove [42] lens/tail []))))
 
@@ -92,6 +94,8 @@
          (lens/yank [13 42] lens/nel-tail)))
   (is (= [7 15]
          (lens/shove [7] lens/nel-tail [15])))
+  (is (= [7 nil]
+         (lens/shove [7 0] lens/nel-tail [nil])))
   (is (= [42]
          (lens/shove [42] lens/nel-tail []))))
 
@@ -128,6 +132,12 @@
            (lens/yank [] l)))
     (is (= nil
            (lens/yank nil l)))
+    (is (= nil
+           (lens/yank [10] l)))
+    (is (= [[nil 3]]
+           (lens/shove nil (lens/>> (lens/pos 0) (lens/pos 1)) 3)))
+    (is (= [nil [nil 3]]
+           (lens/shove nil (lens/>> (lens/pos 1) (lens/pos 1)) 3)))
     (is (= [13 42]
            (lens/shove [13 0] l 42)))
     (is (= [13 42]
@@ -157,7 +167,7 @@
     (is (= 13
            (lens/shove 42 l "13")))))
 
-(deftest is
+(deftest is-t
   (let [l (lens/is 42)]
     (lens-laws-hold l 13 true false)
     (is (lens/yank 42 l))
@@ -177,7 +187,10 @@
     (is (= [nil 42]
            (lens/yank {:b 42} l)))
     (is (= {:a 42 :b 21 :c 3}
-           (lens/shove {:a 13 :c 3} l [42 21])))))
+           (lens/shove {:a 13 :c 3} l [42 21])))
+    (is (= [1 nil]
+           (lens/yank {:a 1 :b 2 :c 3} (lens/++ :a lens/void))))
+    ))
 
 (deftest >>
   (let [l (lens/>> :a :b)]

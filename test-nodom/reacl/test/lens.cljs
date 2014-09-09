@@ -83,6 +83,8 @@
          (lens/shove [7] lens/tail [15])))
   (is (= [nil 15]
          (lens/shove [] lens/tail [15])))
+  (is (= [7 42]
+         (lens/shove [7 nil] lens/tail (cons 42 nil))))
   (is (= [15]
          (lens/shove [15] lens/tail nil)))
   (is (= [42]

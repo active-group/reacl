@@ -7,7 +7,7 @@
   :jvm-opts ^:replace ["-Xmx512m" "-server"]
 
   :dependencies [[org.clojure/clojure "1.6.0"]
-                 [org.clojure/clojurescript "0.0-2280" :scope "provided"]
+                 [org.clojure/clojurescript "0.0-2341" :scope "provided"]
                  [com.facebook/react "0.11.1"]]
 
   :plugins [[lein-cljsbuild "1.0.3"]

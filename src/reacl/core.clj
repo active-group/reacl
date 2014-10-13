@@ -155,6 +155,7 @@
                   `(let [~@(mapcat (fn [p]
                                      [(first p) `(aget ~?this ~(str (first p)))])
                                     misc)]
+                     (reset! (aget (.-props ~?this) "reacl_embedded_ref_count") 0)
                      ~?render))))))]
     `(let [clazz#
            (js/React.createClass (cljs.core/js-obj "render" ~?renderfn 

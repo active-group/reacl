@@ -154,6 +154,7 @@
   (let [props (.-props parent)]
     (clazz #js {:reacl_get_toplevel (aget props "reacl_get_toplevel")
                 :reacl_app_state_atom (aget props "reacl_app_state_atom")
+                :reacl_embedded_ref_count (atom nil)
                 :reacl_args args
                 :reacl_locals (atom locals)})))
 
@@ -168,6 +169,7 @@
   (let [toplevel-atom (atom nil)] ;; NB: set by render-component
     (clazz #js {:reacl_toplevel_atom toplevel-atom
                 :reacl_get_toplevel (fn [] @toplevel-atom)
+                :reacl_embedded_ref_count (atom nil)
                 :reacl_app_state_atom (atom app-state)
                 :reacl_args args
                 :reacl_locals (atom locals)})))
@@ -190,9 +192,16 @@
   (let [toplevel-atom (atom nil)
         ;; React will replace whatever is returned by (clazz ...) on mounting.
         ;; This is the only way to get at the mounted component, it seems.
-        ref (str (gensym "embedded"))]
+
+        ;; That's not all, though: The ref-count atom will sometimes
+        ;; be from the old object from the previous render cycle; it's
+        ;; initialized in the render method, off the class macro.
+        ref-count (aget (.-props parent) "reacl_embedded_ref_count")
+        ref (str "__reacl_embedded__" @ref-count)]
+    (swap! ref-count inc)
     (clazz #js {:reacl_get_toplevel (fn [] (aget (.-refs parent) ref))
                 :reacl_app_state_atom (atom app-state)
+                :reacl_embedded_ref_count (atom nil)
                 :reacl_args args
                 :reacl_locals (atom locals)
                 :reacl_app_state_callback app-state-callback

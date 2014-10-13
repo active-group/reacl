@@ -58,6 +58,14 @@
                           :output-dir "examples/comments/out"
                           :source-map "examples/comments/main.map"
                           :externs ["react/externs/react.js"]
+                          :optimizations :whitespace}}
+              {:id "delayed"
+               :source-paths ["src" "examples/delayed"]
+               :compiler {:preamble ["react/react_with_addons.min.js"]
+                          :output-to "examples/delayed/main.js"
+                          :output-dir "examples/delayed/out"
+                          :source-map "examples/delayed/main.map"
+                          :externs ["react/externs/react.js"]
                           :optimizations :whitespace}}]
    ;; React needs global binding to function, see
    ;; http://augustl.com/blog/2014/jdk8_react_rendering_on_server/

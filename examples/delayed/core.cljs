@@ -10,13 +10,14 @@
 
 (reacl/defclass delayed this state local-state [clazz delay publish-callback & args]
   render
-    (apply reacl/embed clazz this
+  (apply reacl/embed clazz this
          state
          #(reacl/send-message! this [:update %1])
          args)
 
-  initial-state {:st nil
-                 :id nil}
+  initial-state 
+  {:st nil
+   :id nil}
 
   handle-message
   (fn [[msg data]]
@@ -33,7 +34,7 @@
      :publish
      (do
        (reacl/return :app-state
-                     (publish-callback (:st state)))))))
+                     (publish-callback (:st local-state)))))))
 
 (reacl/defclass filter-input this state []
  render
@@ -53,13 +54,13 @@
   render 
   (do
     (dom/div
-     (dom/h1 "Value " local-state)
-
-     (dom/p "reacl/embed"
+     (dom/p "What you enter in the text field below gets published immediately:"
             (reacl/embed filter-input this local-state #(reacl/send-message! this %)))
 
-     (dom/p "delayed"
-            (delayed this filter-input 100 #(reacl/send-message! this %)))))
+     (dom/p "What you enter in the text field below gets published after a delay of one second:"
+            (delayed this filter-input 1000 #(reacl/send-message! this %)))
+
+     (dom/p "Published value: " local-state)))
 
   
   handle-message

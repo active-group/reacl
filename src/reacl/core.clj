@@ -39,7 +39,7 @@
 
   - `<this-name>` is bound to the component object itself
   - `<app-state-name>` is bound to the global application state
-  - `<local-state-name>` is bound to the componnet-local state
+  - `<local-state-name>` is bound to the component-local state
   - the `<param>` ... names are the explicit arguments of instantiations
 
   A `local` clause allows binding additional local variables upon

@@ -60,12 +60,12 @@
      (dom/p "What you enter in the text field below gets published after a delay of one second:"
             (delayed this filter-input 1000 #(reacl/send-message! this %)))
 
-     (dom/p "Published value: " local-state)))
+     (dom/p "Published value: " state)))
 
   
   handle-message
   (fn [data]
-    (reacl/return :local-state data)))
+    (reacl/return :app-state data)))
 
 (reacl/defclass root this state []
   render
@@ -75,4 +75,4 @@
 
 (reacl/render-component
  (.getElementById js/document "content")
- root [])
+ root "")

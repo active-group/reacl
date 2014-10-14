@@ -8,7 +8,7 @@
 
 (enable-console-print!)
 
-(reacl/defclass delayed this state local-state [clazz delay publish-callback & args]
+(reacl/defclass delayed this state local-state [clazz delay & args]
   render
   (apply reacl/embed clazz this
          state

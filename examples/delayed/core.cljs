@@ -34,7 +34,7 @@
      :publish
      (do
        (reacl/return :app-state
-                     (publish-callback (:st local-state)))))))
+                     (:st local-state))))))
 
 (reacl/defclass filter-input this state []
  render
@@ -58,7 +58,7 @@
             (reacl/embed filter-input this local-state #(reacl/send-message! this %)))
 
      (dom/p "What you enter in the text field below gets published after a delay of one second:"
-            (delayed this filter-input 1000 #(reacl/send-message! this %)))
+            (delayed this filter-input 1000))
 
      (dom/p "Published value: " state)))
 

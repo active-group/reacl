@@ -5,7 +5,7 @@
 (ns examples.comments.core
   (:require [reacl.core :as reacl :include-macros true]
             [reacl.dom :as dom :include-macros true]
-            [reacl.lens :as lens]
+            [active.clojure.lens :as lens]
             [cljs.reader :as reader]
             [goog.events :as events]
             [goog.dom :as gdom])

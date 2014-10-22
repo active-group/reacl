@@ -1,7 +1,7 @@
 (ns examples.todo.core
   (:require [reacl.core :as reacl :include-macros true]
             [reacl.dom :as dom :include-macros true]
-            [reacl.lens :as lens]))
+            [active.clojure.lens :as lens]))
 
 (enable-console-print!)
 

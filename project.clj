@@ -8,7 +8,8 @@
 
   :dependencies [[org.clojure/clojure "1.6.0"]
                  [org.clojure/clojurescript "0.0-2341" :scope "provided"]
-                 [com.facebook/react "0.11.1"]]
+                 [com.facebook/react "0.11.1"]
+                 [active-clojure "0.3.0-SNAPSHOT" :exclusions [org.clojure/clojure]]]
 
   :plugins [[lein-cljsbuild "1.0.3"]
             ;; NB: This needs a version of clojurescript.test with the Nashorn runner,
@@ -20,14 +21,7 @@
   
   :cljsbuild
   
-  { :builds [{:id "test-nodom"
-              :source-paths ["src" "test-nodom"]
-              :compiler {:preamble ["react/react_with_addons.js"] ; TestUtils aren't in minified version
-                         :output-to "target/test-nodom.js"
-                         :optimizations :whitespace
-                         :externs ["react/externs/react.js"]
-                         :pretty-print true}}
-             {:id "test-dom"
+  { :builds [{:id "test-dom"
               :source-paths ["src" "test-dom"]
               :compiler {:preamble ["react/react_with_addons.js"] ; TestUtils aren't in minified version
                          :output-to "target/test-dom.js"
@@ -69,8 +63,7 @@
                           :optimizations :whitespace}}]
    ;; React needs global binding to function, see
    ;; http://augustl.com/blog/2014/jdk8_react_rendering_on_server/
-   :test-commands {"nashorn" ["jrunscript" "-e" "var global = this" "-f" :nashorn-runner "target/test-nodom.js"]
-                   "phantom" ["phantomjs" :runner 
+   :test-commands {"phantom" ["phantomjs" :runner 
                               "window.literal_js_executed=true"
                               "test/vendor/es5-shim.js"
                               "test/vendor/es5-sham.js"

@@ -5,7 +5,40 @@
             [reacl.dom :as dom :include-macros true]))
 
 (core/defclass 
-  ^{:doc "A reacl class that delays `clazz`'s state change for `delay` milliseconds."}
+  ^{:doc 
+    "A reacl class that delays `clazz`'s state change for `delay`
+     milliseconds.
+
+     Example:
+
+     This is a reacl class that implements a text input field that can
+     be used as search field:
+
+          (reacl/defclass search-input this state []
+            render
+            (dom/letdom [search-input 
+                         (dom/input {:type \"text\"
+                                     :id \"search\"
+                                     :onChange #(reacl/send-message! this (.-value (dom/dom-node this search-input)))})]
+              (dom/div search-input))
+            handle-message
+            (fn [data]
+              (reacl/return :app-state data)))
+   
+     Often it is not efficient to actually perform a search and update the
+     search results after every key the user types, but only after the user
+     hasn't type anything in while.  The `delayed` reacl class provides a
+     way to delay the propagatation of the `search-field`'s state change.
+     Here, the search field's update to the application state is published
+     after a delay of 200 milliseconds of inactivity:
+     
+          (delayed this search-input 200)
+
+     Or, to keep the internal state of `delayed` and `search-input`
+     separate from the surrounding application's state, you can embed
+     `delayed` via [[reacl.core/embed]]:
+
+          (reacl.core/embed delayed this local-state #(reacl/send-message! this %) filter-input 200)"}
   delayed this state local-state [clazz delay & args]
   render
   (apply core/embed clazz this

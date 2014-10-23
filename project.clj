@@ -8,8 +8,7 @@
 
   :dependencies [[org.clojure/clojure "1.6.0"]
                  [org.clojure/clojurescript "0.0-2341" :scope "provided"]
-                 [com.facebook/react "0.11.1"]
-                 [active-clojure "0.3.0-SNAPSHOT" :exclusions [org.clojure/clojure]]]
+                 [com.facebook/react "0.11.1"]]
 
   :plugins [[lein-cljsbuild "1.0.3"]
             ;; NB: This needs a version of clojurescript.test with the Nashorn runner,
@@ -18,6 +17,8 @@
             [com.cemerick/clojurescript.test "0.3.2-SNAPSHOT"]
             [codox "0.8.10"]
             [org.bodil/lein-nashorn "0.1.2"]]
+
+  :profiles {:dev {:dependencies [[active-clojure "0.3.0-SNAPSHOT" :exclusions [org.clojure/clojure]]]}}
   
   :cljsbuild
   

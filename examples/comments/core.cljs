@@ -45,7 +45,7 @@
   render
   (let [comments (lens/yank app-state lens)
         nodes (map-indexed (fn [i _]
-                             (dom/keyed (str i) (comment-entry this (lens/in lens (lens/at-index i)))))
+                             (dom/keyed (str i) (comment-entry this (lens/>> lens (lens/at-index i)))))
                            comments)]
     (dom/div {:className "commentList"}
              nodes)))

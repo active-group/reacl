@@ -5,6 +5,27 @@
 
 (enable-console-print!)
 
+(defn at-key
+  [extract-key key]
+  (lens/lens (fn [coll]
+               (some (fn [el]
+                       (and (= key (extract-key el))
+                            el))
+                     coll))
+             (fn [coll v]
+               (map (fn [el]
+                      (if (= key (extract-key el))
+                        v
+                        el))
+                    coll))))
+
+(defn map-keyed
+  [extract-key f coll]
+  (map (fn [el]
+         (let [key (extract-key el)]
+           (f el key (at-key extract-key key))))
+       coll))
+
 (defrecord TodosApp [next-id todos])
 
 (defrecord Todo [id text done?])
@@ -30,7 +51,7 @@
   (fn [checked?]
     (reacl/return :app-state
                   (lens/shove app-state
-                              (lens/in lens :done?)
+                              (lens/>> lens :done?)
                               checked?))))
 
 (defrecord New-text [text])
@@ -41,10 +62,10 @@
   render
   (dom/div
    (dom/h3 "TODO")
-   (dom/div (lens/map-keyed :id
-                            (fn [todo id lens]
-                              (dom/keyed (str id) (to-do-item this this (lens/in :todos lens))))
-                            (:todos app-state)))
+   (dom/div (map-keyed :id
+                       (fn [todo id lens]
+                         (dom/keyed (str id) (to-do-item this this (lens/>> :todos lens))))
+                       (:todos app-state)))
    (dom/form
     {:onSubmit (fn [e _]
                  (.preventDefault e)

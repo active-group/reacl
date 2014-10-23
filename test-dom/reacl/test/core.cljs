@@ -26,7 +26,7 @@
   (fn [checked?]
     (reacl/return :app-state
                   (lens/shove todos
-                              (lens/in lens :done?)
+                              (lens/>> lens :done?)
                               checked?))))
 
 

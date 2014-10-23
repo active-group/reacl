@@ -1,7 +1,7 @@
 (ns reacl.test.core
   (:require [reacl.core :as reacl :include-macros true]
             [reacl.dom :as dom :include-macros true]
-            [reacl.lens :as lens]
+            [active.clojure.lens :as lens]
             [cemerick.cljs.test :as t])
   (:require-macros [cemerick.cljs.test
                     :refer (is deftest with-test run-tests testing test-var)]))

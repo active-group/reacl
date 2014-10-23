@@ -39,7 +39,7 @@
 
   - `<this-name>` is bound to the component object itself
   - `<app-state-name>` is bound to the global application state
-  - `<local-state-name>` is bound to the componnet-local state
+  - `<local-state-name>` is bound to the component-local state
   - the `<param>` ... names are the explicit arguments of instantiations
 
   A `local` clause allows binding additional local variables upon
@@ -155,6 +155,7 @@
                   `(let [~@(mapcat (fn [p]
                                      [(first p) `(aget ~?this ~(str (first p)))])
                                     misc)]
+                     (reset! (aget (.-props ~?this) "reacl_embedded_ref_count") 0)
                      ~?render))))))]
     `(let [clazz#
            (js/React.createClass (cljs.core/js-obj "render" ~?renderfn 

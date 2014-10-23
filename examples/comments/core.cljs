@@ -5,13 +5,11 @@
 (ns examples.comments.core
   (:require [reacl.core :as reacl :include-macros true]
             [reacl.dom :as dom :include-macros true]
-            [reacl.lens :as lens]
+            [active.clojure.lens :as lens]
             [cljs.reader :as reader]
             [goog.events :as events]
             [goog.dom :as gdom])
-  (:import [goog.net XhrIo]
-           goog.net.EventType
-           [goog.events EventType]))
+  (:import [goog.net XhrIo EventType]))
 
 (enable-console-print!)
 
@@ -23,7 +21,7 @@
 
 (defn edn-xhr [{:keys [method url data on-complete]}]
   (let [xhr (XhrIo.)]
-    (events/listen xhr goog.net.EventType.COMPLETE
+    (events/listen xhr EventType.COMPLETE
       (fn [e]
         (on-complete (reader/read-string (.getResponseText xhr)))))
     (. xhr
@@ -32,7 +30,7 @@
 
 (defrecord Comment [author text])
 
-(reacl/defclass comment
+(reacl/defclass comment-entry
   this app-state [lens]
   local [comment (lens/yank app-state lens)]
   render
@@ -47,7 +45,7 @@
   render
   (let [comments (lens/yank app-state lens)
         nodes (map-indexed (fn [i _]
-                             (dom/keyed (str i) (comment this (lens/in lens (lens/at-index i)))))
+                             (dom/keyed (str i) (comment-entry this (lens/in lens (lens/at-index i)))))
                            comments)]
     (dom/div {:className "commentList"}
              nodes)))

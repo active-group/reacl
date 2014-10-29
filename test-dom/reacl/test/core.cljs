@@ -1,6 +1,7 @@
 (ns reacl.test.core
   (:require [reacl.core :as reacl :include-macros true]
             [reacl.dom :as dom :include-macros true]
+            [reacl.test-util :as test-util]
             [active.clojure.lens :as lens]
             [cemerick.cljs.test :as t])
   (:require-macros [cemerick.cljs.test
@@ -30,30 +31,20 @@
                               checked?))))
 
 
-(defn render-to-text
-  [dom]
-  (js/React.renderComponentToStaticMarkup dom))
-
-; see http://stackoverflow.com/questions/22463156/updating-react-component-state-in-jasmine-test
-(defn instantiate&mount
-  [clazz app-state & args]
-  (let [div (js/document.createElement "div")]
-    (apply reacl/render-component div clazz app-state args)))
-
 (deftest dom
   (let [d (dom/h1 "Hello, world!")]
     (is (= "<h1>Hello, world!</h1>"
-           (render-to-text d)))))
+           (test-util/render-to-text d)))))
 
 (deftest simple
   (let [item (reacl/instantiate-toplevel to-do-item (Todo. "foo" false) lens/id)]
     (is (= (reacl/extract-app-state item)
            (Todo. "foo" false)))
     (is (= "<div><input type=\"checkbox\" value=\"false\">foo</div>"
-           (render-to-text item)))))
+           (test-util/render-to-text item)))))
 
 (deftest handle-message-simple
-  (let [item (instantiate&mount to-do-item (Todo. "foo" false) lens/id)]
+  (let [item (test-util/instantiate&mount to-do-item (Todo. "foo" false) lens/id)]
     (let [[app-state _] (reacl/handle-message->state item true)]
       (is (= app-state (Todo. "foo" true))))))
 
@@ -82,7 +73,7 @@
   (.-textContent (.getDOMNode comp)))
 
 (deftest locals-sequential
-  (let [item (instantiate&mount foo 42 12)
+  (let [item (test-util/instantiate&mount foo 42 12)
         divs (doms-with-tag item "div")]
     (is (= ["57" "76"]
            (map dom-content divs)))))
@@ -97,7 +88,7 @@
     (reacl/return :local-state new)))
 
 (deftest local-change
-  (let [item (instantiate&mount bar 5)]
+  (let [item (test-util/instantiate&mount bar 5)]
     (reacl/send-message! item 2)
     (is (= ["20" "29"]
            (map dom-content (doms-with-tag item "div"))))))
@@ -112,7 +103,7 @@
     (reacl/return :app-state new)))
 
 (deftest local-app-state-change
-  (let [item (instantiate&mount blam 5)]
+  (let [item (test-util/instantiate&mount blam 5)]
     (reacl/send-message! item 6)
     (is (= ["13"]
            (map dom-content (doms-with-tag item "div"))))))
@@ -123,7 +114,7 @@
   (dom/span (reacl/embed blam this 5 (fn [_] nil))))
   
 (deftest local-app-state-change-embed
-  (let [item (instantiate&mount blaz 5)
+  (let [item (test-util/instantiate&mount blaz 5)
         embedded (dom-with-class item blam)]
     (reacl/send-message! embedded 6)
     (is (= ["13"]

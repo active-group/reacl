@@ -51,9 +51,7 @@ implementing Reacl's internal protocols), and the
 `reacl.core/send-message!` for sending a message to a component.
 
 In addition to this core model, Reacl also provides a convenience
-layer on React's virtual dom (which can be used independently), as
-well as a lens library for access into application state (which can
-also be used independently).
+layer on React's virtual dom (which can be used independently).
 
 ## Organization
 
@@ -62,13 +60,10 @@ Reacl consists of three namespaces:
 - `reacl.core` with Reacl's core programming model
 - `reacl.dom` for conveniently constructing virtual DOM nodes in
   ClojureScript
-- `reacl.lens` for access into the application state with lenses
 
-The `reacl.dom` and `reacl.lens` namespaces can be used independently.
+The `reacl.dom` namespace can be used independently.
 While `reacl.core` depends on `reacl.dom`, it could also be used
-directly with React's virtual-DOM API or other DOM binding.  The
-`reacl.lens` namespace contains a completely independent, fairly
-generic implementation of lenses.
+directly with React's virtual-DOM API or other DOM binding.
 
 ## Example
 
@@ -80,7 +75,7 @@ expect [TodoMVC](http://todomvc.com/)).  We use this namespace header:
 	(ns examples.todo.core
 	  (:require [reacl.core :as reacl :include-macros true]
 				[reacl.dom :as dom :include-macros true]
-				[reacl.lens :as lens]))
+				[active.clojure.lens :as lens]))
 
 First of all, we define a record type for to-dos, with a descriptive
 text and a flag indicating that it's done:
@@ -106,14 +101,14 @@ Here is a component class for a single item, which allows marking the
 	  (fn [checked?]
 		(reacl/return :app-state
 					  (lens/shove todos
-								  (lens/in lens :done?)
+								  (lens/>> lens :done?)
 								  checked?))))
 
 The class is called `to-do-item`.  Within the component code, the
 component is accessible as `this`, the application state is accessible
 as `todos`, and the component accepts a single parameter `lens`, which
 is a lens for accessing the to-do item managed by this component
-within the application state.
+within the application state. (FIXME: Link to active-clojure)
 
 The component class defines a `render` expression.  The code first
 extracts the to-do item managed by this component via `lens/yank`,

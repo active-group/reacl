@@ -19,6 +19,7 @@
         comp (apply reacl/render-component root clazz app-state args)]
     {:send-message! #(reacl/send-message! comp %)
      :get-app-state! #(reacl/extract-app-state comp)
+     :get-local-state! #(reacl/extract-local-state comp)
      :get-dom! #(.-firstChild root)}))
 
 (defn with-testing-class*
@@ -43,11 +44,13 @@
             (the-dom #(is (= \"Hallo Welt\" (.-innerText %))))))
 "
   [[clazz init-app-state & args] initial-check & interactions]
-  (let [{:keys [send-message! get-app-state! get-dom!]} (apply test-class* clazz init-app-state args)]
-    (initial-check get-app-state! get-dom!)
+  (let [utils (apply test-class* clazz init-app-state args)]
+    (initial-check utils)
     (doseq [interaction interactions]
-      (doseq [check (interaction send-message!)]
-        (check get-app-state! get-dom!)))))
+      (doseq [check (interaction (:send-message! utils))]
+        (check utils)))))
+
+;; TODO: Take a look at React.addons.TestUtils.Simulate
 
 (defn after
   "Creates an interaction the sends the given message to the tested
@@ -59,18 +62,26 @@
     checks))
 
 (defn the-app-state
-  "Create a checks on the app-state, by calling the given function f
+  "Create a check on the app-state, by calling the given function f
   with the app-state at that time. Should be used in the context a
   [[testing-class*]] call."
   [f]
-  (fn [get-app-state! _]
-    (f (get-app-state!))))
+  (fn [utils]
+    (f ((:get-app-state! utils)))))
+
+(defn the-local-state
+  "Create a check on the local-state, by calling the given function f
+  with the local-state at that time. Should be used in the context a
+  [[testing-class*]] call."
+  [f]
+  (fn [utils]
+    (f ((:get-local-state! utils)))))
 
 (defn the-dom
-  "Create a checks on the dom rendered by a component, by calling the
+  "Create a check on the dom rendered by a component, by calling the
   given function f with the dom-node at that time. Should be used in
   the context a [[testing-class*]] call."
   [f]
-  (fn [_ get-dom!]
-    (f (get-dom!))))
+  (fn [utils]
+    (f ((:get-dom! utils)))))
 

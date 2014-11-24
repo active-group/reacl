@@ -119,4 +119,18 @@
     (reacl/send-message! embedded 6)
     (is (= ["13"]
            (map dom-content (doms-with-tag item "div"))))))
+
+(reacl/defclass blaz2
+  this app-state []
+  render
+  (reacl/embed blam this (* 2 app-state) (fn [_] nil))
+  handle-message
+  (fn [new]
+    (reacl/return :app-state new)))
   
+(deftest embedded-app-state-change
+  (let [item (test-util/instantiate&mount blaz2 5)
+        embedded (dom-with-class item blam)]
+    (reacl/send-message! item 6)
+    (is (= ["19"] ;; 2*6+7
+           (map dom-content (doms-with-tag item "div"))))))

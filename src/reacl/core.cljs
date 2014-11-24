@@ -41,14 +41,28 @@
   [this]
   ((aget (.-props this) "reacl_get_toplevel")))
 
+(defn ^:no-doc props-extract-app-state-atom
+  "Extract the applications state atom from props of a Reacl component.
+
+   For internal use."
+  [props]
+  (aget props "reacl_app_state_atom"))
+
+(defn ^:no-doc props-extract-app-state
+  "Extract applications state from props of a Reacl component.
+
+   For internal use."
+  [props]
+  @(props-extract-app-state-atom props))
+
 (defn ^:no-doc extract-app-state
   "Extract applications state from a Reacl component.
 
    For internal use."
   [this]
-  @(aget (.-props this) "reacl_app_state_atom"))
+  (props-extract-app-state (.-props this)))
 
-(defn- ^:no-doc props-extract-args
+(defn ^:no-doc props-extract-args
   "Get the component args for a component from its props.
 
    For internal use."
@@ -132,7 +146,8 @@
 
   For internal use only."
   [this next-props next-state]
-  (let [state (.-state this)]
+  (let [state (.-state this)
+        props (.-props this)]
     (or (and (not (toplevel? this))
              (not (embedded? this)))
         (and (not (.hasOwnProperty state "reacl_app_state"))
@@ -141,7 +156,19 @@
         (not= (extract-args this)
               (props-extract-args next-props))
         (not= (extract-local-state this)
-              (state-extract-local-state next-state)))))
+              (state-extract-local-state next-state))
+        ;; this was added for the case of an updated app-state argument
+        ;; for an embed call (compares the atoms, not the values)
+        (not= (props-extract-app-state-atom props)
+              (props-extract-app-state-atom next-props))
+        ;; uncomment for debugging:
+        (comment do (println "think props is unchanged:")
+            (println props)
+            (println next-props)
+            (println "think state is unchanged:")
+            (println state)
+            (println next-state)
+            false))))
 
 (defn ^:no-doc instantiate-internal
   "Internal function to instantiate a Reacl component.

@@ -117,6 +117,8 @@
     (when (identical? this toplevel)
       (reset! (aget toplevel-props "reacl_locals") 
               (compute-locals (.-constructor this) app-state (extract-args this))))
+    ;; remember current app-state in toplevel/embedded, for
+    ;; implementations of should-component-update?:
     (.setState toplevel #js {:reacl_app_state app-state})
     (if-let [callback (aget toplevel-props "reacl_app_state_callback")]
       (callback app-state))))
@@ -148,19 +150,27 @@
   [this next-props next-state]
   (let [state (.-state this)
         props (.-props this)]
-    (or (and (not (toplevel? this))
-             (not (embedded? this)))
-        (and (not (.hasOwnProperty state "reacl_app_state"))
-             (.hasOwnProperty next-state "reacl_app_state")) ; it was not set before, now it's set
-        (not= (aget state "reacl_app_state") (aget next-state "reacl_app_state"))
+    ;; at the toplevel/embedded level, we look at the app-state; if
+    ;; that changes, the whole tree must update; if not, then react
+    ;; will call this for the children, which can therefor presume the
+    ;; app-state has not changed.
+    (or (and (or (toplevel? this) (embedded? this))
+             (or
+              ;; app-state was not set before, now it's set
+              (and (not (.hasOwnProperty state "reacl_app_state"))
+                   (.hasOwnProperty next-state "reacl_app_state"))
+              ;; app-state changed
+              (not= (aget state "reacl_app_state") (aget next-state "reacl_app_state"))))
+        ;; this was added for the case of an updated app-state argument
+        ;; for an embed call (compares the atoms, not the values)
+        (and (embedded? this)
+             (not= (props-extract-app-state-atom props)
+                   (props-extract-app-state-atom next-props)))
+        ;; args or local-state changed?
         (not= (extract-args this)
               (props-extract-args next-props))
         (not= (extract-local-state this)
               (state-extract-local-state next-state))
-        ;; this was added for the case of an updated app-state argument
-        ;; for an embed call (compares the atoms, not the values)
-        (not= (props-extract-app-state-atom props)
-              (props-extract-app-state-atom next-props))
         ;; uncomment for debugging:
         (comment do (println "think props is unchanged:")
             (println props)

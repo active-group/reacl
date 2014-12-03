@@ -143,11 +143,11 @@
 
 (declare toplevel? embedded?)
 
-(defn ^:no-doc should-component-update?
+(defn ^:no-doc default-should-component-update?
   "Implements [[shouldComponentUpdate]] for React.
 
   For internal use only."
-  [this next-props next-state]
+  [this app-state local-state locals args next-props next-state]
   (let [state (.-state this)
         props (.-props this)]
     ;; at the toplevel/embedded level, we look at the app-state; if
@@ -390,3 +390,159 @@
   (let [st (handle-message comp msg)]
     (set-state! comp st)))
 
+;; Attention: duplicate definition for macro in core.clj
+(def ^:private specials #{:render :initial-state :handle-message
+                          :component-will-mount :component-did-mount
+                          :component-will-receive-props
+                          :should-component-update?
+                          :component-will-update :component-did-update
+                          :component-will-unmount})
+(defn- ^:no-doc is-special-fn? [[n f]]
+  (not (nil? (specials n))))
+
+(defn- ^:no-doc reset-embedded-ref-count! [this]
+  (reset! (aget (.-props this) "reacl_embedded_ref_count") 0))
+
+(defn create-class [display-name compute-locals fns]
+  ;; split special functions and miscs
+  (let [{specials true misc false} (group-by is-special-fn? fns)
+        {:keys [render
+                initial-state
+                handle-message
+                component-will-mount
+                component-did-mount
+                component-will-receive-props
+                should-component-update?
+                component-will-update
+                component-did-update
+                component-will-unmount]
+         :or {:should-component-update? default-should-component-update?}
+         }
+        (into {} specials)
+        ]
+    ;; Note that it's args is not & args down there
+    (let [ ;; base: prepend this app-state and args
+          base
+          (fn [f]
+            (when f
+              (fn [& react-args]
+                (this-as this
+                         (apply f this (extract-app-state this) (extract-args this)
+                                react-args)))))
+          ;; with locals, but without local-state
+          nlocal
+          (fn [f]
+            (base (when f
+                    (fn [this app-state args & react-args]
+                      (apply f this app-state (extract-locals this) args
+                                               react-args)))))
+          ;; also with local-state (most reacl methods)
+          std
+          (fn [f]
+            (nlocal (when f
+                      (fn [this app-state locals args & react-args]
+                        ;;(if (not (.-state this)) (throw (pr-str this)))
+                        (apply f this app-state (extract-local-state this)
+                               locals args
+                               react-args)))))
+          ;; and one arg with next/prev-props
+          other-props
+          (fn [f]
+            (std (when f
+                   (fn [this app-state local-state locals args & [other-props]]
+                     (apply f this app-state local-state locals args
+                            ;; FIXME: this is not the
+                            ;; next-app-state/prev-app-state, is it?
+                            (props-extract-app-state other-props)
+                            (props-extract-args other-props))))))
+          ;; and one arg with next/prev-state
+          other-props-and-state
+          (fn [f]
+            (other-props (when f
+                           (fn [this app-state local-state locals args other-app-state other-args & [other-state]]
+                             (apply f this app-state local-state locals args
+                                    other-app-state
+                                    (state-extract-local-state other-state)
+                                    other-args)))))
+
+          ;; with next-app-state and next-args
+          next1 other-props
+          ;; with next-app-state, next-local-state and next-args
+          next2 other-props-and-state
+          ;; with prev-app-state, prev-local-state and prev-args
+          prev2 other-props-and-state
+
+          react-method-map
+          (merge
+           (into {} (map (fn [[n f]] [n (std f)]) misc))
+           {"displayName"
+            display-name
+
+            "getInitialState"
+            (nlocal (if initial-state
+                      (fn [this app-state locals args]
+                        (make-local-state this
+                                          (initial-state app-state locals args)))
+                      (fn [this] (make-local-state this nil))
+                      ))
+
+            "render"
+            (std (when render
+                   (fn [this app-state local-state locals args]
+                     (reset-embedded-ref-count! this)
+                     (render this app-state local-state locals args))))
+
+            "__handleMessage"
+            (std handle-message)
+
+            "componentWillMount"
+            (std component-will-mount)
+
+            "componentDidMount"
+            (std component-did-mount)
+
+            "componentWillReceiveProps"
+            (std component-will-receive-props) ;; -> next1
+
+            "shouldComponentUpdate"
+            (std should-component-update?) ;; -> next2
+
+            "componentWillUpdate"
+            (std component-will-update) ;; -> next2
+
+            "componentDidUpdate"
+            (std component-did-update) ;; -> prev2
+
+            "componentWillUnmount"
+            (std component-will-unmount)
+
+            "statics"
+            (js-obj "__computeLocals"
+                    compute-locals ;; [app-state & args]
+                    )
+            }
+           )
+
+          react-class (js/React.createClass
+                       (apply js-obj (apply concat
+                                            (filter #(not (nil? (second %)))
+                                                    react-method-map))))
+          ]
+      (reify
+        IFn
+        (-invoke [this component & args]
+          (-instantiate this component args))
+        IReaclClass
+        (-instantiate [this component args]
+          (instantiate-internal react-class component
+                                args (compute-locals (extract-app-state component)
+                                                     args)))
+        (-instantiate-toplevel [this app-state args]
+          (instantiate-toplevel-internal react-class app-state args
+                                         (compute-locals app-state args)))
+        (-instantiate-embedded [this component app-state app-state-callback args]
+          (instantiate-embedded-internal react-class component app-state
+                                         app-state-callback args
+                                         (compute-locals app-state args)))
+        (-react-class [this] react-class)
+        ))))

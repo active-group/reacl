@@ -12,6 +12,7 @@
    'component-did-update 'componentDidUpdate
    'component-will-unmount 'componentWillUnmount})
 
+;; Attention: duplicate definition in core.cljs
 (def ^{:private true} special-tags
   (clojure.set/union (into #{} (map val lifecycle-name-map))
                      #{'render 'handle-message 'initial-state 'component-will-mount 'local}))
@@ -116,109 +117,58 @@
                                 [`local-state# ?stuff])
         [[& ?args] & ?clauses] ?stuff
 
-        clause-map (apply hash-map ?clauses)
-        ?locals-clauses (get clause-map 'local [])
+        ?clause-map (apply hash-map ?clauses)
+        ?locals-clauses (get ?clause-map 'local [])
         ?locals-ids (map first (partition 2 ?locals-clauses))
-        ?initial-state `(fn [] 
-                          (cljs.core/this-as
-                           ~?component
-                           (let [[~@?args] (reacl.core/extract-args ~?component) ; FIXME: what if empty?
-                                 ~?app-state (reacl.core/extract-app-state ~?component)
-                                 [~@?locals-ids] (reacl.core/extract-locals ~?component)]
-                             (reacl.core/make-local-state ~?component
-                                                          ~(or (get clause-map 'initial-state) `nil)))))
-        wrap-args&locals
-        (fn [?this & ?body]
-          `(let [~?component ~?this ; FIXME: instead bind ?component directly
-                 ~?app-state (reacl.core/extract-app-state ~?this)
-                 [~@?args] (reacl.core/extract-args ~?this) ; FIXME: what if empty?
-                 ~?local-state (reacl.core/extract-local-state ~?this)
-                 [~@?locals-ids] (reacl.core/extract-locals ~?this)]
-             ~@?body))
 
-        misc (filter (fn [e]
-                       (not (contains? special-tags (key e))))
-                     clause-map)
-        lifecycle (filter (fn [e]
-                            (contains? lifecycle-name-map (key e)))
-                          clause-map)
-        ?renderfn
-        (let [?this `this#  ; looks like a bug in ClojureScript, this# produces a warning but works
-              ?state `state#
-              ?render (get clause-map 'render)]
-          `(fn []
-             (cljs.core/this-as 
-              ~?this
-              (let [~?state (reacl.core/extract-local-state ~?this)]
-                ~(wrap-args&locals
-                  ?this
-                  `(let [~@(mapcat (fn [p]
-                                     [(first p) `(aget ~?this ~(str (first p)))])
-                                    misc)]
-                     (reset! (aget (.-props ~?this) "reacl_embedded_ref_count") 0)
-                     ~?render))))))]
-    `(let [clazz#
-           (js/React.createClass (cljs.core/js-obj "render" ~?renderfn 
-                                                   "getInitialState" ~?initial-state 
-                                                   "displayName" ~(str ?name)
-                                                   ~@(mapcat (fn [[?name ?rhs]]
-                                                               (let [?args `args#
-                                                                     ?this `this#]
-                                                                 [(str (get lifecycle-name-map ?name))
-                                                                  `(fn [& ~?args]
-                                                                     (cljs.core/this-as
-                                                                      ;; FIXME: should really bind ?rhs outside
-                                                                      ~?this
-                                                                      (apply ~(wrap-args&locals ?this ?rhs) ~?args)))]))
-                                                             lifecycle)
-                                                   ~@(mapcat (fn [[?name ?rhs]]
-                                                               [(str ?name) 
-                                                                (let [?args `args#
-                                                                      ?this `this#]
-                                                                  `(fn [& ~?args]
-                                                                     (cljs.core/this-as
-                                                                      ~?this
-                                                                      (cljs.core/apply ~(wrap-args&locals ?this ?rhs) ~?this ~?args))))])
-                                                             misc)
-                                                   ;; message handler, if there's one specified
-                                                   ~@(if-let [?handler (get clause-map 'handle-message)]
-                                                       ["__handleMessage"
-                                                        (let [?this `this#]
-                                                          `(fn [msg#]
-                                                             (cljs.core/this-as
-                                                              ~?this
-                                                              (~(wrap-args&locals ?this ?handler) msg#))))]
-                                                       [])
+        ?wrap-expression (fn [?sym]
+                           (let [?exists (contains? ?clause-map ?sym)
+                                 ?expr (get ?clause-map ?sym)]
+                             (when ?exists
+                               `(fn [] ~?expr))))
+        ?render-fn (?wrap-expression 'render)
+        ?initial-state-fn (?wrap-expression 'initial-state)
 
-                                                   "shouldComponentUpdate"
-                                                   ~(let [?this `this#
-                                                          ?next-props `next-props#
-                                                          ?next-state `next-state#]
-                                                      `(fn [~?next-props ~?next-state]
-                                                         (cljs.core/this-as
-                                                          ~?this
-                                                          (reacl.core/should-component-update? ~?this ~?next-props ~?next-state))))
+        ?other-fns-map (dissoc ?clause-map 'local 'render 'initial-state)
+        ?misc-fns-map (apply dissoc ?other-fns-map
+                             special-tags)
 
-                                                   "statics"
-                                                   (cljs.core/js-obj "__computeLocals"
-                                                                     (fn [~?app-state ~@?args]
-                                                                       (let ~?locals-clauses
-                                                                         [~@?locals-ids])))))]
-       (reify
-         cljs.core/IFn
-         (~'-invoke [this# component# & args#]
-           (-instantiate this# component# args#))
-         reacl.core/IReaclClass
-         (~'-instantiate [this# component# args#]
-           (reacl.core/instantiate-internal clazz# component# 
-                                            args# (reacl.core/compute-locals clazz# (reacl.core/extract-app-state component#) args#)))
-         (~'-instantiate-toplevel [this# app-state# args#]
-           (reacl.core/instantiate-toplevel-internal clazz# app-state# 
-                                                     args# (reacl.core/compute-locals clazz# app-state# args#)))
-         (~'-instantiate-embedded [this# component# app-state# app-state-callback# args#]
-           (reacl.core/instantiate-embedded-internal clazz# component# app-state# app-state-callback# 
-                                                     args# (reacl.core/compute-locals clazz# app-state# args#)))
-         (~'-react-class [this#] clazz#)))))
+        ?wrap-nlocal
+        (fn [?f]
+          (if ?f
+            (let [?more `more#]
+              `(fn [~?component ~?app-state [~@?locals-ids] [~@?args] & ~?more]
+                 (apply ~?f ~?more)))
+            'nil))
+        ?wrap-std ;; reuse wrap-nlocal?!
+        (fn [?f]
+          (if ?f
+            (let [?more `more#]
+              `(fn [~?component ~?app-state ~?local-state [~@?locals-ids] [~@?args] & ~?more]
+                 ;; everything user misc fn is also visible
+                 (let [~@(mapcat (fn [[n f]] [n `(aget ~?component ~(str n))]) ?misc-fns-map)]
+                   (apply ~?f ~?more))))
+            'nil))
+
+        ?std-fns-map (assoc ?other-fns-map
+                       'render ?render-fn)
+
+        ?wrapped-nlocals [['initial-state (?wrap-nlocal ?initial-state-fn)]]
+
+        ?wrapped-std (map (fn [[?n ?f]] [?n (?wrap-std ?f)])
+                          ?std-fns-map)
+
+        ?fns
+        (into {}
+              (map (fn [[?n ?f]] [(keyword ?n) ?f])
+                   (concat ?wrapped-nlocals ?wrapped-std)))
+
+        ?compute-locals
+        `(fn [~?app-state [~@?args]]
+           (let ~?locals-clauses
+             [~@?locals-ids]))
+        ]
+    `(reacl.core/create-class ~?name ~?compute-locals ~?fns)))
 
 (defmacro defclass
   "Define a Reacl class, see [[class]] for documentation.
@@ -244,4 +194,4 @@
 
           <event-handler-name> <event-handler-exp> ...))"
   [?name & ?stuff]
-  `(def ~?name (reacl.core/class ~?name ~@?stuff)))
+  `(def ~?name (reacl.core/class ~(str ?name) ~@?stuff)))

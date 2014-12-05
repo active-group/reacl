@@ -18,7 +18,7 @@
         ;;_ (.appendChild (.-body js/document) root)
         comp (apply reacl/render-component root clazz app-state args)]
     {:send-message! #(reacl/send-message! comp %)
-     :get-app-state! #(reacl/extract-app-state comp)
+     :get-app-state! #(reacl/extract-current-app-state comp)
      :get-local-state! #(reacl/extract-local-state comp)
      :get-dom! #(.-firstChild root)}))
 

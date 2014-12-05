@@ -41,28 +41,81 @@
   [this]
   ((aget (.-props this) "reacl_get_toplevel")))
 
-(defn ^:no-doc props-extract-app-state-atom
-  "Extract the applications state atom from props of a Reacl component.
+(defn- ^:no-doc props-extract-initial-app-state
+  "Extract intial applications state from props of a Reacl toplevel component.
 
    For internal use."
   [props]
-  (aget props "reacl_app_state_atom"))
+  (aget props "reacl_initial_app_state"))
 
-(defn ^:no-doc props-extract-app-state
-  "Extract applications state from props of a Reacl component.
+(defn- ^:no-doc ll-props-extract-latest-app-state
+  "Extract latest applications state from props of a lower level Reacl component.
 
    For internal use."
   [props]
-  @(props-extract-app-state-atom props))
+  (aget props "reacl_latest_app_state"))
 
-(defn ^:no-doc extract-app-state
-  "Extract applications state from a Reacl component.
+(defn- ^:no-doc tl-state-extract-app-state
+  "Extract latest applications state from state of a toplevel Reacl component.
+
+   For internal use."
+  [state]
+  (aget state "reacl_app_state"))
+
+(defn- ^:no-doc props-toplevel?
+  "Look at the given props, to tell if they belong to the toplevel
+  component (and not embedded).
+
+  For internal use"
+  [props]
+  (.hasOwnProperty props "reacl_toplevel_atom"))
+
+(defn- ^:no-doc props-embedded?
+  "Look at the given props to tell if they belong to an embedded component.
+
+   For internal use."
+  [props]
+  (.hasOwnProperty props "reacl_app_state_callback"))
+
+(defn- ^:no-doc data-extract-latest-app-state
+  "Extract the latest applications state from a Reacl component data.
+
+   For internal use."
+  [props state]
+  (if (or (props-toplevel? props)
+          (props-embedded? props))
+    ;; before first render, it's the initial-app-state, afterwards
+    ;; it's in the state
+    (if (and (not (nil? state))
+             (.hasOwnProperty state "reacl_app_state"))
+      (tl-state-extract-app-state state)
+      (props-extract-initial-app-state props))
+    ;; for lower levels, it's always in the props
+    (ll-props-extract-latest-app-state props)))
+
+(defn- ^:no-doc extract-latest-app-state
+  "Extract the latest applications state from a Reacl component.
 
    For internal use."
   [this]
-  (props-extract-app-state (.-props this)))
+  (data-extract-latest-app-state (.-props this) (.-state this)))
 
-(defn ^:no-doc props-extract-args
+(defn ^:no-doc extract-app-state
+  "Extract the current applications state from a Reacl component.
+
+   For internal use."
+  [this]
+  (let [toplevel (extract-toplevel this)]
+    (if toplevel
+      (extract-latest-app-state toplevel)
+      ;; should probably be an error, but at least one of the tests
+      ;; does instantiate-toplevel instead of render-component, so
+      ;; the toplevel atom is not set then
+      (extract-latest-app-state this))))
+
+(def ^:private extract-current-app-state extract-app-state)
+
+(defn- ^:no-doc props-extract-args
   "Get the component args for a component from its props.
 
    For internal use."
@@ -105,21 +158,61 @@
   [clazz app-state args]
   (apply (aget clazz "__computeLocals") app-state args))
 
+;; On the app-state integration:
+;;
+;; It starts with the argument to the instantiation of toplevel or
+;; embedded components. We put that app-state into
+;;
+;;   toplevel/props.reacl_initial_app_state
+;;
+;; In getInitialState of those top components, we take that over into
+;; their state, into
+;;
+;;  toplevel/state.reacl_app_state
+;;
+;; This is the place for app-state changed during the livetime of the
+;; toplevel component. When creating/updating lower level components,
+;; we 'snapshot' the app-state, which their current 'look' is based
+;; on, into
+;;
+;;  lowlevel/props.reacl_last_app_state
+;;
+;; When a component does not need to be updated, that value will not
+;; be the current app-state anymore; but for livecycle-methods like
+;; componentWillUpdate, that is exactly what we want. But in a method
+;; like handle-message, we need the most recent app-state, even if the
+;; component's look is based on an older one. Therefor we look into
+;; the toplevel's state in that case.
+;;
+;; Similar, for set-app-state!, we have to change the state of the
+;; toplevel component (resp. embedded). Last but not least, a toplevel
+;; component might be "reinstantiated" (very common in the embedded
+;; case, but also possible on toplevel). It will then receive a new
+;; reacl_initial_app_state in the props, which we take over into it's
+;; state in componentWillReceiveProps.
+
+(declare toplevel? embedded?)
+
 (defn ^:no-doc set-app-state!
   "Set the application state associated with a Reacl component.
+   May not be called before the first render.
 
    For internal use."
   [this app-state]
   (let [toplevel (extract-toplevel this)
-        toplevel-props (.-props toplevel)
-        app-state-atom (aget toplevel-props "reacl_app_state_atom")]
-    (reset! app-state-atom app-state)
+        toplevel-props (.-props toplevel)]
+    (assert (.hasOwnProperty (.-state toplevel) "reacl_app_state"))
+
+    ;; recompute locals if toplevel (in other cases they are computed
+    ;; upon reinstantiation)
     (when (identical? this toplevel)
       (reset! (aget toplevel-props "reacl_locals") 
               (compute-locals (.-constructor this) app-state (extract-args this))))
-    ;; remember current app-state in toplevel/embedded, for
-    ;; implementations of should-component-update?:
+
+    ;; set state - must be after compute locals
     (.setState toplevel #js {:reacl_app_state app-state})
+
+    ;; embedded callback
     (if-let [callback (aget toplevel-props "reacl_app_state_callback")]
       (callback app-state))))
 
@@ -141,8 +234,6 @@
   [this local-state]
   #js {:reacl_local_state local-state})
 
-(declare toplevel? embedded?)
-
 (defn ^:no-doc default-should-component-update?
   "Implements [[shouldComponentUpdate]] for React.
 
@@ -150,35 +241,12 @@
   [this app-state local-state locals args next-props next-state]
   (let [state (.-state this)
         props (.-props this)]
-    ;; at the toplevel/embedded level, we look at the app-state; if
-    ;; that changes, the whole tree must update; if not, then react
-    ;; will call this for the children, which can therefor presume the
-    ;; app-state has not changed.
-    (or (and (or (toplevel? this) (embedded? this))
-             (or
-              ;; app-state was not set before, now it's set
-              (and (not (.hasOwnProperty state "reacl_app_state"))
-                   (.hasOwnProperty next-state "reacl_app_state"))
-              ;; app-state changed
-              (not= (aget state "reacl_app_state") (aget next-state "reacl_app_state"))))
-        ;; this was added for the case of an updated app-state argument
-        ;; for an embed call (compares the atoms, not the values)
-        (and (embedded? this)
-             (not= (props-extract-app-state-atom props)
-                   (props-extract-app-state-atom next-props)))
-        ;; args or local-state changed?
-        (not= (extract-args this)
-              (props-extract-args next-props))
-        (not= (extract-local-state this)
+    (or (not= app-state
+              (data-extract-latest-app-state next-props next-state))
+        (not= local-state
               (state-extract-local-state next-state))
-        ;; uncomment for debugging:
-        (comment do (println "think props is unchanged:")
-            (println props)
-            (println next-props)
-            (println "think state is unchanged:")
-            (println state)
-            (println next-state)
-            false))))
+        (not= args
+              (props-extract-args next-props)))))
 
 (defn ^:no-doc instantiate-internal
   "Internal function to instantiate a Reacl component.
@@ -190,7 +258,7 @@
   [clazz parent args locals]
   (let [props (.-props parent)]
     (clazz #js {:reacl_get_toplevel (aget props "reacl_get_toplevel")
-                :reacl_app_state_atom (aget props "reacl_app_state_atom")
+                :reacl_latest_app_state (extract-latest-app-state parent)
                 :reacl_embedded_ref_count (atom nil)
                 :reacl_args args
                 :reacl_locals (atom locals)})))
@@ -207,14 +275,14 @@
     (clazz #js {:reacl_toplevel_atom toplevel-atom
                 :reacl_get_toplevel (fn [] @toplevel-atom)
                 :reacl_embedded_ref_count (atom nil)
-                :reacl_app_state_atom (atom app-state)
+                :reacl_initial_app_state app-state
                 :reacl_args args
                 :reacl_locals (atom locals)})))
 
 (defn- ^:no-doc toplevel?
   "Is this component toplevel?"
   [this]
-  (aget (.-props this) "reacl_toplevel_atom"))
+  (props-toplevel? (.-props this)))
 
 (defn ^:no-doc instantiate-embedded-internal
   "Internal function to instantiate an embedded Reacl component.
@@ -237,7 +305,7 @@
         ref (str "__reacl_embedded__" @ref-count)]
     (swap! ref-count inc)
     (clazz #js {:reacl_get_toplevel (fn [] (aget (.-refs parent) ref))
-                :reacl_app_state_atom (atom app-state)
+                :reacl_initial_app_state app-state
                 :reacl_embedded_ref_count (atom nil)
                 :reacl_args args
                 :reacl_locals (atom locals)
@@ -247,7 +315,7 @@
 (defn- ^:no-doc embedded?
   "Check if a Reacl component is embedded."
   [comp]
-  (some? (aget (.-props comp ) "reacl_app_state_callback")))
+  (props-embedded? (.-props comp )))
 
 (defn instantiate-toplevel
   "Instantiate a Reacl component at the top level.
@@ -423,54 +491,65 @@
     ;; Note that it's args is not & args down there
     (let [ ;; base: prepend this app-state and args
           base
-          (fn [f]
+          (fn [f & flags]
             (when f
-              (fn [& react-args]
-                (this-as this
-                         (apply f this (extract-app-state this) (extract-args this)
-                                react-args)))))
+              (let [get-app-state (if ((apply hash-set flags) :force-current-app-state)
+                                    ;; this is uptodate at any time
+                                    extract-current-app-state
+                                    ;; during the livecylcle/updates this might be older
+                                    extract-latest-app-state)]
+                (fn [& react-args]
+                  (this-as this
+                           (apply f this (get-app-state this) (extract-args this)
+                                  react-args))))))
           ;; with locals, but without local-state
           nlocal
-          (fn [f]
-            (base (when f
+          (fn [f & flags]
+            (apply
+             base (when f
                     (fn [this app-state args & react-args]
                       (apply f this app-state (extract-locals this) args
-                                               react-args)))))
+                             react-args)))
+             flags))
           ;; also with local-state (most reacl methods)
           std
-          (fn [f]
-            (nlocal (when f
+          (fn [f & flags]
+            (apply
+             nlocal (when f
                       (fn [this app-state locals args & react-args]
-                        ;;(if (not (.-state this)) (throw (pr-str this)))
                         (apply f this app-state (extract-local-state this)
                                locals args
-                               react-args)))))
+                               react-args)))
+             flags))
+          std-current
+          (fn [f]
+            (std f :force-current-app-state))
           ;; and one arg with next/prev-props
-          other-props
+          with-props-and-args
           (fn [f]
             (std (when f
-                   (fn [this app-state local-state locals args & [other-props]]
+                   (fn [this app-state local-state locals args other-props & more-react-args]
                      (apply f this app-state local-state locals args
-                            ;; FIXME: this is not the
-                            ;; next-app-state/prev-app-state, is it?
-                            (props-extract-app-state other-props)
-                            (props-extract-args other-props))))))
-          ;; and one arg with next/prev-state
-          other-props-and-state
+                            (props-extract-args other-props)
+                            other-props
+                            more-react-args)))))
+          with-args
           (fn [f]
-            (other-props (when f
-                           (fn [this app-state local-state locals args other-app-state other-args & [other-state]]
-                             (apply f this app-state local-state locals args
-                                    other-app-state
-                                    (state-extract-local-state other-state)
-                                    other-args)))))
-
-          ;; with next-app-state and next-args
-          next1 other-props
-          ;; with next-app-state, next-local-state and next-args
-          next2 other-props-and-state
-          ;; with prev-app-state, prev-local-state and prev-args
-          prev2 other-props-and-state
+            (with-props-and-args
+              (when f
+                (fn [this app-state local-state locals args other-args other-props]
+                  ;; 'roll out' args
+                  (apply f this app-state local-state locals args other-args)))))
+          ;; and one arg with next/prev-state
+          with-state-and-args
+          (fn [f]
+            (with-props-and-args
+              (when f
+                (fn [this app-state local-state locals args other-args other-props other-state]
+                  (apply f this app-state local-state locals args
+                         (data-extract-latest-app-state other-props other-state)
+                         (state-extract-local-state other-state)
+                         other-args)))))
 
           react-method-map
           (merge
@@ -479,12 +558,14 @@
             display-name
 
             "getInitialState"
-            (nlocal (if initial-state
-                      (fn [this app-state locals args]
-                        (make-local-state this
-                                          (initial-state app-state locals args)))
-                      (fn [this] (make-local-state this nil))
-                      ))
+            (nlocal (fn [this app-state locals args]
+                      (let [local-state (when initial-state
+                                          (initial-state app-state locals args))
+                            state (make-local-state this local-state)]
+                        (when (or (toplevel? this) (embedded? this))
+                          ;; app-state will be the initial_app_state here
+                          (aset state "reacl_app_state" app-state))
+                        state)))
 
             "render"
             (std (when render
@@ -492,8 +573,11 @@
                      (reset-embedded-ref-count! this)
                      (render this app-state local-state locals args))))
 
+            ;; Note handle-message must always see the most recent
+            ;; app-state, even if the component was not updated after
+            ;; a change to it.
             "__handleMessage"
-            (std handle-message)
+            (std-current handle-message)
 
             "componentWillMount"
             (std component-will-mount)
@@ -502,7 +586,17 @@
             (std component-did-mount)
 
             "componentWillReceiveProps"
-            (std component-will-receive-props) ;; -> next1
+            (let [f (std component-will-receive-props)]
+              (fn [next-props]
+                (this-as this
+                         (when (or (toplevel? this) (embedded? this))
+                           ;; embedded/toplevel has been
+                           ;; 'reinstantiated', so take over new
+                           ;; initial app-state
+                           (.setState this #js {:reacl_app_state (props-extract-initial-app-state next-props)}))
+                         (when f
+                           ;; must preserve 'this' here...!
+                           (.call f this next-props)))))
 
             "shouldComponentUpdate"
             (std should-component-update?) ;; -> next2
@@ -535,7 +629,7 @@
         IReaclClass
         (-instantiate [this component args]
           (instantiate-internal react-class component
-                                args (compute-locals (extract-app-state component)
+                                args (compute-locals (extract-latest-app-state component)
                                                      args)))
         (-instantiate-toplevel [this app-state args]
           (instantiate-toplevel-internal react-class app-state args

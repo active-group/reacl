@@ -191,6 +191,24 @@ That's it.  Hopefully that's enough to get you started.  Be sure to
 also check out the [`products` example](examples/products/core.cljs)
 or the [`comments` example](examples/comments/core.cljs)
 
+## Breaking changes:
+
+### In 0.7
+
+- The `name` field of the `core/class` macro is now evaluated in the
+  calling environment. So if your code looked like:
+
+    (def foo "bar")
+    (reacl.core/class foo ...) 
+
+  your component was named "foo", but is now named "bar". This means
+  it's an error if foo is not defined now. Note that this does not
+  apply to `reacl.core/defclass`.
+
+- The livecycle methods have different arguments now, taylored for
+  reacl. Also `component-will-receive-props` is now named
+  `component-will-receive-args`. See `reacl.core/class` for details.
+
 ## License
 
 Copyright © 2014 Active Group GmbH

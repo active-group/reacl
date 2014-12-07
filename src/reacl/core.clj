@@ -6,7 +6,7 @@
 (def ^{:private true} lifecycle-name-map
   {'component-will-mount 'componentWillMount
    'component-did-mount 'componentDidMount
-   'component-will-receive-props 'componentWillReceiveProps
+   'component-will-receive-args 'componentWillReceiveProps
    'should-component-update? 'shouldComponentUpdate
    'component-will-update 'componentWillUpdate
    'component-did-update 'componentDidUpdate
@@ -57,16 +57,43 @@
   A lifecycle method can be one of:
 
     `component-will-mount` `component-did-mount`
-    `component-will-receive-props` `should-component-update?`
+    `component-will-receive-args` `should-component-update?`
     `component-will-update` `component-did-update` `component-will-unmount`
 
-  These correspond to React's lifecycle methods, see here:
+  These correspond to React's lifecycle methods, see
+  here (component-will-receive-args is similar to
+  componentWillReceiveProps):
 
   http://facebook.github.io/react/docs/component-specs.html
 
   Each right-hand-side `<lifecycle-method-exp>`s should evaluate to a
-  function.  This function's argument is always the component.  The
-  remaining arguments are as for React.
+  function. The arguments, which slightly differ from the
+  corresponding React methods, can be seen in the following list:
+
+  `(component-will-mount)` The component can send itself messages in
+  this method; if that changes the state, the component will only
+  render once.
+
+  `(component-did-mount)` The component can update it's DOM in this method.
+
+  `(component-will-receive-args next-arg1 next-arg2 ...)` The component
+  has the chance to update it's local state in this method.
+
+  `(should-component-update? next-app-state next-local-state next-arg1
+  next-arg2 ...)` This method should return if the given new values
+  should cause an update of the component (if render should be
+  evaluated again). If it's not specified, a default implementation
+  will do a (=) comparison with the current values. Implement this, if
+  you want to prevent an update on every app-state change for example.
+
+  (component-will-update next-app-state next-local-state next-arg1 next-arg2 ...)
+  Called immediately before an update.
+  
+  (component-did-update prev-app-state prev-local-state prev-arg1 prev-arg2 ...)
+  Called immediately after an update. The component can update it's DOM here.
+  
+  (component-will-unmount)
+  The component can cleanup it's DOM here for example.
 
   Example:
 

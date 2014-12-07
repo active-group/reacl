@@ -235,18 +235,16 @@
   #js {:reacl_local_state local-state})
 
 (defn ^:no-doc default-should-component-update?
-  "Implements [[shouldComponentUpdate]] for React.
+  "Implements [[should-component-update?]] for React.
 
   For internal use only."
-  [this app-state local-state locals args next-props next-state]
-  (let [state (.-state this)
-        props (.-props this)]
-    (or (not= app-state
-              (data-extract-latest-app-state next-props next-state))
-        (not= local-state
-              (state-extract-local-state next-state))
-        (not= args
-              (props-extract-args next-props)))))
+  [this app-state local-state locals args next-app-state next-local-state & next-args]
+  (or (not= app-state
+            next-app-state)
+      (not= local-state
+            next-local-state)
+      (not= args
+            next-args)))
 
 (defn ^:no-doc instantiate-internal
   "Internal function to instantiate a Reacl component.
@@ -461,7 +459,7 @@
 ;; Attention: duplicate definition for macro in core.clj
 (def ^:private specials #{:render :initial-state :handle-message
                           :component-will-mount :component-did-mount
-                          :component-will-receive-props
+                          :component-will-receive-args
                           :should-component-update?
                           :component-will-update :component-did-update
                           :component-will-unmount})
@@ -479,7 +477,7 @@
                 handle-message
                 component-will-mount
                 component-did-mount
-                component-will-receive-props
+                component-will-receive-args
                 should-component-update?
                 component-will-update
                 component-did-update
@@ -586,7 +584,9 @@
             (std component-did-mount)
 
             "componentWillReceiveProps"
-            (let [f (std component-will-receive-props)]
+            (let [f (with-args component-will-receive-args)]
+              ;; this might also be called when the args have not
+              ;; changed (prevent that?)
               (fn [next-props]
                 (this-as this
                          (when (or (toplevel? this) (embedded? this))
@@ -599,13 +599,14 @@
                            (.call f this next-props)))))
 
             "shouldComponentUpdate"
-            (std should-component-update?) ;; -> next2
+            (with-state-and-args should-component-update?)
 
             "componentWillUpdate"
-            (std component-will-update) ;; -> next2
+            (with-state-and-args component-will-update)
 
             "componentDidUpdate"
-            (std component-did-update) ;; -> prev2
+            (with-state-and-args component-did-update) ;; here it's
+            ;; the previous state&args
 
             "componentWillUnmount"
             (std component-will-unmount)

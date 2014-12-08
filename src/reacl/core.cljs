@@ -77,6 +77,10 @@
   [props]
   (.hasOwnProperty props "reacl_app_state_callback"))
 
+(defn- ^:no-doc props-extract-app-state-callback
+  [props]
+  (aget props "reacl_app_state_callback"))
+
 (defn- ^:no-doc data-extract-latest-app-state
   "Extract the latest applications state from a Reacl component data.
 
@@ -213,7 +217,7 @@
     (.setState toplevel #js {:reacl_app_state app-state})
 
     ;; embedded callback
-    (if-let [callback (aget toplevel-props "reacl_app_state_callback")]
+    (if-let [callback (props-extract-app-state-callback toplevel-props)]
       (callback app-state))))
 
 (defprotocol ^:no-doc IReaclClass
@@ -599,7 +603,18 @@
                            (.call f this next-props)))))
 
             "shouldComponentUpdate"
-            (with-state-and-args should-component-update?)
+            (let [f (with-state-and-args should-component-update?)]
+              (fn [next-props next-state]
+                ;; have to check the app-state-callback for embedded
+                ;; components for changes - though this will mostly
+                ;; force an update!
+                (this-as this
+                         (or (and (embedded? this)
+                                  (not= (props-extract-app-state-callback (.-props this))
+                                        (props-extract-app-state-callback next-props)))
+                             (if f
+                               (.call f this next-props next-state)
+                               true)))))
 
             "componentWillUpdate"
             (with-state-and-args component-will-update)

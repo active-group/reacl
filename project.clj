@@ -1,4 +1,4 @@
-(defproject reacl "0.7.0-SNAPSHOT"
+(defproject reacl "0.7.0"
   :description "ClojureScript wrappers for programming with React"
   :url "http://github.com/active-group/reacl"
   :license {:name "Eclipse Public License"
@@ -11,14 +11,10 @@
                  [com.facebook/react "0.11.1"]]
 
   :plugins [[lein-cljsbuild "1.0.3"]
-            ;; NB: This needs a version of clojurescript.test with the Nashorn runner,
-            ;; for example from the nashorn-runner branch from
-            ;; https://github.com/active-group/clojurescript.test
-            [com.cemerick/clojurescript.test "0.3.2-SNAPSHOT"]
-            [codox "0.8.10"]
-            [org.bodil/lein-nashorn "0.1.2"]]
+            [com.cemerick/clojurescript.test "0.3.3"]
+            [codox "0.8.10"]]
 
-  :profiles {:dev {:dependencies [[active-clojure "0.3.0-SNAPSHOT" :exclusions [org.clojure/clojure]]]}}
+  :profiles {:dev {:dependencies [[active-clojure "0.3.0" :exclusions [org.clojure/clojure]]]}}
   
   :cljsbuild
   

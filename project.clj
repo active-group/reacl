@@ -10,7 +10,7 @@
                  [org.clojure/clojurescript "0.0-2665" :scope "provided"]
                  [com.facebook/react "0.11.1"]]
 
-  :plugins [[lein-cljsbuild "1.0.3"]
+  :plugins [[lein-cljsbuild "1.0.4"]
             [codox "0.8.10"]]
 
   :profiles {:dev {:dependencies [[active-clojure "0.3.0" :exclusions [org.clojure/clojure]]]}}
@@ -28,33 +28,33 @@
               {:id "products"
                :source-paths ["src" "examples/products"]
                :compiler {:preamble ["react/react_with_addons.min.js"]
-                          :output-to "examples/products/main.js"
-                          :output-dir "examples/products/out"
-                          :source-map "examples/products/main.map"
+                          :output-to "target/products/main.js"
+                          :output-dir "target/products/out"
+                          :source-map "target/products/main.map"
                           :externs ["react/externs/react.js"]
                           :optimizations :whitespace}}
               {:id "todo"
                :source-paths ["src" "examples/todo"]
                :compiler {:preamble ["react/react_with_addons.min.js"]
-                          :output-to "examples/todo/main.js"
-                          :output-dir "examples/todo/out"
-                          :source-map "examples/todo/main.map"
+                          :output-to "target/todo/main.js"
+                          :output-dir "target/todo/out"
+                          :source-map "target/todo/main.map"
                           :externs ["react/externs/react.js"]
                           :optimizations :whitespace}}
               {:id "comments"
                :source-paths ["src" "examples/comments"]
                :compiler {:preamble ["react/react_with_addons.min.js"]
-                          :output-to "examples/comments/main.js"
-                          :output-dir "examples/comments/out"
-                          :source-map "examples/comments/main.map"
+                          :output-to "target/comments/main.js"
+                          :output-dir "target/comments/out"
+                          :source-map "target/comments/main.map"
                           :externs ["react/externs/react.js"]
                           :optimizations :whitespace}}
               {:id "delayed"
                :source-paths ["src" "examples/delayed"]
                :compiler {:preamble ["react/react_with_addons.min.js"]
-                          :output-to "examples/delayed/main.js"
-                          :output-dir "examples/delayed/out"
-                          :source-map "examples/delayed/main.map"
+                          :output-to "target/delayed/main.js"
+                          :output-dir "target/delayed/out"
+                          :source-map "target/delayed/main.map"
                           :externs ["react/externs/react.js"]
                           :optimizations :whitespace}}]
    :test-commands {"phantom" ["phantomjs" 

@@ -10,7 +10,4 @@ pom.xml.asc
 /repl
 /.repl
 /out
-/examples/*/out
-/examples/*/main.js
-/examples/*/main.map
 /doc

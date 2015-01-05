@@ -3,9 +3,9 @@
             [reacl.dom :as dom :include-macros true]
             [reacl.test-util :as test-util]
             [active.clojure.lens :as lens]
-            [cemerick.cljs.test :as t])
-  (:require-macros [cemerick.cljs.test
-                    :refer (is deftest with-test run-tests testing test-var)]))
+            [cljs.test :as t])
+  (:require-macros [cljs.test
+                    :refer (is deftest run-tests testing)]))
 
 (enable-console-print!)
 

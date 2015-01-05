@@ -7,11 +7,10 @@
   :jvm-opts ^:replace ["-Xmx512m" "-server"]
 
   :dependencies [[org.clojure/clojure "1.6.0"]
-                 [org.clojure/clojurescript "0.0-2341" :scope "provided"]
+                 [org.clojure/clojurescript "0.0-2665" :scope "provided"]
                  [com.facebook/react "0.11.1"]]
 
   :plugins [[lein-cljsbuild "1.0.3"]
-            [com.cemerick/clojurescript.test "0.3.3"]
             [codox "0.8.10"]]
 
   :profiles {:dev {:dependencies [[active-clojure "0.3.0" :exclusions [org.clojure/clojure]]]}}
@@ -58,14 +57,8 @@
                           :source-map "examples/delayed/main.map"
                           :externs ["react/externs/react.js"]
                           :optimizations :whitespace}}]
-   ;; React needs global binding to function, see
-   ;; http://augustl.com/blog/2014/jdk8_react_rendering_on_server/
-   :test-commands {"phantom" ["phantomjs" :runner 
-                              "window.literal_js_executed=true"
-                              "test/vendor/es5-shim.js"
-                              "test/vendor/es5-sham.js"
-                              "test/vendor/console-polyfill.js"
-                              "target/test-dom.js"]}}
+   :test-commands {"phantom" ["phantomjs" 
+                              "test/vendor/unit-test.js" "test/vendor/unit-test.html"]}}
 
    :codox {:language :clojurescript
            :defaults {:doc/format :markdown}

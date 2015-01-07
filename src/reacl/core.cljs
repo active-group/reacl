@@ -222,21 +222,10 @@
   `args' are the arguments to the component.
   `locals' are the local variables of the components."
   [clazz parent app-state app-state-callback args locals]
-  (let [;; React will replace whatever is returned by (clazz ...) on mounting.
-        ;; This is the only way to get at the mounted component, it seems.
-
-        ;; That's not all, though: The ref-count atom will sometimes
-        ;; be from the old object from the previous render cycle; it's
-        ;; initialized in the render method, off the class macro.
-        ref-count (aget (.-props parent) "reacl_embedded_ref_count")
-        ref (str "__reacl_embedded__" @ref-count)]
-    (swap! ref-count inc)
-    (clazz #js {:reacl_initial_app_state app-state
-                :reacl_embedded_ref_count (atom nil)
-                :reacl_args args
-                :reacl_locals (atom locals)
-                :reacl_app_state_callback app-state-callback
-                :ref ref})))
+  (clazz #js {:reacl_initial_app_state app-state
+              :reacl_args args
+              :reacl_locals (atom locals)
+              :reacl_app_state_callback app-state-callback}))
 
 (defn instantiate-toplevel
   "Instantiate a Reacl component at the top level.
@@ -386,9 +375,6 @@
 (defn- ^:no-doc is-special-fn? [[n f]]
   (not (nil? (specials n))))
 
-(defn- ^:no-doc reset-embedded-ref-count! [this]
-  (reset! (aget (.-props this) "reacl_embedded_ref_count") 0))
-
 (defn create-class [display-name compute-locals fns]
   ;; split special functions and miscs
   (let [{specials true misc false} (group-by is-special-fn? fns)
@@ -485,10 +471,7 @@
                         state)))
 
             "render"
-            (std (when render
-                   (fn [this app-state local-state locals args]
-                     (reset-embedded-ref-count! this)
-                     (render this app-state local-state locals args))))
+            (std render)
 
             ;; Note handle-message must always see the most recent
             ;; app-state, even if the component was not updated after

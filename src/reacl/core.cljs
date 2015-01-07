@@ -34,13 +34,6 @@
   [this]
   (state-extract-local-state (.-state this)))
 
-(defn ^:no-doc extract-toplevel
-  "Extract toplevel component of a Reacl component.
-
-   For internal use."
-  [this]
-  ((aget (.-props this) "reacl_get_toplevel")))
-
 (defn- ^:no-doc props-extract-initial-app-state
   "Extract initial applications state from props of a Reacl toplevel component.
 
@@ -223,12 +216,10 @@
   - `args` are the arguments to the component.
   - `locals` are the local variables of the components."
   [clazz app-state args locals]
-  (let [toplevel-atom (atom nil)] ;; NB: set by render-component
-    (clazz #js {:reacl_get_toplevel (fn [] @toplevel-atom)
-                :reacl_embedded_ref_count (atom nil)
-                :reacl_initial_app_state app-state
-                :reacl_args args
-                :reacl_locals (atom locals)})))
+  (clazz #js {:reacl_embedded_ref_count (atom nil)
+              :reacl_initial_app_state app-state
+              :reacl_args args
+              :reacl_locals (atom locals)}))
 
 (defn ^:no-doc instantiate-embedded-internal
   "Internal function to instantiate an embedded Reacl component.
@@ -249,8 +240,7 @@
         ref-count (aget (.-props parent) "reacl_embedded_ref_count")
         ref (str "__reacl_embedded__" @ref-count)]
     (swap! ref-count inc)
-    (clazz #js {:reacl_get_toplevel (fn [] (aget (.-refs parent) ref))
-                :reacl_initial_app_state app-state
+    (clazz #js {:reacl_initial_app_state app-state
                 :reacl_embedded_ref_count (atom nil)
                 :reacl_args args
                 :reacl_locals (atom locals)

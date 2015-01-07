@@ -224,8 +224,7 @@
   - `locals` are the local variables of the components."
   [clazz app-state args locals]
   (let [toplevel-atom (atom nil)] ;; NB: set by render-component
-    (clazz #js {:reacl_toplevel_atom toplevel-atom
-                :reacl_get_toplevel (fn [] @toplevel-atom)
+    (clazz #js {:reacl_get_toplevel (fn [] @toplevel-atom)
                 :reacl_embedded_ref_count (atom nil)
                 :reacl_initial_app_state app-state
                 :reacl_args args
@@ -280,12 +279,9 @@
   - `app-state` is the application state
   - `args` are the arguments of the component."
   [element clazz app-state & args]
-  (let [instance
-        (js/React.renderComponent
-         (apply instantiate-toplevel clazz app-state args)
-         element)]
-    (reset! (aget (.-props instance) "reacl_toplevel_atom") instance)
-    instance))
+  (js/React.renderComponent
+   (apply instantiate-toplevel clazz app-state args)
+   element))
 
 (defn embed
   "Embed a Reacl component.

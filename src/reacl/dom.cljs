@@ -85,15 +85,13 @@
   [this binding]
   (. (aget (.-refs this) (binding-get-ref binding)) getDOMNode))
 
-(defrecord ^{:doc "DOM with a key, for use as sequences of sub-elements."
-             :no-doc true}
-    KeyedDom
-    [key dom])
-
 (defn keyed
   "Associate a key with a virtual DOM node."
   [key dom]
-  (KeyedDom. key dom))
+  (if-let [ref (aget (.-props dom) "ref")]
+    (DomBinding. dom key false)
+    (DomBinding. (js/React.addons.cloneWithProps dom #js {:key key})
+                 key false)))
 
 (defn- ^:no-doc set-dom-key
   "Attach a key property to a DOM object."
@@ -111,11 +109,7 @@
   (cond
    (satisfies? HasDom arg) (-get-dom arg)
 
-   ;; sequence of KeyedDom
-   (seq? arg) (to-array
-               (cljs.core/map (fn [rd]
-                                (set-dom-key (normalize-arg (:dom rd)) (:key rd)))
-                              arg))
+   (seq? arg) (to-array (cljs.core/map normalize-arg arg))
 
    ;; deprecated
    (array? arg) (to-array (cljs.core/map normalize-arg arg))

@@ -160,7 +160,7 @@
   "Compute the locals.
   For internal use."
   [clazz app-state args]
-  (apply (aget clazz "__computeLocals") app-state args))
+  ((aget clazz "__computeLocals") app-state args))
 
 ;; On the app-state integration:
 ;;

@@ -1,0 +1,1 @@
+../../target/delayed/main.js

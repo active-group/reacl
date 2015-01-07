@@ -296,8 +296,7 @@
   `args' are the arguments to the component.
   `locals' are the local variables of the components."
   [clazz parent app-state app-state-callback args locals]
-  (let [toplevel-atom (atom nil)
-        ;; React will replace whatever is returned by (clazz ...) on mounting.
+  (let [;; React will replace whatever is returned by (clazz ...) on mounting.
         ;; This is the only way to get at the mounted component, it seems.
 
         ;; That's not all, though: The ref-count atom will sometimes

@@ -5,7 +5,6 @@
 (ns examples.comments.core
   (:require [reacl.core :as reacl :include-macros true]
             [reacl.dom :as dom :include-macros true]
-            [active.clojure.lens :as lens]
             [cljs.reader :as reader]
             [goog.events :as events]
             [goog.dom :as gdom])
@@ -31,8 +30,7 @@
 (defrecord Comment [author text])
 
 (reacl/defclass comment-entry
-  this app-state [lens]
-  local [comment (lens/yank app-state lens)]
+  this comment []
   render
   (let [author (:author comment)
         text (:text comment)]
@@ -41,32 +39,30 @@
              text)))
 
 (reacl/defclass comment-list
-  this app-state [lens]
+  this comments []
   render
-  (let [comments (lens/yank app-state lens)
-        nodes (map-indexed (fn [i _]
-                             (dom/keyed (str i) (comment-entry this (lens/>> lens (lens/at-index i)))))
-                           comments)]
-    (dom/div {:className "commentList"}
-             nodes)))
+  (dom/div {:className "commentList"}
+           (map-indexed (fn [i comment]
+                          (dom/keyed (str i) (reacl/embed comment-entry this comment (constantly nil))))
+                        comments)))
 
 (reacl/defclass comment-box
-  this app-state [lens]
+  this comments []
   render
   (dom/div {:className "commentBox"}
            (dom/h1 "Comments")
-           (comment-list this lens))
+           (reacl/embed comment-list this comments (constantly nil)))
   handle-message
   (fn [msg]
-    (let [new-comments
-          (map (fn [e]
-                 (Comment. (:author e) (:text e)))
-               msg)]
-      (reacl/return :app-state (lens/shove app-state lens new-comments))))
+    (reacl/return :app-state 
+                  (map (fn [e]
+                         (Comment. (:author e) (:text e)))
+                       msg)))
   component-will-mount
   (fn []
     (let [refresh
           (fn []
+            (println "refresh")
             (edn-xhr
              {:method :get
               :url "comments.edn"
@@ -76,4 +72,4 @@
 
 (reacl/render-component
  (.getElementById js/document "content")
- comment-box [] lens/id)
+ comment-box [])

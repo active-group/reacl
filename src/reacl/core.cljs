@@ -192,21 +192,19 @@
 
    For internal use."
   [this app-state]
-  (let [toplevel (extract-toplevel this)
-        toplevel-props (.-props toplevel)]
-    (assert (.hasOwnProperty (.-state toplevel) "reacl_app_state"))
+  (let [props (.-props this)]
+    (assert (.hasOwnProperty (.-state this) "reacl_app_state"))
 
     ;; recompute locals if toplevel (in other cases they are computed
     ;; upon reinstantiation)
-    (when (identical? this toplevel)
-      (reset! (aget toplevel-props "reacl_locals") 
-              (compute-locals (.-constructor this) app-state (extract-args this))))
+    (reset! (aget props "reacl_locals") 
+            (compute-locals (.-constructor this) app-state (extract-args this)))
 
     ;; set state - must be after compute locals
-    (.setState toplevel #js {:reacl_app_state app-state})
+    (.setState this #js {:reacl_app_state app-state})
 
     ;; embedded callback
-    (if-let [callback (props-extract-app-state-callback toplevel-props)]
+    (if-let [callback (props-extract-app-state-callback props)]
       (callback app-state))))
 
 (defprotocol ^:no-doc IReaclClass

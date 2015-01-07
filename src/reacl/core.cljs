@@ -172,7 +172,7 @@
 
 (defprotocol ^:no-doc IReaclClass
   (-instantiate-toplevel [clazz app-state args])
-  (-instantiate-embedded [clazz component app-state app-state-callback args])
+  (-instantiate-embedded [clazz app-state app-state-callback args])
   (-react-class [clazz]))
 
 (defn react-class
@@ -216,12 +216,11 @@
   "Internal function to instantiate an embedded Reacl component.
 
   `clazz' is the React class (not the Reacl class ...).
-  `parent' is the component from which the Reacl component is instantiated.
   `app-state' is the  application state.
   `app-state-callback' is a function called with a new app state on changes.
   `args' are the arguments to the component.
   `locals' are the local variables of the components."
-  [clazz parent app-state app-state-callback args locals]
+  [clazz app-state app-state-callback args locals]
   (clazz #js {:reacl_initial_app_state app-state
               :reacl_args args
               :reacl_locals (atom locals)
@@ -260,8 +259,8 @@
   - `app-state` is the application state.
   - `app-state-callback` is a function called with a new app state on changes.
   - `args` are the arguments to the component."
-  [clazz parent app-state app-state-callback & args]
-  (-instantiate-embedded clazz parent app-state app-state-callback args))
+  [clazz app-state app-state-callback & args]
+  (-instantiate-embedded clazz app-state app-state-callback args))
 
 (defrecord ^{:doc "Type of a unique value to distinguish nil from no change of state.
             For internal use in [[reacl.core/return]] and [[reacl.core/set-state!]]."
@@ -545,8 +544,8 @@
         (-instantiate-toplevel [this app-state args]
           (instantiate-toplevel-internal react-class app-state args
                                          (compute-locals app-state args)))
-        (-instantiate-embedded [this component app-state app-state-callback args]
-          (instantiate-embedded-internal react-class component app-state
+        (-instantiate-embedded [this app-state app-state-callback args]
+          (instantiate-embedded-internal react-class app-state
                                          app-state-callback args
                                          (compute-locals app-state args)))
         (-react-class [this] react-class)

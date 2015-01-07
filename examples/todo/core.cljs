@@ -39,7 +39,7 @@
    (dom/h3 "TODO")
    (dom/div (map (fn [todo]
                    (dom/keyed (str (:id todo))
-                              (reacl/embed to-do-item this todo
+                              (reacl/embed to-do-item todo
                                            (fn [todo]
                                              (reacl/send-message! this (Change. todo)))
                                            this)))

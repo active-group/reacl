@@ -88,10 +88,10 @@
   this products search-params []
   render
   (dom/div
-   (reacl/embed search-bar this
+   (reacl/embed search-bar
                 search-params
                 #(reacl/send-message! this %))
-   (reacl/embed product-table this
+   (reacl/embed product-table
                 products
                 (fn [_] nil)
                 (:filter-text search-params)

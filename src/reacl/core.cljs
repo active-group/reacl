@@ -42,18 +42,11 @@
   ((aget (.-props this) "reacl_get_toplevel")))
 
 (defn- ^:no-doc props-extract-initial-app-state
-  "Extract intial applications state from props of a Reacl toplevel component.
+  "Extract initial applications state from props of a Reacl toplevel component.
 
    For internal use."
   [props]
   (aget props "reacl_initial_app_state"))
-
-(defn- ^:no-doc ll-props-extract-latest-app-state
-  "Extract latest applications state from props of a lower level Reacl component.
-
-   For internal use."
-  [props]
-  (aget props "reacl_latest_app_state"))
 
 (defn- ^:no-doc tl-state-extract-app-state
   "Extract latest applications state from state of a toplevel Reacl component.
@@ -86,16 +79,12 @@
 
    For internal use."
   [props state]
-  (if (or (props-toplevel? props)
-          (props-embedded? props))
-    ;; before first render, it's the initial-app-state, afterwards
-    ;; it's in the state
-    (if (and (not (nil? state))
-             (.hasOwnProperty state "reacl_app_state"))
-      (tl-state-extract-app-state state)
-      (props-extract-initial-app-state props))
-    ;; for lower levels, it's always in the props
-    (ll-props-extract-latest-app-state props)))
+  ;; before first render, it's the initial-app-state, afterwards
+  ;; it's in the state
+  (if (and (not (nil? state))
+           (.hasOwnProperty state "reacl_app_state"))
+    (tl-state-extract-app-state state)
+    (props-extract-initial-app-state props)))
 
 (defn- ^:no-doc extract-latest-app-state
   "Extract the latest applications state from a Reacl component.
@@ -221,7 +210,6 @@
       (callback app-state))))
 
 (defprotocol ^:no-doc IReaclClass
-  (-instantiate [clazz component args])
   (-instantiate-toplevel [clazz app-state args])
   (-instantiate-embedded [clazz component app-state app-state-callback args])
   (-react-class [clazz]))
@@ -249,21 +237,6 @@
             next-local-state)
       (not= args
             next-args)))
-
-(defn ^:no-doc instantiate-internal
-  "Internal function to instantiate a Reacl component.
-
-  - `clazz` is the React class (not the Reacl class ...).
-  - `parent` is the component from which the Reacl component is instantiated.
-  - `args` are the arguments to the component.
-  - `locals` are the local variables of the components."
-  [clazz parent args locals]
-  (let [props (.-props parent)]
-    (clazz #js {:reacl_get_toplevel (aget props "reacl_get_toplevel")
-                :reacl_latest_app_state (extract-latest-app-state parent)
-                :reacl_embedded_ref_count (atom nil)
-                :reacl_args args
-                :reacl_locals (atom locals)})))
 
 (defn ^:no-doc instantiate-toplevel-internal
   "Internal function to instantiate a Reacl component.
@@ -638,14 +611,11 @@
                                                     react-method-map))))
           ]
       (reify
-        IFn
-        (-invoke [this component & args]
-          (-instantiate this component args))
+;; FIXME: replace by embed
+;;        IFn
+;;        (-invoke [this component & args]
+;;          (-instantiate this component args))
         IReaclClass
-        (-instantiate [this component args]
-          (instantiate-internal react-class component
-                                args (compute-locals (extract-latest-app-state component)
-                                                     args)))
         (-instantiate-toplevel [this app-state args]
           (instantiate-toplevel-internal react-class app-state args
                                          (compute-locals app-state args)))

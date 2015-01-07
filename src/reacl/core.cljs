@@ -48,13 +48,6 @@
   [state]
   (aget state "reacl_app_state"))
 
-(defn- ^:no-doc props-embedded?
-  "Look at the given props to tell if they belong to an embedded component.
-
-   For internal use."
-  [props]
-  (.hasOwnProperty props "reacl_app_state_callback"))
-
 (defn- ^:no-doc props-extract-app-state-callback
   [props]
   (aget props "reacl_app_state_callback"))
@@ -156,8 +149,6 @@
 ;; reacl_initial_app_state in the props, which we take over into it's
 ;; state in componentWillReceiveProps.
 
-(declare embedded?)
-
 (defn ^:no-doc set-app-state!
   "Set the application state associated with a Reacl component.
    May not be called before the first render.
@@ -246,11 +237,6 @@
                 :reacl_locals (atom locals)
                 :reacl_app_state_callback app-state-callback
                 :ref ref})))
-
-(defn- ^:no-doc embedded?
-  "Check if a Reacl component is embedded."
-  [comp]
-  (props-embedded? (.-props comp )))
 
 (defn instantiate-toplevel
   "Instantiate a Reacl component at the top level.
@@ -537,9 +523,10 @@
                 ;; components for changes - though this will mostly
                 ;; force an update!
                 (this-as this
-                         (or (and (embedded? this)
-                                  (not= (props-extract-app-state-callback (.-props this))
-                                        (props-extract-app-state-callback next-props)))
+                         (or (and (let [callback-now (props-extract-app-state-callback (.-props this))
+                                        callback-next (props-extract-app-state-callback next-props)]
+                                    (and (or callback-now callback-next)
+                                         (not= callback-now callback-next))))
                              (if f
                                (.call f this next-props next-state)
                                true)))))

@@ -91,9 +91,11 @@
    (reacl/embed search-bar this
                 search-params
                 #(reacl/send-message! this %))
-   (product-table this
-                  (:filter-text search-params)
-                  (:in-stock-only? search-params)))
+   (reacl/embed product-table this
+                products
+                (fn [_] nil)
+                (:filter-text search-params)
+                (:in-stock-only? search-params)))
 
   initial-state (SearchParams. "" false)
   

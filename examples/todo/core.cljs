@@ -5,27 +5,6 @@
 
 (enable-console-print!)
 
-(defn at-key
-  [extract-key key]
-  (lens/lens (fn [coll]
-               (some (fn [el]
-                       (and (= key (extract-key el))
-                            el))
-                     coll))
-             (fn [coll v]
-               (map (fn [el]
-                      (if (= key (extract-key el))
-                        v
-                        el))
-                    coll))))
-
-(defn map-keyed
-  [extract-key f coll]
-  (map (fn [el]
-         (let [key (extract-key el)]
-           (f el key (at-key extract-key key))))
-       coll))
-
 (defrecord TodosApp [next-id todos])
 
 (defrecord Todo [id text done?])
@@ -33,39 +12,39 @@
 (defrecord Delete [todo])
 
 (reacl/defclass to-do-item
-  this app-state [parent lens]
+  this todo [parent]
   render
-  (let [todo (lens/yank app-state lens)]
-    (dom/letdom
-     [checkbox (dom/input
-                {:type "checkbox"
-                 :value (:done? todo)
-                 :onChange #(reacl/send-message! this
-                                                 (.-checked (dom/dom-node this checkbox)))})]
-     (dom/div checkbox
-              (dom/button {:onClick #(reacl/send-message! parent
-                                                           (Delete. todo))}
-                          "Zap")
-              (:text todo))))
+  (dom/letdom
+   [checkbox (dom/input
+              {:type "checkbox"
+               :value (:done? todo)
+               :onChange #(reacl/send-message! this
+                                               (.-checked (dom/dom-node this checkbox)))})]
+   (dom/div checkbox
+            (dom/button {:onClick #(reacl/send-message! parent (Delete. todo))}
+                        "Zap")
+            (:text todo)))
   handle-message
   (fn [checked?]
     (reacl/return :app-state
-                  (lens/shove app-state
-                              (lens/>> lens :done?)
-                              checked?))))
+                  (assoc todo :done? checked?))))
 
 (defrecord New-text [text])
 (defrecord Submit [])
+(defrecord Change [todo])
 
 (reacl/defclass to-do-app
   this app-state local-state []
   render
   (dom/div
    (dom/h3 "TODO")
-   (dom/div (map-keyed :id
-                       (fn [todo id lens]
-                         (dom/keyed (str id) (to-do-item this this (lens/>> :todos lens))))
-                       (:todos app-state)))
+   (dom/div (map (fn [todo]
+                   (dom/keyed (str (:id todo))
+                              (reacl/embed to-do-item this todo
+                                           (fn [todo]
+                                             (reacl/send-message! this (Change. todo)))
+                                           this)))
+                 (:todos app-state)))
    (dom/form
     {:onSubmit (fn [e _]
                  (.preventDefault e)
@@ -96,7 +75,18 @@
      (let [id (:id (:todo msg))]
        (reacl/return :app-state
                      (assoc app-state
-                       :todos (remove (fn [todo] (= id (:id todo))) (:todos app-state))))))))
+                       :todos (remove (fn [todo] (= id (:id todo))) (:todos app-state)))))
+
+     (instance? Change msg)
+     (let [changed-todo (:todo msg)
+           changed-id (:id changed-todo)]
+       (reacl/return :app-state
+                     (assoc app-state
+                       :todos (mapv (fn [todo]
+                                      (if (= changed-id (:id todo) )
+                                        changed-todo
+                                        todo))
+                                    (:todos app-state))))))))
 
 (reacl/render-component
  (.getElementById js/document "content")

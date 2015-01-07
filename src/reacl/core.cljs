@@ -55,14 +55,6 @@
   [state]
   (aget state "reacl_app_state"))
 
-(defn- ^:no-doc props-toplevel?
-  "Look at the given props, to tell if they belong to the toplevel
-  component (and not embedded).
-
-  For internal use"
-  [props]
-  (.hasOwnProperty props "reacl_toplevel_atom"))
-
 (defn- ^:no-doc props-embedded?
   "Look at the given props to tell if they belong to an embedded component.
 
@@ -184,7 +176,7 @@
 ;; reacl_initial_app_state in the props, which we take over into it's
 ;; state in componentWillReceiveProps.
 
-(declare toplevel? embedded?)
+(declare embedded?)
 
 (defn ^:no-doc set-app-state!
   "Set the application state associated with a Reacl component.
@@ -251,11 +243,6 @@
                 :reacl_initial_app_state app-state
                 :reacl_args args
                 :reacl_locals (atom locals)})))
-
-(defn- ^:no-doc toplevel?
-  "Is this component toplevel?"
-  [this]
-  (props-toplevel? (.-props this)))
 
 (defn ^:no-doc instantiate-embedded-internal
   "Internal function to instantiate an embedded Reacl component.
@@ -534,9 +521,8 @@
                       (let [local-state (when initial-state
                                           (initial-state app-state locals args))
                             state (make-local-state this local-state)]
-                        (when (or (toplevel? this) (embedded? this))
-                          ;; app-state will be the initial_app_state here
-                          (aset state "reacl_app_state" app-state))
+                        ;; app-state will be the initial_app_state here
+                        (aset state "reacl_app_state" app-state)
                         state)))
 
             "render"
@@ -563,11 +549,10 @@
               ;; changed (prevent that?)
               (fn [next-props]
                 (this-as this
-                         (when (or (toplevel? this) (embedded? this))
-                           ;; embedded/toplevel has been
-                           ;; 'reinstantiated', so take over new
-                           ;; initial app-state
-                           (.setState this #js {:reacl_app_state (props-extract-initial-app-state next-props)}))
+                         ;; embedded/toplevel has been
+                         ;; 'reinstantiated', so take over new
+                         ;; initial app-state
+                         (.setState this #js {:reacl_app_state (props-extract-initial-app-state next-props)})
                          (when f
                            ;; must preserve 'this' here...!
                            (.call f this next-props)))))

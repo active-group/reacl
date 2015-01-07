@@ -27,17 +27,11 @@
   render 
   (do
     (dom/div
-     (dom/p "What you enter in the text field below gets published immediately (via app-state):"
-            (filter-input this state))
-     
      (dom/p "What you enter in the text field below gets published immediately (via embed and local-state):"
             (reacl/embed filter-input this local-state #(reacl/send-message! this %)))
      
      (dom/hr)
      
-     (dom/p "What you enter in the text field below gets published after a delay of one second (via app-state):"
-            (util/delayed this filter-input 1000))
-
      (dom/p "What you enter in the text filed below gets published after a delay of one second (via embed and local-state):"
             (reacl/embed util/delayed this local-state #(reacl/send-message! this %) filter-input 1000))
 
@@ -54,7 +48,7 @@
   render
   (do
     (dom/div 
-     (filter-parent this))))
+     (reacl/embed filter-parent this state (constantly nil)))))
 
 (reacl/render-component
  (.getElementById js/document "content")

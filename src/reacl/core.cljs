@@ -66,7 +66,7 @@
   [props]
   (aget props "reacl_app_state_callback"))
 
-(defn- ^:no-doc data-extract-latest-app-state
+(defn- ^:no-doc data-extract-app-state
   "Extract the latest applications state from a Reacl component data.
 
    For internal use."
@@ -78,25 +78,12 @@
     (tl-state-extract-app-state state)
     (props-extract-initial-app-state props)))
 
-(defn- ^:no-doc extract-latest-app-state
+(defn- ^:no-doc extract-app-state
   "Extract the latest applications state from a Reacl component.
 
    For internal use."
   [this]
-  (data-extract-latest-app-state (.-props this) (.-state this)))
-
-(defn ^:no-doc extract-app-state
-  "Extract the current applications state from a Reacl component.
-
-   For internal use."
-  [this]
-  (let [toplevel (extract-toplevel this)]
-    (if toplevel
-      (extract-latest-app-state toplevel)
-      ;; should probably be an error, but at least one of the tests
-      ;; does instantiate-toplevel instead of render-component, so
-      ;; the toplevel atom is not set then
-      (extract-latest-app-state this))))
+  (data-extract-app-state (.-props this) (.-state this)))
 
 (def ^:private extract-current-app-state extract-app-state)
 
@@ -456,7 +443,7 @@
                                     ;; this is uptodate at any time
                                     extract-current-app-state
                                     ;; during the livecylcle/updates this might be older
-                                    extract-latest-app-state)]
+                                    extract-app-state)]
                 (fn [& react-args]
                   (this-as this
                            (apply f this (get-app-state this) (extract-args this)
@@ -506,7 +493,7 @@
               (when f
                 (fn [this app-state local-state locals args other-args other-props other-state]
                   (apply f this app-state local-state locals args
-                         (data-extract-latest-app-state other-props other-state)
+                         (data-extract-app-state other-props other-state)
                          (state-extract-local-state other-state)
                          other-args)))))
 

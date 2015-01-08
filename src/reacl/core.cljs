@@ -207,8 +207,7 @@
   - `args` are the arguments to the component.
   - `locals` are the local variables of the components."
   [clazz app-state args locals]
-  (clazz #js {:reacl_embedded_ref_count (atom nil)
-              :reacl_initial_app_state app-state
+  (clazz #js {:reacl_initial_app_state app-state
               :reacl_args args
               :reacl_locals (atom locals)}))
 

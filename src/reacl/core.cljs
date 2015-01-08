@@ -163,10 +163,15 @@
     (if-let [reaction (props-extract-reaction props)]
       (send-message! (:component reaction) ((:make-message reaction) app-state)))))
 
+(defprotocol ^:no-doc HasReactClass
+  (-react-class [clazz]))
+
 (defprotocol ^:no-doc IReaclClass
   (-instantiate-toplevel [clazz app-state args])
-  (-instantiate-embedded [clazz app-state reaction args])
-  (-react-class [clazz]))
+  (-instantiate-embedded [clazz app-state reaction args]))
+
+(defprotocol ^:no-doc IReaclView
+  (-instantiate [clazz args]))
 
 (defn react-class
   "Extract the React class from a Reacl class."
@@ -231,12 +236,16 @@
   "Instantiate and render a component into the DOM.
 
   - `element` is the DOM element
-  - `clazz` is the Reacl clazz
-  - `app-state` is the application state
-  - `args` are the arguments of the component."
-  [element clazz app-state & args]
+  - `clazz` is the Reacl clazz or view
+  - `args` are the arguments of the component,
+    which must start with the application state if `clazz` is a class."
+  [element clazz & args]
   (js/React.renderComponent
-   (apply instantiate-toplevel clazz app-state args)
+   ;; TODO remove this hack, after introducing an initial-app-state
+   ;; clause (or drop support for classes here)
+   (if (satisfies? IReaclView clazz)
+     (-instantiate clazz args)
+     (apply instantiate-toplevel clazz args))
    element))
 
 (defn embed
@@ -247,7 +256,6 @@
   lead to the callback being invoked.
 
   - `clazz` is the Reacl class.
-  - `parent` is the component from which the Reacl component is instantiated.
   - `app-state` is the application state.
   - `reaction` is a function called with a new app state on changes.
   - `args` are the arguments to the component."
@@ -539,5 +547,24 @@
           (instantiate-embedded-internal react-class app-state
                                          reaction args
                                          (compute-locals app-state args)))
+        HasReactClass
         (-react-class [this] react-class)
         ))))
+
+(defn ^:no-doc class->view
+  [clazz]
+  (let [react-class (-react-class clazz)
+        className (.-displayName react-class)
+        error-reaction
+        (fn [v]
+          (throw (str "Error: " className " tried to return an app-state, but it is a view. Use defclass for programm elements with an app-state.")))]
+    (reify
+      IFn
+      (-invoke [this & args]
+        (-instantiate this args))
+      IReaclView
+      (-instantiate [this args]
+        (-instantiate-embedded clazz nil error-reaction args))
+      HasReactClass
+      (-react-class [this] react-class)
+      )))

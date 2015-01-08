@@ -96,13 +96,6 @@
 ; So we need to put them in the props and make them mutable, by
 ; sticking an atom in the props.
 
-; For updating the locals, we use a two-pronged strategy:
-
-; - For non-top-level, non-embedded components there's no problem, as
-;   the components get re-instantiated as a matter of the usual routine.
-; - For top-level and embedded components, we reset the atom to update
-;   the locals.
-
 (defn ^:no-doc extract-locals
   "Get the local bindings for a component.
 
@@ -135,38 +128,17 @@
   [component make-message]
   (Reaction. component make-message))
 
-;; On the app-state integration:
-;;
-;; It starts with the argument to the instantiation of toplevel or
-;; embedded components. We put that app-state into
-;;
-;;   toplevel/props.reacl_initial_app_state
-;;
-;; In getInitialState of those top components, we take that over into
-;; their state, into
-;;
-;;  toplevel/state.reacl_app_state
-;;
-;; This is the place for app-state changed during the livetime of the
-;; toplevel component. When creating/updating lower level components,
-;; we 'snapshot' the app-state, which their current 'look' is based
-;; on, into
-;;
-;;  lowlevel/props.reacl_last_app_state
-;;
-;; When a component does not need to be updated, that value will not
-;; be the current app-state anymore; but for livecycle-methods like
-;; componentWillUpdate, that is exactly what we want. But in a method
-;; like handle-message, we need the most recent app-state, even if the
-;; component's look is based on an older one. Therefor we look into
-;; the toplevel's state in that case.
-;;
-;; Similar, for set-app-state!, we have to change the state of the
-;; toplevel component (resp. embedded). Last but not least, a toplevel
-;; component might be "reinstantiated" (very common in the embedded
-;; case, but also possible on toplevel). It will then receive a new
-;; reacl_initial_app_state in the props, which we take over into it's
-;; state in componentWillReceiveProps.
+; On app state:
+;
+; It starts with the argument to the instantiation of toplevel or
+; embedded components. We put that app-state into
+;
+;   props.reacl_initial_app_state
+;
+; In getInitialState of those top components, we take that over into
+; their state, into
+;
+;  state.reacl_app_state
 
 (declare send-message!)
 
@@ -235,11 +207,11 @@
 (defn ^:no-doc instantiate-embedded-internal
   "Internal function to instantiate an embedded Reacl component.
 
-  `clazz' is the React class (not the Reacl class ...).
-  `app-state' is the  application state.
-  `reaction' is a function called with a new app state on changes.
-  `args' are the arguments to the component.
-  `locals' are the local variables of the components."
+  `clazz` is the React class (not the Reacl class ...).
+  `app-state` is the  application state.
+  `reaction` is a function called with a new app state on changes.
+  `args` are the arguments to the component.
+  `locals` are the local variables of the components."
   [clazz app-state reaction args locals]
   (clazz #js {:reacl_initial_app_state app-state
               :reacl_args args

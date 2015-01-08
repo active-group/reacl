@@ -43,7 +43,7 @@
   render
   (dom/div {:className "commentList"}
            (map-indexed (fn [i comment]
-                          (dom/keyed (str i) (reacl/embed comment-entry comment (constantly nil))))
+                          (dom/keyed (str i) (comment-entry comment (constantly nil))))
                         comments)))
 
 (reacl/defclass comment-box
@@ -51,7 +51,7 @@
   render
   (dom/div {:className "commentBox"}
            (dom/h1 "Comments")
-           (reacl/embed comment-list comments (constantly nil)))
+           (comment-list comments (constantly nil)))
   handle-message
   (fn [msg]
     (reacl/return :app-state 

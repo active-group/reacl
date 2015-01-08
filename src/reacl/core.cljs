@@ -535,10 +535,9 @@
                                                     react-method-map))))
           ]
       (reify
-;; FIXME: replace by embed
-;;        IFn
-;;        (-invoke [this component & args]
-;;          (-instantiate this component args))
+        IFn
+        (-invoke [this app-state app-state-callback & args]
+          (-instantiate-embedded this app-state app-state-callback args))
         IReaclClass
         (-instantiate-toplevel [this app-state args]
           (instantiate-toplevel-internal react-class app-state args

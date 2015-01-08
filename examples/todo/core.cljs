@@ -39,10 +39,10 @@
    (dom/h3 "TODO")
    (dom/div (map (fn [todo]
                    (dom/keyed (str (:id todo))
-                              (reacl/embed to-do-item todo
-                                           (fn [todo]
-                                             (reacl/send-message! this (Change. todo)))
-                                           this)))
+                              (to-do-item todo
+                                          (fn [todo]
+                                            (reacl/send-message! this (Change. todo)))
+                                          this)))
                  (:todos app-state)))
    (dom/form
     {:onSubmit (fn [e _]

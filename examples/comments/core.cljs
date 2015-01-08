@@ -62,7 +62,6 @@
   (fn []
     (let [refresh
           (fn []
-            (println "refresh")
             (edn-xhr
              {:method :get
               :url "comments.edn"

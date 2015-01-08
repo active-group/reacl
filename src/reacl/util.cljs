@@ -36,14 +36,12 @@
 
      Or, to keep the internal state of `delayed` and `search-input`
      separate from the surrounding application's state, you can embed
-     `delayed` via [[reacl.core/embed]]:
+     `delayed`:
 
-          (reacl.core/embed delayed this local-state #(reacl/send-message! this %) filter-input 200)"}
+          (delayed this local-state (reacl/pass-through-reaction this) filter-input 200)"}
   delayed this state local-state [clazz delay & args]
   render
-  (apply core/embed clazz this
-         state
-         #(core/send-message! this [:update %1])
+  (apply clazz state (core/reaction this (fn [app-state] [:update app-state]))
          args)
 
   initial-state 

@@ -48,9 +48,9 @@
   [state]
   (aget state "reacl_app_state"))
 
-(defn- ^:no-doc props-extract-app-state-callback
+(defn- ^:no-doc props-extract-reaction
   [props]
-  (aget props "reacl_app_state_callback"))
+  (aget props "reacl_reaction"))
 
 (defn- ^:no-doc data-extract-app-state
   "Extract the latest applications state from a Reacl component data.
@@ -116,6 +116,25 @@
   [clazz app-state args]
   ((aget clazz "__computeLocals") app-state args))
 
+(defrecord Reaction [component make-message])
+
+(def no-reaction 
+  "Use this if you don't want to react to an app-state change."
+  nil)
+
+(defn pass-through-reaction
+  "Use this if you want to pass the app-state as the message."
+  [this]
+  (Reaction. this identity))
+
+(defn reaction
+  "A reaction that says how to deal with a new app state in a subcomponent.
+
+  - `component` component to send a message to
+  - `make-message` unary function to apply to the new app state to make the message"
+  [component make-message]
+  (Reaction. component make-message))
+
 ;; On the app-state integration:
 ;;
 ;; It starts with the argument to the instantiation of toplevel or
@@ -149,6 +168,8 @@
 ;; reacl_initial_app_state in the props, which we take over into it's
 ;; state in componentWillReceiveProps.
 
+(declare send-message!)
+
 (defn ^:no-doc set-app-state!
   "Set the application state associated with a Reacl component.
    May not be called before the first render.
@@ -167,12 +188,12 @@
     (.setState this #js {:reacl_app_state app-state})
 
     ;; embedded callback
-    (if-let [callback (props-extract-app-state-callback props)]
-      (callback app-state))))
+    (if-let [reaction (props-extract-reaction props)]
+      (send-message! (:component reaction) ((:make-message reaction) app-state)))))
 
 (defprotocol ^:no-doc IReaclClass
   (-instantiate-toplevel [clazz app-state args])
-  (-instantiate-embedded [clazz app-state app-state-callback args])
+  (-instantiate-embedded [clazz app-state reaction args])
   (-react-class [clazz]))
 
 (defn react-class
@@ -216,14 +237,14 @@
 
   `clazz' is the React class (not the Reacl class ...).
   `app-state' is the  application state.
-  `app-state-callback' is a function called with a new app state on changes.
+  `reaction' is a function called with a new app state on changes.
   `args' are the arguments to the component.
   `locals' are the local variables of the components."
-  [clazz app-state app-state-callback args locals]
+  [clazz app-state reaction args locals]
   (clazz #js {:reacl_initial_app_state app-state
               :reacl_args args
               :reacl_locals (atom locals)
-              :reacl_app_state_callback app-state-callback}))
+              :reacl_reaction reaction}))
 
 (defn instantiate-toplevel
   "Instantiate a Reacl component at the top level.
@@ -256,10 +277,10 @@
   - `clazz` is the Reacl class.
   - `parent` is the component from which the Reacl component is instantiated.
   - `app-state` is the application state.
-  - `app-state-callback` is a function called with a new app state on changes.
+  - `reaction` is a function called with a new app state on changes.
   - `args` are the arguments to the component."
-  [clazz app-state app-state-callback & args]
-  (-instantiate-embedded clazz app-state app-state-callback args))
+  [clazz app-state reaction & args]
+  (-instantiate-embedded clazz app-state reaction args))
 
 (defrecord ^{:doc "Type of a unique value to distinguish nil from no change of state.
             For internal use in [[reacl.core/return]] and [[reacl.core/set-state!]]."
@@ -500,12 +521,12 @@
             "shouldComponentUpdate"
             (let [f (with-state-and-args should-component-update?)]
               (fn [next-props next-state]
-                ;; have to check the app-state-callback for embedded
+                ;; have to check the reaction for embedded
                 ;; components for changes - though this will mostly
                 ;; force an update!
                 (this-as this
-                         (or (and (let [callback-now (props-extract-app-state-callback (.-props this))
-                                        callback-next (props-extract-app-state-callback next-props)]
+                         (or (and (let [callback-now (props-extract-reaction (.-props this))
+                                        callback-next (props-extract-reaction next-props)]
                                     (and (or callback-now callback-next)
                                          (not= callback-now callback-next))))
                              (if f
@@ -536,15 +557,15 @@
           ]
       (reify
         IFn
-        (-invoke [this app-state app-state-callback & args]
-          (-instantiate-embedded this app-state app-state-callback args))
+        (-invoke [this app-state reaction & args]
+          (-instantiate-embedded this app-state reaction args))
         IReaclClass
         (-instantiate-toplevel [this app-state args]
           (instantiate-toplevel-internal react-class app-state args
                                          (compute-locals app-state args)))
-        (-instantiate-embedded [this app-state app-state-callback args]
+        (-instantiate-embedded [this app-state reaction args]
           (instantiate-embedded-internal react-class app-state
-                                         app-state-callback args
+                                         reaction args
                                          (compute-locals app-state args)))
         (-react-class [this] react-class)
         ))))

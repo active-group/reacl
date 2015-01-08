@@ -40,8 +40,7 @@
    (dom/div (map (fn [todo]
                    (dom/keyed (str (:id todo))
                               (to-do-item todo
-                                          (fn [todo]
-                                            (reacl/send-message! this (Change. todo)))
+                                          (reacl/reaction this ->Change)
                                           this)))
                  (:todos app-state)))
    (dom/form

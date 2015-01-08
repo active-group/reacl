@@ -88,10 +88,9 @@
   this products search-params []
   render
   (dom/div
-   (search-bar search-params
-               #(reacl/send-message! this %))
+   (search-bar search-params (reacl/pass-through-reaction this))
    (product-table products
-                  (fn [_] nil)
+                  reacl/no-reaction
                   (:filter-text search-params)
                   (:in-stock-only? search-params)))
 

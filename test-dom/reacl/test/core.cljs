@@ -82,7 +82,7 @@
   this app-state local-state []
   initial-state 1
   render
-  (dom/span (foo this local-state))
+  (dom/span (foo app-state reacl/no-reaction local-state))
   handle-message
   (fn [new]
     (reacl/return :local-state new)))
@@ -111,7 +111,7 @@
 (reacl/defclass blaz
   this app-state []
   render
-  (dom/span (reacl/embed blam 5 (fn [_] nil))))
+  (dom/span (blam 5 reacl/no-reaction)))
   
 (deftest local-app-state-change-embed
   (let [item (test-util/instantiate&mount blaz 5)
@@ -123,7 +123,7 @@
 (reacl/defclass blaz2
   this app-state []
   render
-  (reacl/embed blam (* 2 app-state) (fn [_] nil))
+  (blam (* 2 app-state) reacl/no-reaction)
   handle-message
   (fn [new]
     (reacl/return :app-state new)))

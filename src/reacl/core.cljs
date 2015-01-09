@@ -87,21 +87,24 @@
   [this]
   (props-extract-args (.-props this)))
 
-; The locals are difficult: We want them to be like props on the one
-; hand, but they should have new bindings when the app state changes.
-
-; The latter means we cannot generally put them in the component
-; state, as the component state survives app-state changes.
-
-; So we need to put them in the props and make them mutable, by
-; sticking an atom in the props.
-
 (defn ^:no-doc extract-locals
   "Get the local bindings for a component.
 
    For internal use."
   [this]
-  @(aget (.-props this) "reacl_locals"))
+  (let [state (.-state this)
+        props (.-props this)]
+    (if (and (not (nil? state))
+             (.hasOwnProperty state "reacl_locals"))
+      (aget state "reacl_locals")
+      (aget props "reacl_initial_locals"))))
+  
+(defn ^:no-doc set-locals!
+  "Set the local bindings for a component.
+
+  For internal use."
+  [this locals]
+  (aset (.-state this) "reacl_locals" locals))
 
 (defn ^:no-doc compute-locals
   "Compute the locals.
@@ -151,15 +154,9 @@
   (let [props (.-props this)]
     (assert (.hasOwnProperty (.-state this) "reacl_app_state"))
 
-    ;; recompute locals if toplevel (in other cases they are computed
-    ;; upon reinstantiation)
-    (reset! (aget props "reacl_locals") 
-            (compute-locals (.-constructor this) app-state (extract-args this)))
-
-    ;; set state - must be after compute locals
+    (set-locals! this (compute-locals (.-constructor this) app-state (extract-args this)))
     (.setState this #js {:reacl_app_state app-state})
 
-    ;; embedded callback
     (if-let [reaction (props-extract-reaction props)]
       (send-message! (:component reaction) ((:make-message reaction) app-state)))))
 
@@ -206,8 +203,8 @@
   - `locals` are the local variables of the components."
   [clazz app-state args locals]
   (clazz #js {:reacl_initial_app_state app-state
-              :reacl_args args
-              :reacl_locals (atom locals)}))
+              :reacl_initial_locals locals
+              :reacl_args args}))
 
 (defn ^:no-doc instantiate-embedded-internal
   "Internal function to instantiate an embedded Reacl component.
@@ -219,8 +216,8 @@
   `locals` are the local variables of the components."
   [clazz app-state reaction args locals]
   (clazz #js {:reacl_initial_app_state app-state
+              :reacl_initial_locals locals
               :reacl_args args
-              :reacl_locals (atom locals)
               :reacl_reaction reaction}))
 
 (defn instantiate-toplevel

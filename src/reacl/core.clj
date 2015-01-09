@@ -17,6 +17,11 @@
   (clojure.set/union (into #{} (map val lifecycle-name-map))
                      #{'render 'handle-message 'initial-state 'component-will-mount 'local}))
 
+(defn- split-symbol [stuff dflt]
+  (if (symbol? (first stuff))
+    [(first stuff) (rest stuff)]
+    [dflt stuff]))
+
 (defmacro class
   "Create a Reacl class.
 
@@ -132,16 +137,10 @@
                          :app-state (concat todos [(Todo. local-state false)])))))"
   [?name & ?stuff]
 
-  (let [[?component ?stuff] (if (symbol? (first ?stuff))
-                              [(first ?stuff) (rest ?stuff)]
-                              [`component# ?stuff])
-        ;; FIXME abstract
-        [?app-state ?stuff] (if (symbol? (first ?stuff))
-                              [(first ?stuff) (rest ?stuff)]
-                              [`app-state# ?stuff])
-        [?local-state ?stuff] (if (symbol? (first ?stuff))
-                                [(first ?stuff) (rest ?stuff)]
-                                [`local-state# ?stuff])
+  (let [[?component ?stuff] (split-symbol ?stuff `component#)
+        [?app-state ?stuff] (split-symbol ?stuff `app-state#)
+        [?local-state ?stuff] (split-symbol ?stuff `local-state#)
+
         [[& ?args] & ?clauses] ?stuff
 
         ?clause-map (apply hash-map ?clauses)
@@ -222,3 +221,31 @@
           <event-handler-name> <event-handler-exp> ...))"
   [?name & ?stuff]
   `(def ~?name (reacl.core/class ~(str ?name) ~@?stuff)))
+
+(defmacro view
+  [?name & ?stuff]
+  (let [[?component ?stuff] (split-symbol ?stuff `component#)
+        ?app-state `app-state#
+        [?local-state ?stuff] (split-symbol ?stuff `local-state#)
+
+        [[& ?args] & ?clauses] ?stuff
+
+        ?clause-map (apply hash-map ?clauses)
+        ;; this adds app-state arg to component-will-update,
+        ;; component-did-update, should-component-update?
+        add-arg (fn [?current-fn]
+                  (let [?ignore `ignore#
+                        ?args `args#]
+                    `(fn [~?ignore & ~?args]
+                       (apply ~?current-fn ~?args))))
+        ?component-will-update (update-in ?clause-map ['component-will-update] add-arg)
+        ?component-did-update (update-in ?clause-map ['component-will-update] add-arg)
+        ?should-component-update? (update-in ?clause-map ['should-component-update?] add-arg)
+        ]
+    `(reacl.core/class->view
+      (reacl.core/class ~?name ~?component ~?app-state ~?local-state [~@?args]
+                        ~@?clauses))))
+
+(defmacro defview
+  [?name & ?stuff]
+  `(def ~?name (reacl.core/view ~(str ?name) ~@?stuff)))

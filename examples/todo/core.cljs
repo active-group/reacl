@@ -32,8 +32,8 @@
 (defrecord Submit [])
 (defrecord Change [todo])
 
-(reacl/defclass to-do-app
-  this app-state local-state []
+(reacl/defview to-do-app
+  this local-state [initial-todos]
   render
   (dom/div
    (dom/h3 "TODO")
@@ -42,7 +42,7 @@
                               (to-do-item todo
                                           (reacl/reaction this ->Change)
                                           this)))
-                 (:todos app-state)))
+                 (:todos local-state)))
    (dom/form
     {:onSubmit (fn [e _]
                  (.preventDefault e)
@@ -50,41 +50,42 @@
     (dom/input {:onChange (fn [e]
                             (reacl/send-message! this
                                                  (New-text. (.. e -target -value))))
-                :value local-state})
+                :value (:input local-state)})
     (dom/button
-     (str "Add #" (:next-id app-state)))))
+     (str "Add #" (:next-id local-state)))))
 
-  initial-state ""
+  initial-state (assoc initial-todos
+                  :input "")
 
   handle-message
   (fn [msg]
     (cond
      (instance? New-text msg)
-     (reacl/return :local-state (:text msg))
+     (reacl/return :local-state (assoc local-state :input (:text msg)))
      
      (instance? Submit msg)
-     (let [next-id (:next-id app-state)]
-       (reacl/return :local-state ""
-                     :app-state (assoc app-state
-                                  :todos (concat (:todos app-state) [(Todo. next-id local-state false)])
-                                  :next-id (+ 1 next-id))))
+     (let [next-id (:next-id local-state)]
+       (reacl/return :local-state (assoc local-state
+                                    :input ""
+                                    :todos (concat (:todos local-state) [(Todo. next-id (:input local-state) false)])
+                                    :next-id (+ 1 next-id))))
 
      (instance? Delete msg)
      (let [id (:id (:todo msg))]
-       (reacl/return :app-state
-                     (assoc app-state
-                       :todos (remove (fn [todo] (= id (:id todo))) (:todos app-state)))))
+       (reacl/return :local-state
+                     (assoc local-state
+                       :todos (remove (fn [todo] (= id (:id todo))) (:todos local-state)))))
 
      (instance? Change msg)
      (let [changed-todo (:todo msg)
            changed-id (:id changed-todo)]
-       (reacl/return :app-state
-                     (assoc app-state
+       (reacl/return :local-state
+                     (assoc local-state
                        :todos (mapv (fn [todo]
                                       (if (= changed-id (:id todo) )
                                         changed-todo
                                         todo))
-                                    (:todos app-state))))))))
+                                    (:todos local-state))))))))
 
 (reacl/render-component
  (.getElementById js/document "content")

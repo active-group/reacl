@@ -171,7 +171,7 @@
           (if ?f
             (let [?more `more#]
               `(fn [~?component ~?app-state ~?local-state [~@?locals-ids] [~@?args] & ~?more]
-                 ;; everything user misc fn is also visible
+                 ;; every user misc fn is also visible
                  (let [~@(mapcat (fn [[n f]] [n `(aget ~?component ~(str n))]) ?misc-fns-map)]
                    (apply ~?f ~?more))))
             'nil))

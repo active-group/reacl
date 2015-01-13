@@ -460,7 +460,7 @@
             "getInitialState"
             (nlocal (fn [this app-state locals args]
                       (let [local-state (when initial-state
-                                          (initial-state app-state locals args))
+                                          (initial-state this app-state locals args))
                             state (make-local-state this local-state)]
                         ;; app-state will be the initial_app_state here
                         (aset state "reacl_app_state" app-state)

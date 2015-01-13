@@ -72,6 +72,25 @@
   [comp]
   (.-textContent (.getDOMNode comp)))
 
+(deftest initial-state-test
+  (testing "initial-state-test sees app-state, locals and args"
+    (let [item (test-util/instantiate&mount
+                (reacl/class "initial-state-test" this app-state local-state [arg1]
+                             initial-state
+                             (do (is (= app-state "app-state"))
+                                 (is (= arg1 "arg1"))
+                                 (is (= local1 "local1"))
+                                 "local-state")
+                             local [local1 "local1"]
+                             render
+                             (do
+                               (is (= local-state "local-state"))
+                               (dom/div "test")))
+                "app-state" "arg1")
+          divs (doms-with-tag item "div")]
+      (is (= ["test"]
+             (map dom-content divs))))))
+
 (deftest locals-sequential
   (let [item (test-util/instantiate&mount foo 42 12)
         divs (doms-with-tag item "div")]

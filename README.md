@@ -7,9 +7,11 @@ framework.  This is very different from David Nolen's Om framework.
 
 Your `project.clj` should contain something like this:
 
-	  :dependencies [[org.clojure/clojure "1.6.0"]
-					 [org.clojure/clojurescript "0.0-2280" :scope "provided"]
-					 [reacl "0.6.0"]]
+```clj
+  :dependencies [[org.clojure/clojure "1.6.0"]
+				 [org.clojure/clojurescript "0.0-2280" :scope "provided"]
+				 [reacl "0.6.0"]]
+```
 
 ## API Documentation
 
@@ -72,37 +74,43 @@ Check out the very simple example for managing a to-do list in file
 (don't
 expect [TodoMVC](http://todomvc.com/)).  We use this namespace header:
 
-	(ns examples.todo.core
-	  (:require [reacl.core :as reacl :include-macros true]
-				[reacl.dom :as dom :include-macros true]
-				[active.clojure.lens :as lens]))
+```clj
+(ns examples.todo.core
+  (:require [reacl.core :as reacl :include-macros true]
+			[reacl.dom :as dom :include-macros true]
+			[active.clojure.lens :as lens]))
+```
 
 First of all, we define a record type for to-dos, with a descriptive
 text and a flag indicating that it's done:
 
-    (defrecord Todo [text done?])
+```clj
+(defrecord Todo [text done?])
+```
     
 Here is a component class for a single item, which allows marking the
 `done?` field as done:
 
-	(reacl/defclass to-do-item
-	  this todos [lens]
-	  render
-	  (let [todo (lens/yank todos lens)]
-		(dom/letdom
-		 [checkbox (dom/input
-					{:type "checkbox"
-					 :value (:done? todo)
-					 :onChange #(reacl/send-message! this
-													 (.-checked (dom/dom-node this checkbox)))})]
-		 (dom/div checkbox
-				  (:text todo))))
-	  handle-message
-	  (fn [checked?]
-		(reacl/return :app-state
-					  (lens/shove todos
-								  (lens/>> lens :done?)
-								  checked?))))
+```clj
+(reacl/defclass to-do-item
+  this todos [lens]
+  render
+  (let [todo (lens/yank todos lens)]
+	(dom/letdom
+	 [checkbox (dom/input
+				{:type "checkbox"
+				 :value (:done? todo)
+				 :onChange #(reacl/send-message! this
+												 (.-checked (dom/dom-node this checkbox)))})]
+	 (dom/div checkbox
+			  (:text todo))))
+  handle-message
+  (fn [checked?]
+	(reacl/return :app-state
+				  (lens/shove todos
+							  (lens/>> lens :done?)
+							  checked?))))
+```
 
 The class is called `to-do-item`.  Within the component code, the
 component is accessible as `this`, the application state is accessible
@@ -131,39 +139,41 @@ to replace the `done?` flag.
 
 Here's the todo application for managing a list of `to-do-item`s:
 
-	(defrecord New-text [text])
-	(defrecord Submit [])
+```clj
+(defrecord New-text [text])
+(defrecord Submit [])
 
-	(reacl/defclass to-do-app
-	  this todos local-state []
-	  render
-	  (dom/div
-	   (dom/h3 "TODO")
-	   (dom/div (map-indexed (fn [i todo]
-							   (dom/keyed (str i) (to-do-item this (lens/at-index i))))
-							 todos))
-	   (dom/form
-		{:onSubmit (fn [e _]
-					 (.preventDefault e)
-					 (reacl/send-message! this (Submit.)))}
-		(dom/input {:onChange (fn [e]
-								(reacl/send-message! this
-													 (New-text. (.. e -target -value))))
-					:value local-state})
-		(dom/button
-		 (str "Add #" (+ (count todos) 1)))))
+(reacl/defclass to-do-app
+  this todos local-state []
+  render
+  (dom/div
+   (dom/h3 "TODO")
+   (dom/div (map-indexed (fn [i todo]
+						   (dom/keyed (str i) (to-do-item this (lens/at-index i))))
+						 todos))
+   (dom/form
+	{:onSubmit (fn [e _]
+				 (.preventDefault e)
+				 (reacl/send-message! this (Submit.)))}
+	(dom/input {:onChange (fn [e]
+							(reacl/send-message! this
+												 (New-text. (.. e -target -value))))
+				:value local-state})
+	(dom/button
+	 (str "Add #" (+ (count todos) 1)))))
 
-	  initial-state ""
+  initial-state ""
 
-	  handle-message
-	  (fn [msg]
-		(cond
-		 (instance? New-text msg)
-		 (reacl/return :local-state (:text msg))
+  handle-message
+  (fn [msg]
+	(cond
+	 (instance? New-text msg)
+	 (reacl/return :local-state (:text msg))
 
-		 (instance? Submit msg)
-		 (reacl/return :local-state ""
-					   :app-state (concat todos [(Todo. local-state false)])))))
+	 (instance? Submit msg)
+	 (reacl/return :local-state ""
+				   :app-state (concat todos [(Todo. local-state false)])))))
+```
 				   
 To help React identify the individual to-do items in the list, it uses
 a list of `dom/keyed` elements that attach string keys to the

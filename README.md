@@ -29,8 +29,9 @@ from one component to its subcomponents.
 
 In Reacl, there are three different kinds of data:
 
-- global *application state* that is the same at all components, and
-  can only be manipulated as a whole
+- *application state* managed by a component that represents something
+  that's important to your application, rather than just being an
+  aspect of the GUI
 - *local state* of a component, used to maintain GUI state not already
   tracked by the DOM
 - *arguments* passed from a component to its sub-components
@@ -51,7 +52,9 @@ implementing Reacl's internal protocols), and the
 `reacl.core/send-message!` for sending a message to a component.
 
 In addition to this core model, Reacl also provides a convenience
-layer on React's virtual dom (which can be used independently).
+layer on React's virtual dom. (The convenience layer can be used
+independently; also, any other convenience layer over React's virtual
+dom should be usable with Reacl.)
 
 ## Organization
 
@@ -72,46 +75,50 @@ Check out the very simple example for managing a to-do list in file
 (don't
 expect [TodoMVC](http://todomvc.com/)).  We use this namespace header:
 
-	(ns examples.todo.core
-	  (:require [reacl.core :as reacl :include-macros true]
-				[reacl.dom :as dom :include-macros true]
-				[active.clojure.lens :as lens]))
+```clj
+(ns examples.todo.core
+  (:require [reacl.core :as reacl :include-macros true]
+			[reacl.dom :as dom :include-macros true]))
+```
 
-First of all, we define a record type for to-dos, with a descriptive
-text and a flag indicating that it's done:
+First of all, we define a record type for to-dos, with a unique id
+(needed to identify items to be deleted), a descriptive text and a
+flag indicating that it's done:
 
-    (defrecord Todo [text done?])
-    
+```clj
+(defrecord Todo [id text done?])
+````
+
 Here is a component class for a single item, which allows marking the
-`done?` field as done:
+`done?` field as done and deleting that item:
 
-	(reacl/defclass to-do-item
-	  this todos [lens]
-	  render
-	  (let [todo (lens/yank todos lens)]
-		(dom/letdom
-		 [checkbox (dom/input
-					{:type "checkbox"
-					 :value (:done? todo)
-					 :onChange #(reacl/send-message! this
-													 (.-checked (dom/dom-node this checkbox)))})]
-		 (dom/div checkbox
-				  (:text todo))))
-	  handle-message
-	  (fn [checked?]
-		(reacl/return :app-state
-					  (lens/shove todos
-								  (lens/>> lens :done?)
-								  checked?))))
+```clj
+(reacl/defclass to-do-item
+  this todo [parent]
+  render
+  (dom/letdom
+   [checkbox (dom/input
+              {:type "checkbox"
+               :value (:done? todo)
+               :onChange #(reacl/send-message! this
+                                               (.-checked (dom/dom-node this checkbox)))})]
+   (dom/div checkbox
+            (dom/button {:onClick #(reacl/send-message! parent (Delete. todo))}
+                        "Zap")
+            (:text todo)))
+  handle-message
+  (fn [checked?]
+    (reacl/return :app-state
+                  (assoc todo :done? checked?))))
+```
 
 The class is called `to-do-item`.  Within the component code, the
-component is accessible as `this`, the application state is accessible
-as `todos`, and the component accepts a single parameter `lens`, which
-is a lens for accessing the to-do item managed by this component
-within the application state. (FIXME: Link to active-clojure)
+component is accessible as `this`, the component's application state
+is accessible as `todo`.  Also, the component representing list of
+todo items that this item is a part of will be passed as an argument,
+accessible via the parameter `parent`.
 
-The component class defines a `render` expression.  The code first
-extracts the to-do item managed by this component via `lens/yank`,
+The component class defines a `render` expression.  The code
 creates an `input` DOM element, binds it to `checkbox` via
 `dom/letdom` (because the event handler will want to access via
 `dom/dom-node`), and uses that to create a `div` for the entire to-do
@@ -123,95 +130,174 @@ value of the checked flag, and sends it as a message to the component
 
 That message eventually ends up in the `handle-message` function,
 which is expected to use `reacl/return` to construct a return value
-that communicates whether there's a new application state or component
-state.  In this case, there's no component state, so the call to
+that communicates whether there's a new application state or local
+state.  In this case, there's no local state, so the call to
 `reacl/return` only specifies a new application state via the
-`:app-state` keyword argument.  The new application state uses `lens`
-to replace the `done?` flag.
+`:app-state` keyword argument.
 
-Here's the todo application for managing a list of `to-do-item`s:
+There is also an event handler attached to a `Zap` button, which is
+supposed to delete the item.  For this, the component needs the help
+of the parent component that manages the list of components - only the
+parent component can remove the todo item from the list.  The message
+it sends to `parent` is made from this record type:
 
-	(defrecord New-text [text])
-	(defrecord Submit [])
+```clj
+(defrecord Delete [todo])
+```
 
-	(reacl/defclass to-do-app
-	  this todos local-state []
-	  render
-	  (dom/div
-	   (dom/h3 "TODO")
-	   (dom/div (map-indexed (fn [i todo]
-							   (dom/keyed (str i) (to-do-item this (lens/at-index i))))
-							 todos))
-	   (dom/form
-		{:onSubmit (fn [e _]
-					 (.preventDefault e)
-					 (reacl/send-message! this (Submit.)))}
-		(dom/input {:onChange (fn [e]
-								(reacl/send-message! this
-													 (New-text. (.. e -target -value))))
-					:value local-state})
-		(dom/button
-		 (str "Add #" (+ (count todos) 1)))))
+We'll need to handle this type of message in the class of the parent
+component.
 
-	  initial-state ""
+For the list of todo items, we define a record type for the entire list of todos managed by
+the application, in addition to the id to be used for the next item:
 
-	  handle-message
-	  (fn [msg]
-		(cond
-		 (instance? New-text msg)
-		 (reacl/return :local-state (:text msg))
+```clj
+(defrecord TodosApp [next-id todos])
+```
 
-		 (instance? Submit msg)
-		 (reacl/return :local-state ""
-					   :app-state (concat todos [(Todo. local-state false)])))))
-				   
+The list component accepts the following messages in adddition to `Delete`:
+
+```clj
+(defrecord New-text [text])
+(defrecord Submit [])
+(defrecord Change [todo])
+```
+
+The `New-text` message says that the user has changed the text in the
+input field for the new todo item.  The `Submit` button says that the
+user has pushed the `Add` button or pressed return to register a new
+todo item.  The `Change` item says that a particular todo item has
+changed in some way - this will be sent when the user checks the
+"done" checkbox.
+
+The `to-do-app` class manages both *app state* - the `TodosApp` object
+- and transient local state, the text the user is entering but has not
+completed yet.  Here is the header of the class, along with the render
+method:
+
+```cljs
+(reacl/defclass to-do-app
+  this app-state local-state []
+  render
+  (dom/div
+   (dom/h3 "TODO")
+   (dom/div (map (fn [todo]
+                   (dom/keyed (str (:id todo))
+                              (to-do-item
+                               todo
+                               (reacl/reaction this ->Change)
+                               this)))
+                 (:todos app-state)))
+   (dom/form
+    {:onSubmit (fn [e _]
+                 (.preventDefault e)
+                 (reacl/send-message! this (Submit.)))}
+    (dom/input {:onChange 
+                (fn [e]
+                  (reacl/send-message!
+                   this
+                   (New-text. (.. e -target -value))))
+                :value local-state})
+    (dom/button
+     (str "Add #" (:next-id app-state)))))
+```
+
 To help React identify the individual to-do items in the list, it uses
 a list of `dom/keyed` elements that attach string keys to the
 individual items.
 
-Each to-do-item is instantiated by calling the class as a function,
-with the component that is instantiating (the "parent" component) as
-its first argument followed by the class arguments.
+Each `to-do-item` component is instantiated by calling the class as a function,
+passing its app state (the individual todo item), a *reaction*, and
+any further arguments - in this case `this` is passed for
+`to-do-item`'s `parent` parameter.
+
+The reaction is a slightly restricted version of a callback that gets
+invoked whenever the component's app state changes.  (Remember that a
+todo item's app state changes when the user toggles the done checkbox.)  The
+reaction here `(reacl/reaction this ->Change)` - says that a message
+should be sent to `this`, the `to-do-app` component, and that the
+app-state (the todo item) should be wrapped using the `->Change`
+constructor.  So, a `Change` message is sent to the `to-do-app`
+component whenever an individual todo item changes.
 
 This component supports two different user actions: By typing, the
 user submits a new description for the to-do item in progress.  That
-encoded with a `New-text` message.  Also, the user can press return or
-press the `Add` button, which submits the current to-do item.  The
-event handlers for these actions send these objects as messages.
+is encoded with a `New-text` message.  Also, the user can press return
+or press the `Add` button, which submits the current to-do item in a
+`Submit` message.  The event handlers for these actions send these
+objects as messages.
 
-This component does have a component state, namely the description of
-the to-do item that's being entered.  `initial-state` specifies it as
-initially empty, and then the `handle-message` function specifies a
-new value via the `:local-state` keyword argument to `reacl/return`.
-Upon submit, the message handler returns a new empty-text description,
-and a new app state consisting of the to-to items with the new one
-appended.
+The `to-do-app` class has more clauses in addition to render.  The
+`initial-state` clauses initializes the text entered by the user to
+the empty string:
+
+```clj
+  initial-state ""
+```
+
+The `handle-message` function finally handles all the different
+message types.  The `New-text` message leads to a new local state
+being returned:
+
+```clj
+  handle-message
+  (fn [msg]
+    (cond
+     (instance? New-text msg)
+     (reacl/return :local-state (:text msg))
+```
+
+A `Submit` message leads to the text field to be cleared and the app
+state to be augmented by the new todo item, generating a fresh id:
+
+```clj
+     (instance? Submit msg)
+     (let [next-id (:next-id app-state)]
+       (reacl/return :local-state ""
+                     :app-state
+                     (assoc app-state
+                       :todos
+                       (concat (:todos app-state)
+                               [(Todo. next-id local-state false)])
+                       :next-id (+ 1 next-id))))
+```
+
+The `Delete` message sent by an item prompts the message handler to
+remove that item from the list:
+
+```clj
+     (instance? Delete msg)
+     (let [id (:id (:todo msg))]
+       (reacl/return :app-state
+                     (assoc app-state
+                       :todos 
+                       (remove (fn [todo] (= id (:id todo)))
+                               (:todos app-state)))))
+```
+
+Finally, the `Change` message leads to the todo item in question to be
+replaced by the new version:
+
+```clj
+     (instance? Change msg)
+     (let [changed-todo (:todo msg)
+           changed-id (:id changed-todo)]
+       (reacl/return :app-state
+                     (assoc app-state
+                       :todos (mapv (fn [todo]
+                                      (if (= changed-id (:id todo) )
+                                        changed-todo
+                                        todo))
+                                    (:todos app-state))))))))
+```
 
 That's it.  Hopefully that's enough to get you started.  Be sure to
 also check out the [`products` example](examples/products/core.cljs)
 or the [`comments` example](examples/comments/core.cljs)
 
-## Breaking changes:
-
-### In 0.7
-
-- The `name` field of the `core/class` macro is now evaluated in the
-  calling environment. So if your code looked like:
-
-    (def foo "bar")
-    (reacl.core/class foo ...) 
-
-  your component was named "foo", but is now named "bar". This means
-  it's an error if foo is not defined now. Note that this does not
-  apply to `reacl.core/defclass`.
-
-- The livecycle methods have different arguments now, taylored for
-  reacl. Also `component-will-receive-props` is now named
-  `component-will-receive-args`. See `reacl.core/class` for details.
-
 ## License
 
-Copyright © 2014 Active Group GmbH
+Copyright © 2015 Active Group GmbH
 
 Distributed under the Eclipse Public License either version 1.0 or (at
 your option) any later version.

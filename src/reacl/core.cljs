@@ -112,14 +112,19 @@
   [clazz app-state args]
   ((aget clazz "__computeLocals") app-state args))
 
-(defrecord Reaction [component make-message])
+(defrecord ^{:doc "Type for a reaction, a restricted representation for callback."
+             :no-doc true}
+    Reaction 
+  [component make-message])
 
 (def no-reaction 
-  "Use this if you don't want to react to an app-state change."
+  "Use this as a reaction if you don't want to react to an app-state change."
   nil)
 
 (defn pass-through-reaction
-  "Use this if you want to pass the app-state as the message."
+  "Use this as a reaction if you want to pass the app-state as the message.
+
+  `this` must be the component to send the message to"
   [this]
   (Reaction. this identity))
 
@@ -127,7 +132,9 @@
   "A reaction that says how to deal with a new app state in a subcomponent.
 
   - `component` component to send a message to
-  - `make-message` unary function to apply to the new app state to make the message"
+  - `make-message` unary function to apply to the new app state to make the message
+
+  Common specialized reactions are [[no-reaction]] and [[pass-through-reaction]]."
   [component make-message]
   (Reaction. component make-message))
 
@@ -209,11 +216,11 @@
 (defn ^:no-doc instantiate-embedded-internal
   "Internal function to instantiate an embedded Reacl component.
 
-  `clazz` is the React class (not the Reacl class ...).
-  `app-state` is the  application state.
-  `reaction` is a function called with a new app state on changes.
-  `args` are the arguments to the component.
-  `locals` are the local variables of the components."
+  - `clazz` is the React class (not the Reacl class ...).
+  - `app-state` is the  application state.
+  - `reaction` is a reaction invoked with a new app state on changes; see [[reaction]].
+  - `args` are the arguments to the component.
+  - `locals` are the local variables of the components."
   [clazz app-state reaction args locals]
   (clazz #js {:reacl_initial_app_state app-state
               :reacl_initial_locals locals
@@ -254,7 +261,7 @@
 
   - `clazz` is the Reacl class.
   - `app-state` is the application state.
-  - `reaction` is a function called with a new app state on changes.
+  - `reaction` is a reaction invoked with a new app state on changes; see [[reaction]].
   - `args` are the arguments to the component."
   [clazz app-state reaction & args]
   (-instantiate-embedded clazz app-state reaction args))

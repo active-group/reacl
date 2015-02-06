@@ -112,31 +112,47 @@
   [clazz app-state args]
   ((aget clazz "__computeLocals") app-state args))
 
+(declare invoke-reaction)
+
 (defrecord ^{:doc "Type for a reaction, a restricted representation for callback."
              :no-doc true}
     Reaction 
-  [component make-message])
+  [component make-message args]
+  Fn
+  IFn
+  (-invoke [this value]
+    (invoke-reaction this value)))
 
 (def no-reaction 
   "Use this as a reaction if you don't want to react to an app-state change."
   nil)
 
 (defn pass-through-reaction
-  "Use this as a reaction if you want to pass the app-state as the message.
+  "Use this if you want to pass the app-state as the message.
 
-  `this` must be the component to send the message to"
-  [this]
-  (Reaction. this identity))
+  `component` must be the component to send the message to"
+  [component]
+  (assert (not (nil? component)))
+  (Reaction. component identity nil))
 
 (defn reaction
   "A reaction that says how to deal with a new app state in a subcomponent.
 
   - `component` component to send a message to
-  - `make-message` unary function to apply to the new app state to make the message
+  - `make-message` function to apply to the new app state and any additional `args`, to make the message.
 
   Common specialized reactions are [[no-reaction]] and [[pass-through-reaction]]."
-  [component make-message]
-  (Reaction. component make-message))
+  [component make-message & args]
+  (assert (not (nil? component)))
+  (assert (not (nil? make-message)))
+  (Reaction. component make-message args))
+
+(declare send-message!)
+
+(defn invoke-reaction
+  "Invokes the given reaction with the given message value (usually an app-state)."
+  [reaction value]
+  (send-message! (:component reaction) (apply (:make-message reaction) value (:args reaction))))
 
 ; On app state:
 ;
@@ -149,8 +165,6 @@
 ; their state, into
 ;
 ;  state.reacl_app_state
-
-(declare send-message!)
 
 (defn ^:no-doc set-app-state!
   "Set the application state associated with a Reacl component.
@@ -165,7 +179,7 @@
     (.setState this #js {:reacl_app_state app-state})
 
     (if-let [reaction (props-extract-reaction props)]
-      (send-message! (:component reaction) ((:make-message reaction) app-state)))))
+      (invoke-reaction reaction app-state))))
 
 (defprotocol ^:no-doc HasReactClass
   (-react-class [clazz]))
@@ -467,7 +481,7 @@
             "getInitialState"
             (nlocal (fn [this app-state locals args]
                       (let [local-state (when initial-state
-                                          (initial-state app-state locals args))
+                                          (initial-state this app-state locals args))
                             state (make-local-state this local-state)]
                         ;; app-state will be the initial_app_state here
                         (aset state "reacl_app_state" app-state)

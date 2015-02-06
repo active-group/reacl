@@ -209,7 +209,7 @@
           (if ?f
             (let [?more `more#]
               `(fn [~?component ~?app-state ~?local-state [~@?locals-ids] [~@?args] & ~?more]
-                 ;; everything user misc fn is also visible
+                 ;; every user misc fn is also visible
                  (let [~@(mapcat (fn [[n f]] [n `(aget ~?component ~(str n))]) ?misc-fns-map)]
                    (apply ~?f ~?more))))
             'nil))
@@ -268,17 +268,19 @@
 
         [[& ?args] & ?clauses] ?stuff
 
-        ?clause-map (apply hash-map ?clauses)
         ;; this adds app-state arg to component-will-update,
         ;; component-did-update, should-component-update?
         add-arg (fn [?current-fn]
-                  (let [?ignore `ignore#
-                        ?args `args#]
-                    `(fn [~?ignore & ~?args]
-                       (apply ~?current-fn ~?args))))
-        ?component-will-update (update-in ?clause-map ['component-will-update] add-arg)
-        ?component-did-update (update-in ?clause-map ['component-will-update] add-arg)
-        ?should-component-update? (update-in ?clause-map ['should-component-update?] add-arg)
+                  (when ?current-fn
+                    (let [?ignore `ignore#
+                          ?args `args#]
+                      `(fn [~?ignore & ~?args]
+                         (apply ~?current-fn ~?args)))))
+        ?clause-map (-> (apply hash-map ?clauses)
+                        (update-in ['component-will-update] add-arg)
+                        (update-in ['component-did-update] add-arg)
+                        (update-in ['should-component-update?] add-arg))
+        ?clauses (apply concat ?clause-map)
         ]
     `(reacl.core/class->view
       (reacl.core/class ~?name ~?component ~?app-state ~?local-state [~@?args]

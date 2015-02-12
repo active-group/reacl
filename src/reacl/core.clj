@@ -25,10 +25,6 @@
 (defmacro class
   "Create a Reacl class.
 
-  This is a regular React class, with some convenience added - binding
-  of `this`, application state, parameters etc - and implementing
-  Reacl-specific protocols, particularly for event handling.
-
   The syntax is
 
       (reacl.core/class <name> [<this-name> [<app-state-name> [<local-state-name>]]] [<param> ...]
@@ -59,6 +55,15 @@
   return a value specifying a new application state and/or
   component-local state, via [[reacl.core/return]].
 
+  A class can be invoked to yield a component as a function as follows:
+
+  `(<class> <app-state> <reaction> <arg> ...)`
+
+  In this invocation, the value of `<app-state>` will be the initial app
+  state, `<reaction>` must evaluate to a *reaction* (see
+  [[reacl.core.reaction]]) that gets invoked when the component's app
+  state changes, and the `<arg>`s get evaluated to the `<param>`s.
+
   A lifecycle method can be one of:
 
     `component-will-mount` `component-did-mount`
@@ -66,10 +71,11 @@
     `component-will-update` `component-did-update` `component-will-unmount`
 
   These correspond to React's lifecycle methods, see
-  here (component-will-receive-args is similar to
-  componentWillReceiveProps):
+  here:
 
   http://facebook.github.io/react/docs/component-specs.html
+
+  (`component-will-receive-args` is similar to `componentWillReceiveProps`.)
 
   Each right-hand-side `<lifecycle-method-exp>`s should evaluate to a
   function. The arguments, which slightly differ from the
@@ -102,39 +108,71 @@
 
   Example:
 
-      (defrecord New-text [text])
-      (defrecord Submit [])
+    (defrecord New-text [text])
+    (defrecord Submit [])
+    (defrecord Change [todo])
 
-      (reacl/defclass to-do-app
-        this todos local-state []
-        render
-        (dom/div
-         (dom/h3 \"TODO\")
-         (dom/div (map-indexed (fn [i todo]
-                                 (dom/keyed (str i) (to-do-item this (lens/at-index i))))
-                               todos))
-         (dom/form
-          {:onSubmit (fn [e _]
-                       (.preventDefault e)
-                       (reacl/send-message! this (Submit.)))}
-          (dom/input {:onChange (fn [e]
-                                  (reacl/send-message! this
-                                                       (New-text. (.. e -target -value))))
-                      :value local-state})
-          (dom/button
-           (str \"Add #\" (+ (count todos) 1)))))
+    (reacl/defclass to-do-app
+      this app-state local-state []
+      render
+      (dom/div
+       (dom/h3 \"TODO\")
+       (dom/div (map (fn [todo]
+                       (dom/keyed (str (:id todo))
+                                  (to-do-item
+                                   todo
+                                   (reacl/reaction this ->Change)
+                                   this)))
+                     (:todos app-state)))
+       (dom/form
+        {:onSubmit (fn [e _]
+                     (.preventDefault e)
+                     (reacl/send-message! this (Submit.)))}
+        (dom/input {:onChange 
+                    (fn [e]
+                      (reacl/send-message!
+                       this
+                       (New-text. (.. e -target -value))))
+                    :value local-state})
+        (dom/button
+         (str \"Add #\" (:next-id app-state)))))
 
-        initial-state \"\"
+      initial-state \"\"
 
-        handle-message
-        (fn [msg]
-          (cond
-           (instance? New-text msg)
-           (reacl/return :local-state (:text msg))
+      handle-message
+      (fn [msg]
+        (cond
+         (instance? New-text msg)
+         (reacl/return :local-state (:text msg))
 
-           (instance? Submit msg)
+         (instance? Submit msg)
+         (let [next-id (:next-id app-state)]
            (reacl/return :local-state \"\"
-                         :app-state (concat todos [(Todo. local-state false)])))))"
+                         :app-state
+                         (assoc app-state
+                           :todos
+                           (concat (:todos app-state)
+                                   [(Todo. next-id local-state false)])
+                           :next-id (+ 1 next-id))))
+
+         (instance? Delete msg)
+         (let [id (:id (:todo msg))]
+           (reacl/return :app-state
+                         (assoc app-state
+                           :todos 
+                           (remove (fn [todo] (= id (:id todo)))
+                                   (:todos app-state)))))
+
+         (instance? Change msg)
+         (let [changed-todo (:todo msg)
+               changed-id (:id changed-todo)]
+           (reacl/return :app-state
+                         (assoc app-state
+                           :todos (mapv (fn [todo]
+                                          (if (= changed-id (:id todo) )
+                                            changed-todo
+                                            todo))
+                                        (:todos app-state))))))))"
   [?name & ?stuff]
 
   (let [[?component ?stuff] (split-symbol ?stuff `component#)

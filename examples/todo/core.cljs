@@ -39,17 +39,20 @@
    (dom/h3 "TODO")
    (dom/div (map (fn [todo]
                    (dom/keyed (str (:id todo))
-                              (to-do-item todo
-                                          (reacl/reaction this ->Change)
-                                          this)))
+                              (to-do-item
+                               todo
+                               (reacl/reaction this ->Change)
+                               this)))
                  (:todos app-state)))
    (dom/form
     {:onSubmit (fn [e _]
                  (.preventDefault e)
                  (reacl/send-message! this (Submit.)))}
-    (dom/input {:onChange (fn [e]
-                            (reacl/send-message! this
-                                                 (New-text. (.. e -target -value))))
+    (dom/input {:onChange 
+                (fn [e]
+                  (reacl/send-message!
+                   this
+                   (New-text. (.. e -target -value))))
                 :value local-state})
     (dom/button
      (str "Add #" (:next-id app-state)))))
@@ -65,15 +68,20 @@
      (instance? Submit msg)
      (let [next-id (:next-id app-state)]
        (reacl/return :local-state ""
-                     :app-state (assoc app-state
-                                  :todos (concat (:todos app-state) [(Todo. next-id local-state false)])
-                                  :next-id (+ 1 next-id))))
+                     :app-state
+                     (assoc app-state
+                       :todos
+                       (concat (:todos app-state)
+                               [(Todo. next-id local-state false)])
+                       :next-id (+ 1 next-id))))
 
      (instance? Delete msg)
      (let [id (:id (:todo msg))]
        (reacl/return :app-state
                      (assoc app-state
-                       :todos (remove (fn [todo] (= id (:id todo))) (:todos app-state)))))
+                       :todos 
+                       (remove (fn [todo] (= id (:id todo)))
+                               (:todos app-state)))))
 
      (instance? Change msg)
      (let [changed-todo (:todo msg)

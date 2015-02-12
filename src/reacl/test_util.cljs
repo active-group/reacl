@@ -47,41 +47,55 @@
   (let [utils (apply test-class* clazz init-app-state args)]
     (initial-check utils)
     (doseq [interaction interactions]
-      (doseq [check (interaction (:send-message! utils))]
+      (doseq [check (interaction utils)]
         (check utils)))))
-
-;; TODO: Take a look at React.addons.TestUtils.Simulate
 
 (defn after
   "Creates an interaction the sends the given message to the tested
   component, and performs the given checks afterwards. Should be used
   in the context a [[testing-class*]] call."
   [message & checks]
-  (fn [send-message!]
+  (fn [{:keys [send-message!]}]
     (send-message! message)
     checks))
+
+(defn simulate
+  "Creates an interaction, that will call `f` with the
+  React.addons.TestUtils.Simulate object and the dom node of the
+  tested component. The simulator object has methods like `click` that
+  you can call to dispatch a DOM event. The given checks are performed
+  afterwards."
+  [f & checks]
+  (fn [{:keys [get-dom!]}]
+    (f js/React.addons.TestUtils.Simulate (get-dom!))
+    checks))
+
+(def no-check
+  "An empty check that does nothing."
+  (fn [utils]
+    nil))
 
 (defn the-app-state
   "Create a check on the app-state, by calling the given function f
   with the app-state at that time. Should be used in the context a
   [[testing-class*]] call."
   [f]
-  (fn [utils]
-    (f ((:get-app-state! utils)))))
+  (fn [{:keys [get-app-state!]}]
+    (f (get-app-state!))))
 
 (defn the-local-state
   "Create a check on the local-state, by calling the given function f
   with the local-state at that time. Should be used in the context a
   [[testing-class*]] call."
   [f]
-  (fn [utils]
-    (f ((:get-local-state! utils)))))
+  (fn [{:keys [get-local-state!]}]
+    (f (get-local-state!))))
 
 (defn the-dom
   "Create a check on the dom rendered by a component, by calling the
   given function f with the dom-node at that time. Should be used in
   the context a [[testing-class*]] call."
   [f]
-  (fn [utils]
-    (f ((:get-dom! utils)))))
+  (fn [{:keys [get-dom!]}]
+    (f (get-dom!))))
 

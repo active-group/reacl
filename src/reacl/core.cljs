@@ -382,6 +382,11 @@
   (let [st (handle-message comp msg)]
     (set-state! comp st)))
 
+(defn opt-set-state! [component v]
+  (when v
+    (assert (instance? State v))
+    (set-state! component v)))
+
 ;; Attention: duplicate definition for macro in core.clj
 (def ^:private specials #{:render :initial-state :handle-message
                           :component-will-mount :component-did-mount
@@ -445,6 +450,13 @@
           std-current
           (fn [f]
             (std f :force-current-app-state))
+          std+state
+          (fn [f & flags]
+            (apply std
+                   (when f
+                     (fn [this & args]
+                       (opt-set-state! this (apply f this args))))
+                   flags))
           ;; and one arg with next/prev-props
           with-props-and-args
           (fn [f]
@@ -497,7 +509,7 @@
             (std-current handle-message)
 
             "componentWillMount"
-            (std component-will-mount)
+            (std+state component-will-mount)
 
             "componentDidMount"
             (std component-did-mount)
@@ -513,8 +525,8 @@
                          ;; initial app-state
                          (.setState this #js {:reacl_app_state (props-extract-initial-app-state next-props)})
                          (when f
-                           ;; must preserve 'this' here...!
-                           (.call f this next-props)))))
+                           ;; must preserve 'this' here via .call!
+                           (opt-set-state! this (.call f this next-props))))))
 
             "shouldComponentUpdate"
             (let [f (with-state-and-args should-component-update?)]

@@ -82,13 +82,16 @@
   corresponding React methods, can be seen in the following list:
 
   `(component-will-mount)` The component can send itself messages in
-  this method; if that changes the state, the component will only
-  render once.
+  this method, or optionally return a new state
+  via [[reacl.core/return]]. If that changes the state, the component
+  will only render once.
 
   `(component-did-mount)` The component can update it's DOM in this method.
 
-  `(component-will-receive-args next-arg1 next-arg2 ...)` The component
-  has the chance to update it's local state in this method.
+  `(component-will-receive-args next-arg1 next-arg2 ...)` The
+  component has the chance to update it's local state in this method
+  by sending itself a message or optionally return a new state
+  via [[reacl.core/return]].
 
   `(should-component-update? next-app-state next-local-state next-arg1
   next-arg2 ...)` This method should return if the given new values

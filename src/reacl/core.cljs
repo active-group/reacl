@@ -393,11 +393,16 @@
                           :component-will-receive-args
                           :should-component-update?
                           :component-will-update :component-did-update
-                          :component-will-unmount})
+                          :component-will-unmount
+                          :mixins})
+
 (defn- ^:no-doc is-special-fn? [[n f]]
   (not (nil? (specials n))))
 
-(defn create-class [display-name compute-locals fns]
+
+;; FIXME: just pass all the lifecycle etc. as separate arguments
+
+(defn create-class [display-name mixins compute-locals fns]
   ;; split special functions and miscs
   (let [{specials true misc false} (group-by is-special-fn? fns)
         {:keys [render
@@ -499,6 +504,10 @@
                         (aset state "reacl_app_state" app-state)
                         state)))
 
+            "mixins"
+            (when mixins
+              (object-array mixins))
+
             "render"
             (std render)
 
@@ -580,6 +589,52 @@
         HasReactClass
         (-react-class [this] react-class)
         ))))
+
+(def ^:private mixin-methods #{:component-will-mount :component-did-mount
+                               :component-will-update :component-did-update
+                               :component-will-receive-args
+                               :component-will-unmount})
+
+(defn ^:no-doc create-mixin
+  [fn-map]
+  (let [entry (fn [tag name post]
+                (if-let [f (get fn-map tag)]
+                  [name
+                   (fn [arg-fns]
+                     (fn []
+                       (this-as this
+                                (post
+                                 this
+                                 (f this (extract-app-state this) (extract-local-state this)
+                                    (map (fn [arg-fn] (arg-fn this)) arg-fns))))))]
+                  nil))
+        app+local-entry (fn [tag name]
+                          (if-let [f (get fn-map tag)]
+                            [name
+                             (fn [arg-fns]
+                               (fn [other-props other-state]
+                                 (this-as this
+                                          (f this (extract-app-state this) (extract-local-state this)
+                                             (map (fn [arg-fn] (arg-fn this)) arg-fns)
+                                             (data-extract-app-state other-props other-state)
+                                             (state-extract-local-state other-state)))))]
+                            nil))
+        pass-through (fn [this res] res)
+        entries (filter identity
+                        (vector 
+                         (entry :component-did-mount "componentDidMount" pass-through)
+                         (entry :component-will-mount "componentWillMount" (fn [this res] (opt-set-state! this res)))
+                         (entry :component-will-unmount "componentWillUnmount" pass-through)
+                         (app+local-entry :component-will-update "componentWillUpdate")
+                         (app+local-entry :component-did-update "componentDidUpdate")
+                         ;; FIXME: :component-will-receive-args 
+                         ))]
+    (fn [& arg-fns]
+      (apply js-obj 
+             (apply concat
+                    (map (fn [[name fnfn]]
+                           [name (fnfn arg-fns)])
+                         entries))))))
 
 (defn ^:no-doc class->view
   [clazz]

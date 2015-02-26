@@ -15,7 +15,7 @@
 ;; Attention: duplicate definition in core.cljs
 (def ^{:private true} special-tags
   (clojure.set/union (into #{} (map val lifecycle-name-map))
-                     #{'render 'handle-message 'initial-state 'component-will-mount 'local}))
+                     #{'render 'handle-message 'initial-state 'component-will-mount 'local 'mixins}))
 
 (defn- split-symbol [stuff dflt]
   (if (symbol? (first stuff))
@@ -196,7 +196,7 @@
         ?render-fn (?wrap-expression 'render)
         ?initial-state-fn (?wrap-expression 'initial-state)
 
-        ?other-fns-map (dissoc ?clause-map 'local 'render 'initial-state)
+        ?other-fns-map (dissoc ?clause-map 'local 'render 'initial-state 'mixins)
         ?misc-fns-map (apply dissoc ?other-fns-map
                              special-tags)
 
@@ -230,12 +230,25 @@
               (map (fn [[?n ?f]] [(keyword ?n) ?f])
                    (concat ?wrapped-nlocals ?wrapped-std)))
 
+        ;; compile an argument to a mixin to a function of this
+        compile-argument (fn [thing]
+                           (if-let [index (first (filter identity (map-indexed (fn [i x] (if (= x thing) i nil)) ?args)))]
+                             `(fn [this#]
+                                (nth (reacl.core/extract-args this#) ~index))
+                             (throw (Error. (str "illegal mixin argument: " thing)))))
+
+        ?mixins (if-let [mixins (get ?clause-map 'mixins)]
+                  (map (fn [mix]
+                         `(~(first mix) ~@(map compile-argument (rest mix))))
+                       mixins)
+                  nil)
+
         ?compute-locals
         `(fn [~?app-state [~@?args]]
            (let ~?locals-clauses
              [~@?locals-ids]))
         ]
-    `(reacl.core/create-class ~?name ~?compute-locals ~?fns)))
+    `(reacl.core/create-class ~?name ~(if ?mixins `[~@?mixins] `nil)  ~?compute-locals ~?fns)))
 
 (defmacro defclass
   "Define a Reacl class, see [[class]] for documentation.
@@ -292,3 +305,29 @@
 (defmacro defview
   [?name & ?stuff]
   `(def ~?name (reacl.core/view ~(str ?name) ~@?stuff)))
+
+
+;; (mixin [<this-name> [<app-state-name> [<local-state-name>]]] [<param> ...])
+
+;; FIXME: should really be restricted to lifecycle methods we know we support
+
+(defmacro mixin
+  [& ?stuff]
+  (let [[?component ?stuff] (split-symbol ?stuff `component#)
+        [?app-state ?stuff] (split-symbol ?stuff `app-state#)
+        [?local-state ?stuff] (split-symbol ?stuff `local-state#)
+          
+        [[& ?args] & ?clauses] ?stuff
+
+        ?clause-map (apply hash-map ?clauses)
+        ?wrap (fn [?f]
+                (if ?f
+                  (let [?more `more#]
+                    `(fn [~?component ~?app-state ~?local-state [~@?args] & ~?more]
+                       (apply ~?f ~?more)))
+                  'nil))
+        ?wrapped (into {}
+                       (map (fn [[?n ?f]] [(keyword ?n) (?wrap ?f)])
+                            ?clause-map))]
+    `(reacl.core/create-mixin ~?wrapped)))
+

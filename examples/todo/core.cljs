@@ -10,8 +10,21 @@
 
 (defrecord Delete [todo])
 
+(def mix
+  (reacl/mixin foo app-state local-state 
+    [parent]
+    component-did-mount (fn []
+                          (println "DID MOUNT!" parent foo app-state local-state))
+    component-will-update (fn [next-app-state next-local-state]
+                            (println "WILL UPDATE!" next-app-state next-local-state))
+    component-did-update (fn [previous-app-state previous-local-state]
+                           (println "DID UPDATE!" previous-app-state previous-local-state))))
+               
+               
+
 (reacl/defclass to-do-item
   this todo [parent]
+  mixins [(mix parent)]
   render
   (dom/letdom
    [checkbox (dom/input
@@ -104,3 +117,6 @@
 (reacl/render-component
  (.getElementById js/document "content")
  demo)
+
+
+          

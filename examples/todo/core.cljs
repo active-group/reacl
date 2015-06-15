@@ -33,15 +33,18 @@
                :onChange #(reacl/send-message! this
                                                (.-checked (dom/dom-node this checkbox)))})]
    (dom/div checkbox
-            (dom/button {:onClick #(reacl/send-message! parent (Delete. todo))}
-                        "Zap")
+            (dom/button
+             {:onClick
+              (fn [_]
+                (reacl/send-message! parent (->Delete todo)))}
+             "Zap")
             (:text todo)))
   handle-message
   (fn [checked?]
     (reacl/return :app-state
                   (assoc todo :done? checked?))))
 
-(defrecord New-text [text])
+(defrecord NewText [text])
 (defrecord Submit [])
 (defrecord Change [todo])
 
@@ -50,22 +53,23 @@
   render
   (dom/div
    (dom/h3 "TODO")
-   (dom/div (map (fn [todo]
-                   (dom/keyed (str (:id todo))
-                              (to-do-item
-                               todo
-                               (reacl/reaction this ->Change)
-                               this)))
-                 (:todos app-state)))
+   (dom/div 
+    (map (fn [todo]
+           (dom/keyed (str (:id todo))
+                      (to-do-item
+                       todo
+                       (reacl/reaction this ->Change)
+                       this)))
+         (:todos app-state)))
    (dom/form
-    {:onSubmit (fn [e _]
+    {:onSubmit (fn [e]
                  (.preventDefault e)
-                 (reacl/send-message! this (Submit.)))}
+                 (reacl/send-message! this (->Submit)))}
     (dom/input {:onChange 
                 (fn [e]
                   (reacl/send-message!
                    this
-                   (New-text. (.. e -target -value))))
+                   (->NewText (.. e -target -value))))
                 :value local-state})
     (dom/button
      (str "Add #" (:next-id app-state)))))
@@ -75,7 +79,7 @@
   handle-message
   (fn [msg]
     (cond
-     (instance? New-text msg)
+     (instance? NewText msg)
      (reacl/return :local-state (:text msg))
      
      (instance? Submit msg)
@@ -85,7 +89,7 @@
                      (assoc app-state
                        :todos
                        (concat (:todos app-state)
-                               [(Todo. next-id local-state false)])
+                               [(->Todo next-id local-state false)])
                        :next-id (+ 1 next-id))))
 
      (instance? Delete msg)
@@ -101,11 +105,11 @@
            changed-id (:id changed-todo)]
        (reacl/return :app-state
                      (assoc app-state
-                       :todos (mapv (fn [todo]
-                                      (if (= changed-id (:id todo) )
-                                        changed-todo
-                                        todo))
-                                    (:todos app-state))))))))
+                       :todos (map (fn [todo]
+                                     (if (= changed-id (:id todo) )
+                                       changed-todo
+                                       todo))
+                                   (:todos app-state))))))))
 
 (reacl/defview demo
   this []

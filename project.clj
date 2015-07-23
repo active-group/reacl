@@ -6,14 +6,14 @@
 
   :jvm-opts ^:replace ["-Xmx512m" "-server"]
 
-  :dependencies [[org.clojure/clojure "1.6.0"]
+  :dependencies [[org.clojure/clojure "1.7.0"]
                  [org.clojure/clojurescript "0.0-2913" :scope "provided"]
                  [com.facebook/react "0.11.1"]]
 
-  :plugins [[lein-cljsbuild "1.0.5"]
-            [codox "0.8.10"]]
+  :plugins [[lein-cljsbuild "1.0.6"]
+            [codox "0.8.13"]]
 
-  :profiles {:dev {:dependencies [[active-clojure "0.3.0" :exclusions [org.clojure/clojure]]]}}
+  :profiles {:dev {:dependencies [[active-clojure "0.11.0" :exclusions [org.clojure/clojure]]]}}
   
   :cljsbuild
   

@@ -1,11 +1,12 @@
 (ns ^{:author "Michael Sperber, David Frese"
       :doc "Various testing utilities for Reacl."}
   reacl.test-util
-  (:require [reacl.core :as reacl :include-macros true]))
+  (:require [reacl.core :as reacl :include-macros true]
+            [cljsjs.react]))
 
 (defn render-to-text
   [dom]
-  (js/React.renderComponentToStaticMarkup dom))
+  (js/React.renderToStaticMarkup dom))
 
 ; see http://stackoverflow.com/questions/22463156/updating-react-component-state-in-jasmine-test
 (defn instantiate&mount

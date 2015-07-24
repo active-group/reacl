@@ -67,7 +67,8 @@
               :url "comments.edn"
               :on-complete #(reacl/send-message! this %)}))]
       (refresh)
-      (js/setInterval refresh 2000))))
+      (js/setInterval refresh 2000)
+      nil)))
 
 (reacl/render-component
  (.getElementById js/document "content")

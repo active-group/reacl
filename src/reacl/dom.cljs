@@ -12,7 +12,8 @@
   easy reference in an event handler."}
   reacl.dom
   (:require-macros [reacl.dom :refer [defdom]])
-  (:refer-clojure :exclude (meta map)))
+  (:require [cljsjs.react])
+  (:refer-clojure :exclude (meta map time)))
 
 (defn- ^:no-doc map->obj
   "Convert a Clojure map with keyword keys to a JavaScript hashmap with string keys."
@@ -90,13 +91,13 @@
   [key dom]
   (if-let [ref (aget (.-props dom) "ref")]
     (DomBinding. dom key false)
-    (DomBinding. (js/React.addons.cloneWithProps dom #js {:key key})
+    (DomBinding. (js/React.cloneElement dom #js {:key key})
                  key false)))
 
 (defn- ^:no-doc set-dom-key
   "Attach a key property to a DOM object."
   [dom key]
-  (js/React.addons.cloneWithProps dom #js {:key key}))
+  (js/React.cloneElement dom #js {:key key}))
 
 (defn- ^:no-doc normalize-arg
   "Normalize the argument to a DOM-constructing function.
@@ -140,7 +141,7 @@
       (binding-set-ref! dn ref)
       (binding-set-dom! dn dom))
     (binding-set-dom! dn
-                      (js/React.addons.cloneWithProps dom #js {:ref (binding-get-ref dn)}))))
+                      (js/React.cloneElement dom #js {:ref (binding-get-ref dn)}))))
 
 ;; The following HTML elements are supported by react (http://facebook.github.io/react/docs/tags-and-attributes.html)
 (defdom a)

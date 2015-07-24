@@ -3,6 +3,7 @@
             [reacl.dom :as dom :include-macros true]
             [reacl.test-util :as test-util]
             [active.clojure.lens :as lens]
+            [cljsjs.react]
             [cljs.test :as t])
   (:require-macros [cljs.test
                     :refer (is deftest run-tests testing)]))

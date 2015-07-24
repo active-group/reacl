@@ -1,6 +1,7 @@
 (ns ^{:author "Michael Sperber"
       :doc "Reacl core functionality."}
-  reacl.core)
+  reacl.core
+  (:require [cljsjs.react]))
 
 (defn- ^:no-doc jsmap
   "Convert a Clojure map to a JavaScript hashmap."
@@ -223,9 +224,10 @@
   - `args` are the arguments to the component.
   - `locals` are the local variables of the components."
   [clazz app-state args locals]
-  (clazz #js {:reacl_initial_app_state app-state
-              :reacl_initial_locals locals
-              :reacl_args args}))
+  (js/React.createElement clazz 
+                          #js {:reacl_initial_app_state app-state
+                               :reacl_initial_locals locals
+                               :reacl_args args}))
 
 (defn ^:no-doc instantiate-embedded-internal
   "Internal function to instantiate an embedded Reacl component.
@@ -236,10 +238,11 @@
   - `args` are the arguments to the component.
   - `locals` are the local variables of the components."
   [clazz app-state reaction args locals]
-  (clazz #js {:reacl_initial_app_state app-state
-              :reacl_initial_locals locals
-              :reacl_args args
-              :reacl_reaction reaction}))
+  (js/React.createElement clazz
+                          #js {:reacl_initial_app_state app-state
+                               :reacl_initial_locals locals
+                               :reacl_args args
+                               :reacl_reaction reaction}))
 
 (defn instantiate-toplevel
   "Instantiate a Reacl component at the top level.
@@ -258,7 +261,7 @@
   - `args` are the arguments of the component,
     which must start with the application state if `clazz` is a class."
   [element clazz & args]
-  (js/React.renderComponent
+  (js/React.render
    ;; TODO remove this hack, after introducing an initial-app-state
    ;; clause (or drop support for classes here)
    (if (satisfies? IReaclView clazz)

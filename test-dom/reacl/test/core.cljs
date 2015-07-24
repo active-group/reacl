@@ -37,6 +37,13 @@
     (is (= "<h1>Hello, world!</h1>"
            (test-util/render-to-text d)))))
 
+(deftest elements
+  (let [d (dom/h1 "Hello, world!")]
+    (is (= "h1" (.-type d)))
+    (is (= {"children" "Hello, world!"} (js->clj (.-props d))))
+    (is (= nil (.-key d)))
+    (is (= nil (.-ref d)))))
+
 (deftest simple
   (let [item (reacl/instantiate-toplevel to-do-item (Todo. "foo" false) lens/id)]
     (is (= (reacl/extract-app-state item)
@@ -97,6 +104,16 @@
         divs (doms-with-tag item "div")]
     (is (= ["57" "76"]
            (map dom-content divs)))))
+
+(deftest foo-element
+  (let [e (foo 42 reacl/no-reaction 12)]
+    (is (reacl/has-class? foo e))
+    (is (= [12] (reacl/extract-args e)))
+    (is (= 42 (reacl/extract-initial-app-state e)))))
+
+(deftest foo-render
+  (let [e (foo 42 reacl/no-reaction 12)]
+    (is (= [:span [:div "57"] [:div "76"]] (test-util/render->hiccup e)))))
 
 (reacl/defclass bar
   this app-state local-state []

@@ -100,3 +100,34 @@
   (fn [{:keys [get-dom!]}]
     (f (get-dom!))))
 
+(defn render-shallowly
+  "Render an element shallowly."
+  [element]
+  (let [renderer (js/React.addons.TestUtils.createRenderer)]
+    (.render renderer element)
+    (.getRenderOutput renderer)))
+
+(defn rendered-children
+  "Retrieve children from a rendered element."
+  [element]
+  (let [c (.-children (.-props element))]
+    (cond
+     (nil? c) c
+     (array? c) (vec c)
+     :else (vector c))))
+
+(defn render->hiccup
+  [element]
+  (if-let [t (aget element "type")]
+    (if (string? t)
+      (let [props (.-props element)
+            attrs (dissoc (into {} (for [k (js-keys props)]
+                                     [(keyword k) (aget props k)]))
+                          :children)]
+        `[~(keyword t)
+          ~@(if (empty? attrs)
+              '()
+              [attrs])
+          ~@(map render->hiccup (rendered-children element))])
+      (render->hiccup (render-shallowly element)))
+    element))

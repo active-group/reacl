@@ -42,6 +42,11 @@
   [props]
   (aget props "reacl_initial_app_state"))
 
+(defn extract-initial-app-state
+  "Extract initial applications state from a Reacl component."
+  [this]
+  (props-extract-initial-app-state (.-props this)))
+
 (defn- ^:no-doc tl-state-extract-app-state
   "Extract latest applications state from state of a toplevel Reacl component.
 
@@ -196,6 +201,11 @@
   "Extract the React class from a Reacl class."
   [clazz]
   (-react-class clazz))
+
+(defn has-class?
+  "Find out if an element was generated from a certain Reacl class."
+  [clazz element]
+  (identical? (.-type element) (-react-class clazz)))
 
 (defn ^:no-doc make-local-state
   "Make a React state containing Reacl local variables and local state.

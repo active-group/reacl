@@ -10,28 +10,6 @@
 
 (enable-console-print!)
 
-(defrecord Todo [text done?])
-
-(reacl/defclass to-do-item
-  this todos [lens]
-  render
-  (let [todo (lens/yank todos lens)]
-    (dom/letdom
-     [checkbox (dom/input
-                {:type "checkbox"
-                 :value (:done? todo)
-                 :onChange #(reacl/send-message! this
-                                                 (.-checked (dom/dom-node this checkbox)))})]
-     (dom/div checkbox
-              (:text todo))))
-  handle-message
-  (fn [checked?]
-    (reacl/return :app-state
-                  (lens/shove todos
-                              (lens/>> lens :done?)
-                              checked?))))
-
-
 (deftest dom
   (let [d (dom/h1 "Hello, world!")]
     (is (= "<h1>Hello, world!</h1>"
@@ -44,17 +22,35 @@
     (is (= nil (.-key d)))
     (is (= nil (.-ref d)))))
 
+(defrecord Todo [id text done?])
+
+(reacl/defclass to-do-item
+  this todo []
+  render
+  (dom/letdom
+   [checkbox (dom/input
+              {:type "checkbox"
+               :value (:done? todo)
+               :onChange #(reacl/send-message! this
+                                               (.-checked (dom/dom-node this checkbox)))})]
+   (dom/div checkbox
+            (:text todo)))
+  handle-message
+  (fn [checked?]
+    (reacl/return :app-state
+                  (assoc todo :done? checked?))))
+
 (deftest simple
-  (let [item (reacl/instantiate-toplevel to-do-item (Todo. "foo" false) lens/id)]
+  (let [item (reacl/instantiate-toplevel to-do-item (Todo. 42 "foo" false) nil)]
     (is (= (reacl/extract-app-state item)
-           (Todo. "foo" false)))
+           (Todo. 42 "foo" false)))
     (is (= "<div><input type=\"checkbox\" value=\"false\">foo</div>"
            (test-util/render-to-text item)))))
 
 (deftest handle-message-simple
-  (let [item (test-util/instantiate&mount to-do-item (Todo. "foo" false) lens/id)]
+  (let [item (test-util/instantiate&mount to-do-item (Todo. 42 "foo" false) nil)]
     (let [[app-state _] (reacl/handle-message->state item true)]
-      (is (= app-state (Todo. "foo" true))))))
+      (is (= app-state (Todo. 42 "foo" true))))))
 
 (reacl/defclass foo
   this bam [bar]

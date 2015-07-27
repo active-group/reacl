@@ -52,6 +52,12 @@
     (let [[app-state _] (reacl/handle-message->state item true)]
       (is (= app-state (Todo. 42 "foo" true))))))
 
+(deftest to-do-elements
+  (let [e (to-do-item (Todo. 42 "foo" true) reacl/no-reaction)]
+    (is (test-util/hiccup-matches?  [:div [:input {:type "checkbox", :value true, :onChange fn?}] "foo"]
+                                    (test-util/render->hiccup e)))))
+
+
 (reacl/defclass foo
   this bam [bar]
   local [baz (+ bam 15)

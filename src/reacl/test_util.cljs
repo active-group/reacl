@@ -131,3 +131,33 @@
           ~@(map render->hiccup (rendered-children element))])
       (render->hiccup (render-shallowly element)))
     element))
+
+(defn hiccup-matches?
+  [pattern data]
+  (cond
+   (or (keyword? pattern)
+       (string? pattern)
+       (number? pattern)
+       (true? pattern)
+       (false? pattern))
+   (= pattern data)
+
+   (= '_ pattern) true
+
+   (fn? pattern) (pattern data)
+
+   (vector? pattern)
+   (and (vector? data)
+        (= (count pattern) (count data))
+        (every? some?
+                (map hiccup-matches? pattern data)))
+   
+   (map? pattern)
+   (and (map? data)
+        (= (keys pattern) (keys data))
+        (every? some?
+                (map hiccup-matches? (vals pattern) (vals data))))
+
+   :else
+   (throw (str "invalid pattern: " pattern))))
+

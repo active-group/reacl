@@ -31,8 +31,8 @@
    [checkbox (dom/input
               {:type "checkbox"
                :value (:done? todo)
-               :onChange #(reacl/send-message! this
-                                               (.-checked (dom/dom-node this checkbox)))})]
+               :onChange (fn [e]
+                           (reacl/send-message! this (.-checked e)))})]
    (dom/div checkbox
             (:text todo)))
   handle-message
@@ -54,9 +54,19 @@
 
 (deftest to-do-elements
   (let [e (to-do-item (Todo. 42 "foo" true) reacl/no-reaction)]
-    (is (test-util/hiccup-matches?  [:div [:input {:type "checkbox", :value true, :onChange fn?}] "foo"]
-                                    (test-util/render->hiccup e)))))
+    (is (test-util/hiccup-matches? [:div [:input {:type "checkbox", :value true, :onChange fn?}] "foo"]
+                                   (test-util/render->hiccup e)))))
 
+(deftest to-do-message
+  (let [e (to-do-item (Todo. 42 "foo" true) reacl/no-reaction)
+        renderer (js/React.addons.TestUtils.createRenderer)]
+    (.render renderer e)
+    (let [t (.getRenderOutput renderer)]
+      (let [input (test-util/descend-into-element t [:div :input])]
+        (.onChange (.-props input) #js {:checked false})))
+    (let [t (.getRenderOutput renderer)]
+      (let [input (test-util/descend-into-element t [:div :input])]
+        (is (not (.-value (.-props input))))))))
 
 (reacl/defclass foo
   this bam [bar]

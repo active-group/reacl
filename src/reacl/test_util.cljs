@@ -26,7 +26,7 @@
 (defn with-testing-class*
   "Instantiates the given class with an initial app-state and arguments,
   performs the initial-check and all given interactions.
-  
+
   A 'check' is a function taking a function to retrieve the current
   app-state and a function retrieving the current dom node as rendered
   by the class - see [[the-app-state]] and [[the-dom]] to create usual
@@ -102,10 +102,11 @@
 
 (defn render-shallowly
   "Render an element shallowly."
-  [element]
-  (let [renderer (js/React.addons.TestUtils.createRenderer)]
-    (.render renderer element)
-    (.getRenderOutput renderer)))
+  ([element]
+     (render-shallowly element (js/React.addons.TestUtils.createRenderer)))
+  ([element renderer]
+     (.render renderer element)
+     (.getRenderOutput renderer)))
 
 (defn rendered-children
   "Retrieve children from a rendered element."
@@ -151,7 +152,7 @@
         (= (count pattern) (count data))
         (every? some?
                 (map hiccup-matches? pattern data)))
-   
+
    (map? pattern)
    (and (map? data)
         (= (keys pattern) (keys data))
@@ -161,3 +162,47 @@
    :else
    (throw (str "invalid pattern: " pattern))))
 
+(defrecord PathElement [type props-predicate])
+
+(defn ->path-element-type
+  [x]
+  (cond
+   (keyword x) (name x)
+   :else x))
+
+(defn ->path-element
+  [x]
+  (cond
+   (instance? PathElement x) x
+
+   :else (PathElement. (->path-element-type x) (fn [_] true))))
+
+(defn path-element-matches?
+  [path-element element]
+  (and (some? (.-type element))
+       (= (.-type path-element) (.-type element))
+       ((.-props-predicate path-element) (.-props element))))
+
+(defn descend-into-element
+  [element path]
+  (let [path (map ->path-element path)]
+    (when-not (path-element-matches? (first path) element)
+      (throw (str "path element " (first path) " does not match " element)))
+    (letfn [(descend
+              [e path]
+              (if (empty? path)
+                e
+                (let [pe (first path)]
+                  (if-let [all-children (.-children (.-props e))]
+                    (loop [children (seq all-children)]
+                      (cond
+                       (empty? children)
+                       (throw (str "trying to follow path element " pe ", but no child matched of " e))
+
+                       (path-element-matches? pe (first children))
+                       (descend (first children) (rest path))
+
+                       :else (recur (rest children))))
+
+                    (throw (str "trying to follow path " path ", but no children in " e))))))]
+      (descend element (rest path)))))

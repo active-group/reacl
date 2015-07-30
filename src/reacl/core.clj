@@ -1,5 +1,4 @@
-(ns ^{:author "Michael Sperber"
-      :doc "Supporting macros for Reacl."}
+(ns ^{:doc "Supporting macros for Reacl."}
   reacl.core
   (:refer-clojure :exclude [class]))
 

@@ -1,5 +1,4 @@
-(ns ^{:author "Michael Sperber"
-      :doc "Reacl core functionality."}
+(ns ^{:doc "Reacl core functionality."}
   reacl.core
   (:require [cljsjs.react]))
 

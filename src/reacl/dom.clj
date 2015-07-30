@@ -1,5 +1,4 @@
-(ns ^{:author "Michael Sperber"
-      :doc "Supporting macros for Reacl's DOM library   ."}
+(ns ^{:doc "Supporting macros for Reacl's DOM library   ."}
   reacl.dom)
 
 (defmacro ^:no-doc defdom

@@ -1,5 +1,4 @@
-(ns ^{:author "Michael Sperber"
-      :doc "Convenience API for constructing virtual DOM.
+(ns ^{:doc "Convenience API for constructing virtual DOM.
 
   This has ClojureScript wrappers for the various HTML elements.
 

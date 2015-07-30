@@ -1,5 +1,4 @@
-(ns ^{:author "Michael Sperber, David Frese"
-      :doc "Various testing utilities for Reacl."}
+(ns ^{:doc "Various testing utilities for Reacl."}
   reacl.test-util
   (:require [reacl.core :as reacl :include-macros true]
             [cljsjs.react]))

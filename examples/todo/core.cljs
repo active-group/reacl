@@ -34,8 +34,7 @@
                                                 (.-checked (dom/dom-node this checkbox)))})]
    (dom/div checkbox
             (dom/button
-             {:style {:background-color "red"}
-              :on-click
+             {:on-click
               (fn [_]
                 (reacl/send-message! parent (->Delete todo)))}
              "Zap")

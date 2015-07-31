@@ -13,8 +13,8 @@
  render
  (dom/letdom [filter-input (dom/input {:type "text"
                                        :id "filter"
-                                       :className "form-control"
-                                       :onChange #(reacl/send-message! this (.-value (dom/dom-node this filter-input)))})]
+                                       :class "form-control"
+                                       :on-change #(reacl/send-message! this (.-value (dom/dom-node this filter-input)))})]
              (dom/div filter-input))
 
  handle-message

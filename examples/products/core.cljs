@@ -62,13 +62,13 @@
              {:type "text"
               :placeholder "Search..."
               :value (:filter-text params)
-              :onChange (fn [_]
-                          (reacl/send-message! this (NewFilterText. (.-value (dom/dom-node this textbox)))))})
+              :on-change (fn [_]
+                           (reacl/send-message! this (NewFilterText. (.-value (dom/dom-node this textbox)))))})
     checkbox (dom/input
               {:type "checkbox"
                :value (:in-stock-only params)
-               :onChange (fn [_]
-                          (reacl/send-message! this (NewInStockOnly. (.-checked (dom/dom-node this checkbox)))))})]
+               :on-change (fn [_]
+                            (reacl/send-message! this (NewInStockOnly. (.-checked (dom/dom-node this checkbox)))))})]
    (dom/form
     textbox
     (dom/p

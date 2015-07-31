@@ -11,15 +11,286 @@
   easy reference in an event handler."}
   reacl.dom
   (:require-macros [reacl.dom :refer [defdom]])
-  (:require [cljsjs.react])
+  (:require [cljsjs.react]
+            [clojure.string :as string])
   (:refer-clojure :exclude (meta map time)))
 
-(defn- ^:no-doc map->obj
+(defn camelize
+  "Camelcases a hyphenated string, for example:
+  > (camelize \"background-color\")
+  < \"backgroundColor\""
+  [s]
+  (string/replace s #"-(.)" (fn [_ c] (string/upper-case c))))
+
+(defn camelize-style-name
+  "Camelcases a hyphenated CSS property name, for example:
+  > (camelize-style-name \"background-color\")
+  < \"backgroundColor\"
+  > (camelize-style-name \"-moz-transition\")
+  < \"MozTransition\"
+  > (camelize-style-name \"-ms-transition\")
+  < \"msTransition\"
+
+  As Andi Smith suggests
+  (http://www.andismith.com/blog/2012/02/modernizr-prefixed/), an `-ms` prefix
+  is converted to lowercase `ms`."
+  [s]
+  (camelize (string/replace s #"^-ms" "ms-")))
+
+(def reacl->react-attribute-names
+  #js {:accept "accept"
+       :accept-charset "acceptCharset"
+       :access-key "accessKey"
+       :action "action"
+       :allow-full-screen "allowFullScreen"
+       :allow-transparency "allowTransparency"
+       :alt "alt"
+       :async "async"
+       :auto-complete "autoComplete"
+       :auto-focus "autoFocus"
+       :auto-play "autoPlay"
+       :cell-padding "cellPadding"
+       :cell-spacing "cellSpacing"
+       :char-set "charSet"
+       :checked "checked"
+       :class-id "classID"
+       :class "className"
+       :col-span "colSpan"
+       :cols "cols"
+       :content "content"
+       :content-editable "contentEditable"
+       :context-menu "contextMenu"
+       :controls "controls"
+       :coords "coords"
+       :cross-origin "crossOrigin"
+       :data "data"
+       :date-time "dateTime"
+       :defer "defer"
+       :dir "dir"
+       :disabled "disabled"
+       :download "download"
+       :draggable "draggable"
+       :enc-type "encType"
+       :form "form"
+       :form-action "formAction"
+       :form-enc-type "formEncType"
+       :form-method "formMethod"
+       :form-no-validate "formNoValidate"
+       :form-target "formTarget"
+       :frame-border "frameBorder"
+       :headers "headers"
+       :height "height"
+       :hidden "hidden"
+       :high "high"
+       :href "href"
+       :href-lang "hrefLang"
+       :or "htmlFor"
+       :http-equiv "httpEquiv"
+       :icon "icon"
+       :id "id"
+       :label "label"
+       :lang "lang"
+       :list "list"
+       :loop "loop"
+       :low "low"
+       :manifest "manifest"
+       :margin-height "marginHeight"
+       :margin-width "marginWidth"
+       :max "max"
+       :max-length "maxLength"
+       :media "media"
+       :media-group "mediaGroup"
+       :method "method"
+       :min "min"
+       :multiple "multiple"
+       :muted "muted"
+       :name "name"
+       :noValidate "noValidate"
+       :open "open"
+       :optimum "optimum"
+       :pattern "pattern"
+       :placeholder "placeholder"
+       :poster "poster"
+       :preload "preload"
+       :radioGroup "radioGroup"
+       :readOnly "readOnly"
+       :rel "rel"
+       :required "required"
+       :role "role"
+       :rowSpan "rowSpan"
+       :rows "rows"
+       :sandbox "sandbox"
+       :scope "scope"
+       :scoped "scoped"
+       :scrolling "scrolling"
+       :seamless "seamless"
+       :selected "selected"
+       :shape "shape"
+       :size "size"
+       :sizes "sizes"
+       :span "span"
+       :spell-check "spellCheck"
+       :src "src"
+       :src-doc "srcDoc"
+       :src-set "srcSet"
+       :start "start"
+       :step "step"
+       :style "style"
+       :tab-index "tabIndex"
+       :target "target"
+       :title "title"
+       :type "type"
+       :use-map "useMap"
+       :value "value"
+       :width "width"
+       :wmode "wmode"
+       :auto-capitalize "autoCapitalize"
+       :auto-correct "autoCorrect"
+       :property "property"
+       :item-prop "itemProp"
+       :item-scope "itemScope"
+       :item-type "itemType"
+       :item-ref "itemRef"
+       :item-id "itemID"
+       :uselectable "uselectable"
+       :dangerously-set-inner-html "dangerouslySetInnerHTML"
+
+       ;; SVG
+       :clip-path "clipPath"
+       :cx "cx"
+       :cy "cy"
+       :d "d"
+       :dx "dx"
+       :dy "dy"
+       :fill "fill"
+       :fill-opacity "fillOpacity"
+       :font-family "fontFamily"
+       :font-size "fontSize"
+       :fx "fx"
+       :fy "fy"
+       :gradient-transform "gradientTransform"
+       :gradient-units "gradientUnits"
+       :marker-end "markerEnd"
+       :marker-mid "markerMid"
+       :marker-start "markerStart"
+       :offset "offset"
+       :opacity "opacity"
+       :pattern-content-units "patternContentUnits"
+       :pattern-units "patternUnits"
+       :points "points"
+       :preserve-aspect-ratio "preserveAspectRatio"
+       :r "r"
+       :rx "rx"
+       :ry "ry"
+       :spread-method "spreadMethod"
+       :stop-color "stopColor"
+       :stop-opacity "stopOpacity"
+       :stroke "stroke"
+       :stroke-dasharray "strokeDasharray"
+       :stroke-linecap "strokeLinecap"
+       :stroke-opacity "strokeOpacity"
+       :stroke-width "strokeWidth"
+       :text-anchor "textAnchor"
+       :transform "transform"
+       :version "version"
+       :view-box "viewBox"
+       :x1 "x1"
+       :x2 "x2"
+       :x "x"
+       :y1 "y1"
+       :y2 "y2"
+       :y "y"
+
+
+       ;; Event handlers
+       :on-copy "onCopy"
+       :on-copy-capture "onCopyCapture"
+       :on-cut "onCut"
+       :on-cut-capture "onCutCapture"
+       :on-paste "onPaste"
+       :on-paste-capture "onPasteCapture"
+       :on-key-down "onKeyDown"
+       :on-key-down-capture "onKeyDownCapture"
+       :on-key-press "onKeyPress"
+       :on-key-press-capture "onKeyPressCapture"
+       :on-key-up "onKeyUp"
+       :on-key-up-capture "onKeyUpCapture"
+       :on-focus "onFocus"
+       :on-focus-capture "onFocusCapture"
+       :on-blur "onBlur"
+       :on-blur-capture "onBlurCapture"
+       :on-change "onChange"
+       :on-change-capture "onChangeCapture"
+       :on-input "onInput"
+       :on-input-capture "onInputCapture"
+       :on-submit "onSubmit"
+       :on-submit-capture "onSubmitCapture"
+       :on-click "onClick"
+       :on-click-capture "onClickCapture"
+       :on-context-menu "onContextMenu"
+       :on-context-menu-capture "onContextMenuCapture"
+       :on-double-click "onDoubleClick"
+       :on-double-click-capture "onDoubleClickCapture"
+       :on-drag "onDrag"
+       :on-drag-capture "onDragCapture"
+       :on-drag-end "onDragEnd"
+       :on-drag-end-capture "onDragEndCapture"
+       :on-drag-enter "onDragEnter"
+       :on-drag-enter-capture "onDragEnterCapture"
+       :on-drag-exit "onDragExit"
+       :on-drag-exit-capture "onDragExitCapture"
+       :on-drag-leave "onDragLeave"
+       :on-drag-leave-capture "onDragLeaveCapture"
+       :on-drag-over "onDragOver"
+       :on-drag-over-capture "onDragOverCapture"
+       :on-drag-start "onDragStart"
+       :on-drag-start-capture "onDragStartCapture"
+       :on-drop "onDrop"
+       :on-drop-capture "onDropCapture"
+       :on-mouse-down "onMouseDown"
+       :on-mouse-down-capture "onMouseDownCapture"
+       :on-mouse-enter "onMouseEnter"
+       :on-mouse-leave "onMouseLeave"
+       :on-mouse-move "onMouseMove"
+       :on-mouse-move-capture "onMouseMoveCapture"
+       :on-mouse-out "onMouseOut"
+       :on-mouse-out-capture "onMouseOutCapture"
+       :on-mouse-over "onMouseOver"
+       :on-mouse-over-capture "onMouseOverCapture"
+       :on-mouse-up "onMouseUp"
+       :on-mouse-up-capture "onMouseUpCapture"
+       :on-touch-cancel "onTouchCancel"
+       :on-touch-cancel-capture "onTouchCancelCapture"
+       :on-touch-end "onTouchEnd"
+       :on-touch-end-capture "onTouchEndCapture"
+       :on-touch-move "onTouchMove"
+       :on-touch-move-capture "onTouchMoveCapture"
+       :on-touch-start "onTouchStart"
+       :on-touch-start-capture "onTouchStartCapture"
+       :on-scroll "onScroll"
+       :on-scroll-capture "onScrollCapture"
+       :on-wheel "onWheel"
+       :on-wheel-capture "onWheelCapture"})
+
+(def reacl->style-names
+  "Cache for style names encountered."
+  #js {})
+
+(defn reacl->react-style-name
+  "Convert Reacl style name (keyword) to React name (string)."
+  [reacl-name]
+  (let [reacl-name (name reacl-name)]
+    (or (aget reacl->style-names reacl-name)
+        (let [react-name (camelize-style-name reacl-name)]
+          (aset reacl->style-names reacl-name react-name)
+          react-name))))
+
+(defn- ^:no-doc styles->react
   "Convert a Clojure map with keyword keys to a JavaScript hashmap with string keys."
   [mp]
   (apply js-obj
          (apply concat
-                (cljs.core/map (fn [e] [(name (key e)) (val e)]) mp))))
+                (cljs.core/map (fn [e] [(reacl->react-style-name (key e)) (val e)]) mp))))
 
 (defn- ^:no-doc attributes
   "Convert attributes represented as a Clojure map to a React map.
@@ -30,10 +301,13 @@
   (apply js-obj
          (apply concat
                 (cljs.core/map (fn [e]
-                                 (let [k (key e)
+                                 (let [k0 (key e)
+                                       k (if-let [react-name (aget reacl->react-attribute-names (name k0))]
+                                           react-name
+                                           k0)
                                        v0 (val e)
-                                       v (case k
-                                           :style (map->obj v0)
+                                       v (case k0
+                                           :style (styles->react v0)
                                            v0)]
                                    [(name k) v]))
                                mp))))

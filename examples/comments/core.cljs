@@ -34,14 +34,14 @@
   render
   (let [author (:author comment)
         text (:text comment)]
-    (dom/div {:className "comment"}
-             (dom/h2 {:className "commentAuthor"} author)
+    (dom/div {:class "comment"}
+             (dom/h2 {:class "commentAuthor"} author)
              text)))
 
 (reacl/defclass comment-list
   this comments []
   render
-  (dom/div {:className "commentList"}
+  (dom/div {:class "commentList"}
            (map-indexed (fn [i comment]
                           (dom/keyed (str i) (comment-entry comment reacl/no-reaction)))
                         comments)))
@@ -49,7 +49,7 @@
 (reacl/defclass comment-box
   this comments []
   render
-  (dom/div {:className "commentBox"}
+  (dom/div {:class "commentBox"}
            (dom/h1 "Comments")
            (comment-list comments reacl/no-reaction))
   handle-message

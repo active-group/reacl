@@ -30,11 +30,12 @@
    [checkbox (dom/input
               {:type "checkbox"
                :value (:done? todo)
-               :onChange #(reacl/send-message! this
-                                               (.-checked (dom/dom-node this checkbox)))})]
+               :on-change #(reacl/send-message! this
+                                                (.-checked (dom/dom-node this checkbox)))})]
    (dom/div checkbox
             (dom/button
-             {:onClick
+             {:style {:background-color "red"}
+              :on-click
               (fn [_]
                 (reacl/send-message! parent (->Delete todo)))}
              "Zap")
@@ -62,10 +63,10 @@
                        this)))
          (:todos app-state)))
    (dom/form
-    {:onSubmit (fn [e]
-                 (.preventDefault e)
-                 (reacl/send-message! this (->Submit)))}
-    (dom/input {:onChange 
+    {:on-submit (fn [e]
+                  (.preventDefault e)
+                  (reacl/send-message! this (->Submit)))}
+    (dom/input {:on-change 
                 (fn [e]
                   (reacl/send-message!
                    this

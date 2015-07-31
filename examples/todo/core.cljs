@@ -26,19 +26,18 @@
   this todo [parent]
   mixins [(mix parent)]
   render
-  (dom/letdom
-   [checkbox (dom/input
-              {:type "checkbox"
-               :value (:done? todo)
-               :on-change #(reacl/send-message! this
-                                                (.-checked (dom/dom-node this checkbox)))})]
-   (dom/div checkbox
-            (dom/button
-             {:on-click
-              (fn [_]
-                (reacl/send-message! parent (->Delete todo)))}
-             "Zap")
-            (:text todo)))
+  (dom/div (dom/input
+            {:type "checkbox"
+             :value (:done? todo)
+             :on-change (fn [e]
+                          (reacl/send-message! this
+                                               (.. e -target -checked)))})
+           (dom/button
+            {:on-click
+             (fn [_]
+               (reacl/send-message! parent (->Delete todo)))}
+            "Zap")
+           (:text todo))
   handle-message
   (fn [checked?]
     (reacl/return :app-state

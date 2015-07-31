@@ -11,11 +11,12 @@
 
 (reacl/defclass filter-input this state []
  render
- (dom/letdom [filter-input (dom/input {:type "text"
-                                       :id "filter"
-                                       :class "form-control"
-                                       :on-change #(reacl/send-message! this (.-value (dom/dom-node this filter-input)))})]
-             (dom/div filter-input))
+ (dom/div
+  (dom/input {:type "text"
+              :id "filter"
+              :class "form-control"
+              :on-change (fn [e]
+                           (reacl/send-message! this (.. e -target -value)))}))
 
  handle-message
  (fn [data]

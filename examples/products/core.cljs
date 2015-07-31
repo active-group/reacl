@@ -57,23 +57,20 @@
 (reacl/defclass search-bar
   this params []
   render
-  (dom/letdom
-   [textbox (dom/input
-             {:type "text"
-              :placeholder "Search..."
-              :value (:filter-text params)
-              :on-change (fn [_]
-                           (reacl/send-message! this (NewFilterText. (.-value (dom/dom-node this textbox)))))})
-    checkbox (dom/input
-              {:type "checkbox"
-               :value (:in-stock-only params)
-               :on-change (fn [_]
-                            (reacl/send-message! this (NewInStockOnly. (.-checked (dom/dom-node this checkbox)))))})]
-   (dom/form
-    textbox
-    (dom/p
-     checkbox
-     "Only show products in stock")))
+  (dom/form
+   (dom/input
+    {:type "text"
+     :placeholder "Search..."
+     :value (:filter-text params)
+     :on-change (fn [e]
+                  (reacl/send-message! this (NewFilterText. (.. e -target -value))))})
+   (dom/p
+    (dom/input
+     {:type "checkbox"
+      :value (:in-stock-only params)
+      :on-change (fn [e]
+                   (reacl/send-message! this (NewInStockOnly. (.. e -target -checked))))})
+    "Only show products in stock"))
 
   handle-message
   (fn [msg]

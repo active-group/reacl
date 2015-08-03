@@ -62,14 +62,14 @@
     {:type "text"
      :placeholder "Search..."
      :value (:filter-text params)
-     :on-change (fn [e]
-                  (reacl/send-message! this (NewFilterText. (.. e -target -value))))})
+     :onchange (fn [e]
+                 (reacl/send-message! this (NewFilterText. (.. e -target -value))))})
    (dom/p
     (dom/input
      {:type "checkbox"
       :value (:in-stock-only params)
-      :on-change (fn [e]
-                   (reacl/send-message! this (NewInStockOnly. (.. e -target -checked))))})
+      :onchange (fn [e]
+                  (reacl/send-message! this (NewInStockOnly. (.. e -target -checked))))})
     "Only show products in stock"))
 
   handle-message

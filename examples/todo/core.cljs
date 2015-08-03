@@ -29,11 +29,11 @@
   (dom/div (dom/input
             {:type "checkbox"
              :value (:done? todo)
-             :on-change (fn [e]
-                          (reacl/send-message! this
-                                               (.. e -target -checked)))})
+             :onchange (fn [e]
+                         (reacl/send-message! this
+                                              (.. e -target -checked)))})
            (dom/button
-            {:on-click
+            {:onclick
              (fn [_]
                (reacl/send-message! parent (->Delete todo)))}
             "Zap")
@@ -61,10 +61,10 @@
                        this)))
          (:todos app-state)))
    (dom/form
-    {:on-submit (fn [e]
+    {:onsubmit (fn [e]
                   (.preventDefault e)
                   (reacl/send-message! this (->Submit)))}
-    (dom/input {:on-change 
+    (dom/input {:onchange 
                 (fn [e]
                   (reacl/send-message!
                    this

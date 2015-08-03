@@ -7,7 +7,7 @@
   :jvm-opts ^:replace ["-Xmx512m" "-server"]
 
   :dependencies [[org.clojure/clojure "1.7.0"]
-                 [org.clojure/clojurescript "0.0-3308" :scope "provided"]
+                 [org.clojure/clojurescript "1.7.28" :scope "provided"]
                  [cljsjs/react-with-addons "0.13.3-0"]] ; addons needed for tests only
 
   :plugins [[lein-cljsbuild "1.0.6"]

@@ -15,9 +15,9 @@
   (dom/input {:type "text"
               :id "filter"
               :class "form-control"
-              :on-change (fn [e]
-                           (reacl/send-message! this (.. e -target -value)))}))
-
+              :onchange (fn [e]
+                          (reacl/send-message! this (.. e -target -value)))}))
+ 
  handle-message
  (fn [data]
    (reacl/return :app-state data)))

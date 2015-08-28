@@ -117,6 +117,24 @@
   [clazz app-state args]
   ((aget clazz "__computeLocals") app-state args))
 
+(defn ^:no-doc make-props
+  "Forge the props for a React element, for testing.
+
+  For internal use."
+  [cl app-state args]
+  #js {:reacl_args args})
+
+(declare react-class)
+
+(defn ^:no-doc make-state
+  "Forge the state for a React element, for testing.
+
+  For internal use."
+  [cl app-state local-state args]
+  #js {:reacl_locals ((aget (react-class cl) "__computeLocals") app-state args)
+       :reacl_app_state app-state
+       :reacl_local_state local-state})
+
 (declare invoke-reaction)
 
 (defrecord ^{:doc "Type for a reaction, a restricted representation for callback."
@@ -389,10 +407,13 @@
      (or (:local-state ps) (extract-local-state comp))]))
 
 (defn send-message!
-  "Send a message to a Reacl component."
+  "Send a message to a Reacl component.
+
+  Returns the `State` object returned by the message handler."
   [comp msg]
   (let [st (handle-message comp msg)]
-    (set-state! comp st)))
+    (set-state! comp st)
+    st))
 
 (defn opt-set-state! [component v]
   (when v

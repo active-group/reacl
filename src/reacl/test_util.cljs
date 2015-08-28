@@ -1,6 +1,7 @@
 (ns ^{:doc "Various testing utilities for Reacl."}
   reacl.test-util
   (:require [reacl.core :as reacl :include-macros true]
+            [reacl.dom :as dom :include-macros true]
             [cljsjs.react]))
 
 (defn render-to-text
@@ -205,3 +206,78 @@
 
                     (throw (str "trying to follow path " path ", but no children in " e))))))]
       (descend element (rest path)))))
+
+(defn create-renderer
+  "Create a shallow renderer for testing"
+  []
+  (js/React.addons.TestUtils.createRenderer))
+
+(defn render!
+  "Render an element into a renderer."
+  [renderer el]
+  (.render renderer el))
+
+(defn render-output
+  "Get the output of rendering."
+  [renderer]
+  (.getRenderOutput renderer))
+
+(defn element-children
+  "Get the children of a rendered element as a vector."
+  [element]
+  (let [ch (.. element -props -children)]
+    (if (array? ch)
+      (vec ch)
+      [ch])))
+
+(defn element-has-type?
+  "Check if an element has a given type, denoted by `tag`.
+
+  `tag` may be a keyword or string with the name of a DOM element,
+  or React or a Reacl class."
+  [element tag]
+  (let [ty (.-type element)]
+    (cond
+     (keyword? tag)
+     (= (name tag) ty)
+
+     (string? tag)
+     (= tag ty)
+
+     (satisfies? reacl/HasReactClass tag)
+     (js/React.addons.TestUtils.isElementOfType element (reacl/react-class tag))
+
+     :else
+     (js/React.addons.TestUtils.isElementOfType element tag))))
+
+(defn dom=?
+  "Compare two React DOM elements for equality."
+  [el1 el2]
+  (= (js->clj el1) (js->clj el2)))
+
+(defn invoke-callback
+  "Invoke a callback of an element.
+
+  `callback` must a keyword naming the attribute (`onchange`).
+
+  `event` must be a React event - don't forget the ´#js {...}`"
+  [element callback event]
+  (let [n (aget dom/reacl->react-attribute-names (name callback))]
+    ((aget (.-props element) n) event)))
+
+(defn handle-message
+  "Invoke the message handler of a Reacl element.
+
+  - `cl` is the Reacl class.
+  - `app-state` is the app state
+  - `local-state` is the local state
+  - `msg` is the message.
+
+  This returns a ``State`` record with `app-state` and `local-state` fields."
+  [cl app-state args local-state msg]
+  (let [rcl (reacl/react-class cl)
+        handle-message-internal (.bind (aget (.-prototype rcl) "__handleMessage")
+                                       #js {:props (reacl/make-props cl app-state args)
+                                            :state (reacl/make-state cl app-state local-state args)})]
+    (handle-message-internal msg)))
+

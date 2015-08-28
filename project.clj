@@ -13,7 +13,9 @@
   :plugins [[lein-cljsbuild "1.0.6"]
             [codox "0.8.13"]]
 
-  :profiles {:dev {:dependencies [[active-clojure "0.11.0" :exclusions [org.clojure/clojure]]]}}
+  :profiles {:dev {:dependencies [[active-clojure "0.11.0" :exclusions [org.clojure/clojure]]]}
+             ;; see https://github.com/weavejester/codox/issues/90
+             :doc {:dependencies [[org.clojure/clojurescript "0.0-2985"]]}}
   
   :cljsbuild
   
@@ -50,9 +52,11 @@
    :test-commands {"phantom" ["phantomjs" 
                               "test/vendor/unit-test.js" "test/vendor/unit-test.html"]}}
 
-   :codox {:language :clojurescript
-           :defaults {:doc/format :markdown}
-           :src-dir-uri "http://github.com/active-group/reacl/blob/master/"
-           :src-linenum-anchor-prefix "L"})
+  :aliases {"doc" ["with-profile" "doc" "doc"]}
+
+  :codox {:language :clojurescript
+          :defaults {:doc/format :markdown}
+          :src-dir-uri "http://github.com/active-group/reacl/blob/master/"
+          :src-linenum-anchor-prefix "L"})
 
 

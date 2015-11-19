@@ -20,7 +20,7 @@
   > (camelize \"background-color\")
   < \"backgroundColor\""
   [s]
-  (string/replace s #"-(.)" (fn [_ c] (string/upper-case c))))
+  (string/replace s #"-(.)" (fn [[_ c]] (string/upper-case c))))
 
 (defn camelize-style-name
   "Camelcases a hyphenated CSS property name, for example:

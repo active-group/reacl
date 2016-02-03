@@ -7,10 +7,10 @@
   :jvm-opts ^:replace ["-Xmx512m" "-server"]
 
   :dependencies [[org.clojure/clojure "1.7.0"]
-                 [org.clojure/clojurescript "1.7.28" :scope "provided"]
+                 [org.clojure/clojurescript "1.7.228" :scope "provided"]
                  [cljsjs/react-with-addons "0.13.3-0"]] ; addons needed for tests only
 
-  :plugins [[lein-cljsbuild "1.0.6"]
+  :plugins [[lein-cljsbuild "1.1.2"]
             [codox "0.8.13"]]
 
   :profiles {:dev {:dependencies [[active-clojure "0.11.0" :exclusions [org.clojure/clojure]]]}
@@ -23,32 +23,37 @@
               :source-paths ["src" "test-dom"]
               :compiler {:output-to "target/test-dom.js"
                          :optimizations :whitespace
-                         :pretty-print true}}
+                         :pretty-print true
+                         :parallel-build true}}
               ;; examples
               {:id "products"
                :source-paths ["src" "examples/products"]
                :compiler {:output-to "target/products/main.js"
                           :output-dir "target/products/out"
                           :source-map "target/products/main.map"
-                          :optimizations :whitespace}}
+                          :optimizations :whitespace
+                          :parallel-build true}}
               {:id "todo"
                :source-paths ["src" "examples/todo"]
                :compiler {:output-to "target/todo/main.js"
                           :output-dir "target/todo/out"
                           :source-map "target/todo/main.map"
-                          :optimizations :whitespace}}
+                          :optimizations :whitespace
+                          :parallel-build true}}
               {:id "comments"
                :source-paths ["src" "examples/comments"]
                :compiler {:output-to "target/comments/main.js"
                           :output-dir "target/comments/out"
                           :source-map "target/comments/main.map"
-                          :optimizations :whitespace}}
+                          :optimizations :whitespace
+                          :parallel-build true}}
               {:id "delayed"
                :source-paths ["src" "examples/delayed"]
                :compiler {:output-to "target/delayed/main.js"
                           :output-dir "target/delayed/out"
                           :source-map "target/delayed/main.map"
-                          :optimizations :whitespace}}]
+                          :optimizations :whitespace
+                          :parallel-build true}}]
    :test-commands {"phantom" ["phantomjs" 
                               "test/vendor/unit-test.js" "test/vendor/unit-test.html"]}}
 

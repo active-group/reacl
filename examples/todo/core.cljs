@@ -49,6 +49,9 @@
 
 (reacl/defclass to-do-app
   this app-state local-state []
+
+  initial-state ""
+
   render
   (dom/div
    (dom/h3 "TODO")
@@ -73,7 +76,6 @@
     (dom/button
      (str "Add #" (:next-id app-state)))))
 
-  initial-state ""
 
   handle-message
   (fn [msg]
@@ -83,13 +85,14 @@
      
      (instance? Submit msg)
      (let [next-id (:next-id app-state)]
-       (reacl/return :local-state ""
-                     :app-state
-                     (assoc app-state
-                       :todos
-                       (concat (:todos app-state)
-                               [(->Todo next-id local-state false)])
-                       :next-id (+ 1 next-id))))
+       (reacl/return
+        :local-state ""
+        :app-state
+        (assoc app-state
+               :todos
+               (concat (:todos app-state)
+                       [(->Todo next-id local-state false)])
+               :next-id (+ 1 next-id))))
 
      (instance? Delete msg)
      (let [id (:id (:todo msg))]

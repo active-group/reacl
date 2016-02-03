@@ -11,9 +11,11 @@
                  [cljsjs/react-with-addons "0.13.3-0"]] ; addons needed for tests only
 
   :plugins [[lein-cljsbuild "1.1.2"]
+            [lein-doo "0.1.6"]
             [codox "0.8.13"]]
 
-  :profiles {:dev {:dependencies [[active-clojure "0.11.0" :exclusions [org.clojure/clojure]]]}
+  :profiles {:dev {:dependencies [[active-clojure "0.11.0" :exclusions [org.clojure/clojure]]
+                                  [lein-doo "0.1.6"]]}
              ;; see https://github.com/weavejester/codox/issues/90
              :doc {:dependencies [[org.clojure/clojurescript "0.0-2985"]]}}
   
@@ -22,9 +24,8 @@
   { :builds [{:id "test-dom"
               :source-paths ["src" "test-dom"]
               :compiler {:output-to "target/test-dom.js"
-                         :optimizations :whitespace
-                         :pretty-print true
-                         :parallel-build true}}
+                         :main reacl.test.runner
+                         :optimizations :none}}
               ;; examples
               {:id "products"
                :source-paths ["src" "examples/products"]
@@ -53,11 +54,10 @@
                           :output-dir "target/delayed/out"
                           :source-map "target/delayed/main.map"
                           :optimizations :whitespace
-                          :parallel-build true}}]
-   :test-commands {"phantom" ["phantomjs" 
-                              "test/vendor/unit-test.js" "test/vendor/unit-test.html"]}}
+                          :parallel-build true}}]}
 
-  :aliases {"doc" ["with-profile" "doc" "doc"]}
+  :aliases {"doc" ["with-profile" "doc" "doc"]
+            "test-dom" ["doo" "phantom" "test-dom"]}
 
   :codox {:language :clojurescript
           :defaults {:doc/format :markdown}

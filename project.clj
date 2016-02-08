@@ -12,7 +12,7 @@
 
   :plugins [[lein-cljsbuild "1.1.2"]
             [lein-doo "0.1.6"]
-            [codox "0.8.13"]]
+            [lein-codox "0.9.3"]]
 
   :profiles {:dev {:dependencies [[active-clojure "0.11.0" :exclusions [org.clojure/clojure]]
                                   [lein-doo "0.1.6"]]}
@@ -56,8 +56,7 @@
                           :optimizations :whitespace
                           :parallel-build true}}]}
 
-  :aliases {"doc" ["with-profile" "doc" "doc"]
-            "test-dom" ["doo" "phantom" "test-dom"]}
+  :aliases {"test-dom" ["doo" "phantom" "test-dom"]}
 
   :codox {:language :clojurescript
           :defaults {:doc/format :markdown}

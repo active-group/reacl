@@ -15,17 +15,24 @@
             [lein-codox "0.9.3"]]
 
   :profiles {:dev {:dependencies [[active-clojure "0.11.0" :exclusions [org.clojure/clojure]]
-                                  [lein-doo "0.1.6"]]}
-             ;; see https://github.com/weavejester/codox/issues/90
-             :doc {:dependencies [[org.clojure/clojurescript "0.0-2985"]]}}
+                                  [lein-doo "0.1.6"]]}}
   
   :cljsbuild
   
-  { :builds [{:id "test-dom"
+  { :builds [;; these need phantom or something like it
+             {:id "test-dom"
               :source-paths ["src" "test-dom"]
               :compiler {:output-to "target/test-dom.js"
                          :main reacl.test.runner
                          :optimizations :none}}
+
+             ;; these can run under Nashorn
+             {:id "test-nodom"
+              :source-paths ["src" "test-nodom"]
+              :compiler {:output-to "target/test-nodom.js"
+                         :main reacl.test.runner
+                         :optimizations :whitespace}}
+             
               ;; examples
               {:id "products"
                :source-paths ["src" "examples/products"]
@@ -56,7 +63,8 @@
                           :optimizations :whitespace
                           :parallel-build true}}]}
 
-  :aliases {"test-dom" ["doo" "phantom" "test-dom"]}
+  :aliases {"test-dom" ["doo" "phantom" "test-dom"]
+            "test-nodom" ["doo" "nashorn" "test-nodom"]}
 
   :codox {:language :clojurescript
           :defaults {:doc/format :markdown}

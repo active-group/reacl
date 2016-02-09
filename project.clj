@@ -67,7 +67,7 @@
             "test-nodom" ["doo" "nashorn" "test-nodom"]}
 
   :codox {:language :clojurescript
-          :defaults {:doc/format :markdown}
+          :metadata {:doc/format :markdown}
           :src-dir-uri "http://github.com/active-group/reacl/blob/master/"
           :src-linenum-anchor-prefix "L"})
 

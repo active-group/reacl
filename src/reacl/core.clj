@@ -1,5 +1,6 @@
 (ns ^{:doc "Supporting macros for Reacl."}
   reacl.core
+  (:require [clojure.set :as set])
   (:refer-clojure :exclude [class]))
 
 (def ^{:private true} lifecycle-name-map
@@ -13,8 +14,8 @@
 
 ;; Attention: duplicate definition in core.cljs
 (def ^{:private true} special-tags
-  (clojure.set/union (into #{} (map val lifecycle-name-map))
-                     #{'render 'handle-message 'initial-state 'component-will-mount 'local 'mixins}))
+  (set/union (into #{} (map val lifecycle-name-map))
+             #{'render 'handle-message 'initial-state 'component-will-mount 'local 'mixins}))
 
 (defn- split-symbol [stuff dflt]
   (if (symbol? (first stuff))

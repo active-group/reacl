@@ -16,6 +16,8 @@
 
   :profiles {:dev {:dependencies [[active-clojure "0.11.0" :exclusions [org.clojure/clojure]]
                                   [lein-doo "0.1.6"]]}}
+
+  :clean-targets [:target-path "out"]
   
   :cljsbuild
   

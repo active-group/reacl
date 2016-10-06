@@ -285,12 +285,25 @@
           (aset reacl->style-names reacl-name react-name)
           react-name))))
 
+(defn- ^:no-doc aset-style->react
+  [obj style value]
+  (aset obj (reacl->react-style-name style) value))
+
 (defn- ^:no-doc styles->react
   "Convert a Clojure map with keyword keys to a JavaScript hashmap with string keys."
   [mp]
-  (apply js-obj
-         (apply concat
-                (cljs.core/map (fn [e] [(reacl->react-style-name (key e)) (val e)]) mp))))
+  (reduce-kv aset-style->react
+             #js {}
+             mp))
+
+(defn-  ^:no-doc aset-attribute [obj k0 v0]
+  (let [k (if-let [react-name (aget reacl->react-attribute-names (name k0))]
+            react-name
+            (name k0))
+        v (case k0
+            :style (styles->react v0)
+            v0)]
+    (aset obj k v)))
 
 (defn- ^:no-doc attributes
   "Convert attributes represented as a Clojure map to a React map.
@@ -298,19 +311,9 @@
   This knows about `:style`, and expects a Clojure map for the value."
 
   [mp]
-  (apply js-obj
-         (apply concat
-                (cljs.core/map (fn [e]
-                                 (let [k0 (key e)
-                                       k (if-let [react-name (aget reacl->react-attribute-names (name k0))]
-                                           react-name
-                                           k0)
-                                       v0 (val e)
-                                       v (case k0
-                                           :style (styles->react v0)
-                                           v0)]
-                                   [(name k) v]))
-                               mp))))
+  (reduce-kv aset-attribute
+             #js {}
+             mp))
 
 (defprotocol HasDom
   "General protocol for objects that contain or map to a virtual DOM object.
@@ -390,17 +393,37 @@
 
    :else arg))
 
+(defn- ^:no-doc attributes? [v]
+  (and (map? v)
+       (not (satisfies? HasDom v))))
+
 (defn ^:no-doc dom-function
   "Internal function for constructing wrappers for DOM-construction function."
   [f]
-  (fn ([maybe & rest]
-         (let [[mp args]
-               (if (and (map? maybe)
-                        (not (satisfies? HasDom maybe)))
-                 [(attributes maybe) rest]
-                 [nil (cons maybe rest)])]
-           (apply f mp (cljs.core/map normalize-arg args))))
-    ([] (f nil))))
+  (fn
+    ([]
+     (f nil))
+    ([maybe]
+     (if (attributes? maybe)
+       (f (attributes maybe))
+       (f nil (normalize-arg maybe))))
+    ([maybe a1]
+     (if (attributes? maybe)
+       (f (attributes maybe) (normalize-arg a1))
+       (f nil (normalize-arg maybe) (normalize-arg a1))))
+    ([maybe a1 a2]
+     (if (attributes? maybe)
+       (f (attributes maybe) (normalize-arg a1) (normalize-arg a2))
+       (f nil (normalize-arg maybe) (normalize-arg a1) (normalize-arg a2))))
+    ([maybe a1 a2 a3]
+     (if (attributes? maybe)
+       (f (attributes maybe) (normalize-arg a1) (normalize-arg a2) (normalize-arg a3))
+       (f nil (normalize-arg maybe) (normalize-arg a1) (normalize-arg a2) (normalize-arg a3))))
+    ([maybe a1 a2 a3 a4 & rest]
+     (let [args (cljs.core/map normalize-arg rest)]
+       (if (attributes? maybe)
+         (apply f (attributes maybe) (normalize-arg a1) (normalize-arg a2) (normalize-arg a3) (normalize-arg a4) args)
+         (apply f nil (normalize-arg maybe) (normalize-arg a1) (normalize-arg a2) (normalize-arg a3) (normalize-arg a4) args))))))
 
 (defn ^:no-doc set-dom-binding!
   "Internal function for use by `letdom'.

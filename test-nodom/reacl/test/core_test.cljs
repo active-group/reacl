@@ -140,4 +140,13 @@
     (let [t (reacl-test/render-output renderer)]
       (is (reacl-test/element-has-type? t :div)))))
 
-
+(deftest dom-f-perf-test
+  (let [mp {:style {:background-color "white"
+                    :padding "0px 1px 2px 4px"}
+            :onClick (fn [x] nil)
+            :width 100}]
+    ;; 1.5:   ~6500ms
+    ;; 1.5.1: ~2200ms
+    (time (dotimes [n 10000]
+            (dom/div mp (dom/br))))
+    (assert true)))

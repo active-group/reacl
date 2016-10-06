@@ -287,7 +287,8 @@
 
 (defn- ^:no-doc aset-style->react
   [obj style value]
-  (aset obj (reacl->react-style-name style) value))
+  (aset obj (reacl->react-style-name style) value)
+  obj)
 
 (defn- ^:no-doc styles->react
   "Convert a Clojure map with keyword keys to a JavaScript hashmap with string keys."
@@ -303,7 +304,8 @@
         v (case k0
             :style (styles->react v0)
             v0)]
-    (aset obj k v)))
+    (aset obj k v)
+    obj))
 
 (defn- ^:no-doc attributes
   "Convert attributes represented as a Clojure map to a React map.

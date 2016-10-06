@@ -329,24 +329,35 @@
    - `:local-state` is for a new component-local state.
 
    A state can be set to nil. To keep a state unchanged, do not specify
-   that option, or specify the value [[reacl.core/keep-state]]."
-  [& args]
-  (let [args-map (apply hash-map args)
-        app-state (if (contains? args-map :app-state)
-                    (get args-map :app-state)
-                    keep-state)
-        local-state (if (contains? args-map :local-state)
-                      (get args-map :local-state)
-                      keep-state)]
-    (State. app-state local-state)))
+  that option, or specify the value [[reacl.core/keep-state]]."
+  ([st0 v0]
+   (State. (if (= st0 :app-state)
+             v0
+             keep-state)
+           (if (= st0 :local-state)
+             v0
+             keep-state)))
+  ([st0 v0 st1 v1]
+   (State. (if (= st1 :app-state)
+             v1
+             (if (= st0 :app-state)
+               v0
+               keep-state))
+           (if (= st1 :local-state)
+             v1
+             (if (= st0 :local-state)
+               v0
+               keep-state)))))
 
 (defn set-state!
   "Set the app state and component state according to what return returned."
-  [component ps]
-  (if (not (= keep-state (:local-state ps)))
-    (set-local-state! component (:local-state ps)))
-  (if (not (= keep-state (:app-state ps)))
-    (set-app-state! component (:app-state ps))))
+  [component ^State ps]
+  (let [v (:local-state ps)]
+    (when (not= keep-state v)
+      (set-local-state! component v)))
+  (let [v (:app-state ps)]
+    (when (not= keep-state v)
+      (set-app-state! component v))))
 
 (defn event-handler
   "Create a Reacl event handler from a function.

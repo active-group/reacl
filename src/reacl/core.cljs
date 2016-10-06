@@ -404,8 +404,8 @@
   This returns application state and local state."
   [comp msg]
   (let [ps (handle-message comp msg)]
-    [(or (:app-state ps) (extract-app-state comp))
-     (or (:local-state ps) (extract-local-state comp))]))
+    [(if (not= keep-state (:app-state ps)) (:app-state ps) (extract-app-state comp))
+     (if (not= keep-state (:local-state ps)) (:local-state ps) (extract-local-state comp))]))
 
 (defn send-message!
   "Send a message to a Reacl component.

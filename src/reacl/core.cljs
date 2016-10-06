@@ -2,16 +2,6 @@
   reacl.core
   (:require [cljsjs.react]))
 
-(defn- ^:no-doc jsmap
-  "Convert a Clojure map to a JavaScript hashmap."
-  [clmp]
-  (loop [clmp clmp
-         args []]
-    (if (not (seq clmp))
-      (apply js-obj args)
-      (recur (nnext clmp)
-             (concat args [(name (first clmp)) (second clmp)])))))
-
 (defn ^:no-doc set-local-state!
   "Set Reacl local state of a component.
 

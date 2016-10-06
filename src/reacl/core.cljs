@@ -330,6 +330,8 @@
 
    A state can be set to nil. To keep a state unchanged, do not specify
   that option, or specify the value [[reacl.core/keep-state]]."
+  ([]
+   (State. keep-state keep-state))
   ([st0 v0]
    (State. (if (= st0 :app-state)
              v0

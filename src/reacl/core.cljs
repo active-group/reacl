@@ -2,12 +2,20 @@
   reacl.core
   (:require [cljsjs.react]))
 
+(defn- ^:no-doc local-state-state
+  "Set Reacl local state in the given state object.
+
+   For internal use."
+  [st local-state]
+  (aset st "reacl_local_state" local-state)
+  st)
+
 (defn ^:no-doc set-local-state!
   "Set Reacl local state of a component.
 
    For internal use."
   [this local-state]
-  (.setState this #js {:reacl_local_state local-state}))
+  (.setState this (local-state-state #js {} local-state)))
 
 (defn- ^:no-doc state-extract-local-state
   "Extract local state from the state of a Reacl component.
@@ -68,6 +76,14 @@
 
 (def ^:private extract-current-app-state extract-app-state)
 
+(defn- ^:no-doc app-state-state
+  "Set Reacl app state in the given state object.
+
+  For internal use."
+  [st app-state]
+  (aset st "reacl_app_state" app-state)
+  st)
+
 (defn- ^:no-doc props-extract-args
   "Get the component args for a component from its props.
 
@@ -93,13 +109,21 @@
              (.hasOwnProperty state "reacl_locals"))
       (aget state "reacl_locals")
       (aget props "reacl_initial_locals"))))
+
+(defn- ^:no-doc locals-state
+  "Set Reacl locals in the given state object.
+
+  For internal use."
+  [st locals]
+  (aset st "reacl_locals" locals)
+  st)
   
 (defn ^:no-doc set-locals!
   "Set the local bindings for a component.
 
   For internal use."
   [this locals]
-  (aset (.-state this) "reacl_locals" locals))
+  (.setState this (locals-state #js {} locals)))
 
 (defn ^:no-doc compute-locals
   "Compute the locals.
@@ -121,9 +145,10 @@
 
   For internal use."
   [cl app-state local-state args]
-  #js {:reacl_locals ((aget (react-class cl) "__computeLocals") app-state args)
-       :reacl_app_state app-state
-       :reacl_local_state local-state})
+  (-> #js {}
+      (locals-state (compute-locals (react-class cl) app-state args))
+      (app-state-state app-state)
+      (local-state-state local-state)))
 
 (declare invoke-reaction)
 
@@ -179,20 +204,32 @@
 ;
 ;  state.reacl_app_state
 
+(defn- ^:no-doc app-state+recompute-locals-state
+  "Set Reacl app state and recomputed locals (for the given component) in the given state object.
+
+  For internal use."
+  [st this app-state]
+  (-> st
+      (locals-state (compute-locals (.-constructor this) app-state (extract-args this)))
+      (app-state-state app-state)))
+
+(defn- ^:no-doc app-state-changed!
+  "Invoke the app-state change reaction for the given component.
+
+  For internal use."
+  [this app-state]
+  (when-let [reaction (props-extract-reaction (.-props this))]
+    (invoke-reaction reaction app-state)))
+
 (defn ^:no-doc set-app-state!
   "Set the application state associated with a Reacl component.
    May not be called before the first render.
 
    For internal use."
   [this app-state]
-  (let [props (.-props this)]
-    (assert (.hasOwnProperty (.-state this) "reacl_app_state"))
-
-    (set-locals! this (compute-locals (.-constructor this) app-state (extract-args this)))
-    (.setState this #js {:reacl_app_state app-state})
-
-    (if-let [reaction (props-extract-reaction props)]
-      (invoke-reaction reaction app-state))))
+  (assert (.hasOwnProperty (.-state this) "reacl_app_state"))
+  (.setState this (app-state+recompute-locals-state #js {} this app-state))
+  (app-state-changed! this app-state))
 
 (defprotocol ^:no-doc HasReactClass
   (-react-class [clazz]))
@@ -354,12 +391,14 @@
 (defn set-state!
   "Set the app state and component state according to what return returned."
   [component ^State ps]
-  (let [v (:local-state ps)]
-    (when (not= keep-state v)
-      (set-local-state! component v)))
-  (let [v (:app-state ps)]
-    (when (not= keep-state v)
-      (set-app-state! component v))))
+  (let [ls (:local-state ps)
+        as (:app-state ps)]
+    (.setState component
+               (cond-> #js {}
+                       (not= keep-state ls) (local-state-state ls)
+                       (not= keep-state as) (app-state+recompute-locals-state component as)))
+    (when (not= keep-state as)
+      (app-state-changed! component as))))
 
 (defn event-handler
   "Create a Reacl event handler from a function.

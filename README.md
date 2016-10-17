@@ -9,7 +9,7 @@ Your `project.clj` should contain something like this:
 
 	  :dependencies [[org.clojure/clojure "1.7.0"]
                      [org.clojure/clojurescript "1.7.28 :classifier "aot"]
-					 [reacl "1.5.0"]]
+					 [reacl "1.5.1"]]
 
 ## API Documentation
 

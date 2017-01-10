@@ -10,7 +10,7 @@
                  [org.clojure/clojurescript "1.7.228" :scope "provided"]
                  [cljsjs/react-with-addons "0.13.3-0"]] ; addons needed for tests only
 
-  :plugins [[lein-cljsbuild "1.1.2"]
+  :plugins [[lein-cljsbuild "1.1.5"]
             [lein-doo "0.1.6"]
             [lein-codox "0.9.3"]]
 

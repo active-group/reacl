@@ -6,8 +6,9 @@
 
   :jvm-opts ^:replace ["-Xmx512m" "-server"]
 
-  :dependencies [[org.clojure/clojure "1.7.0"]
-                 [org.clojure/clojurescript "1.7.228" :scope "provided"]
+  :dependencies [[org.clojure/clojure "1.9.0-alpha10" :scope "provided"]
+                 ;; 1.9.198 onwards gives us "No such var: string/index-of"
+                 [org.clojure/clojurescript "1.9.89" :scope "provided"]
                  [cljsjs/react-with-addons "0.13.3-0"]] ; addons needed for tests only
 
   :plugins [[lein-cljsbuild "1.1.5"]

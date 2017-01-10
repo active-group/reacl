@@ -362,7 +362,7 @@
 
   Needs the component object."
   [this binding]
-  (. (aget (.-refs this) (binding-get-ref binding)) getDOMNode))
+  (aget (.-refs this) (binding-get-ref binding)))
 
 (defn keyed
   "Associate a key with a virtual DOM node."

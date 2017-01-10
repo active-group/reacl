@@ -24,7 +24,9 @@
   this lis []
   render
   (dom/ul {:class "animals"}
-          (map stripe (cycle ["#ff0" "#fff"]) lis)))
+          (map (fn [bgc keyn text]
+                 (dom/keyed (str keyn) (stripe bgc text)))
+               (cycle ["#ff0" "#fff"]) (range 0) lis)))
 
 (def contacts
   [{:first "Ben" :last "Bitdiddle" :email "benb@mit.edu"}
@@ -72,7 +74,8 @@
   (dom/div
    (dom/h2 "Contact list")
    (dom/ul
-    (map (fn [c] (contact-display c reacl/no-reaction this)) data))
+    (map (fn [c n] (dom/keyed (str n) (contact-display c reacl/no-reaction this)))
+         data (range 0)))
    (dom/div
     (dom/input {:type "text" :value new-text
                 :onchange (fn [e] (reacl/send-message! this

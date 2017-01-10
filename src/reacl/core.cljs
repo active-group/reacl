@@ -1,6 +1,7 @@
 (ns ^{:doc "Reacl core functionality."}
   reacl.core
-  (:require [cljsjs.react]))
+  (:require [cljsjs.react]
+            [cljsjs.react.dom]))
 
 (defn- ^:no-doc local-state-state
   "Set Reacl local state in the given state object.
@@ -315,7 +316,7 @@
   - `args` are the arguments of the component,
     which must start with the application state if `clazz` is a class."
   [element clazz & args]
-  (js/React.render
+  (js/ReactDOM.render
    ;; TODO remove this hack, after introducing an initial-app-state
    ;; clause (or drop support for classes here)
    (if (satisfies? IReaclView clazz)

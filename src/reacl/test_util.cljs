@@ -2,11 +2,12 @@
   reacl.test-util
   (:require [reacl.core :as reacl :include-macros true]
             [reacl.dom :as dom :include-macros true]
-            [cljsjs.react]))
+            [cljsjs.react]
+            [cljsjs.react.dom.server]))
 
 (defn render-to-text
   [dom]
-  (js/React.renderToStaticMarkup dom))
+  (js/ReactDOMServer.renderToStaticMarkup dom))
 
 ; see http://stackoverflow.com/questions/22463156/updating-react-component-state-in-jasmine-test
 (defn instantiate&mount

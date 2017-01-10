@@ -9,7 +9,10 @@
   :dependencies [[org.clojure/clojure "1.9.0-alpha10" :scope "provided"]
                  ;; 1.9.198 onwards gives us "No such var: string/index-of"
                  [org.clojure/clojurescript "1.9.89" :scope "provided"]
-                 [cljsjs/react-with-addons "0.13.3-0"]] ; addons needed for tests only
+                 [cljsjs/react-with-addons "15.3.1-0"] ; addons needed for tests only
+                 [cljsjs/react-dom "15.3.1-0" :exclusions [cljsjs/react]]
+                 [cljsjs/react-dom-server "15.3.1-0" :exclusions [cljsjs/react]]
+                 ]
 
   :plugins [[lein-cljsbuild "1.1.5"]
             [lein-doo "0.1.7"]

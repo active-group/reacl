@@ -44,7 +44,7 @@
   (let [item (reacl/instantiate-toplevel to-do-item (Todo. 42 "foo" false) nil)]
     (is (= (reacl/extract-app-state item)
            (Todo. 42 "foo" false)))
-    (is (= "<div><input type=\"checkbox\" value=\"false\">foo</div>"
+    (is (= "<div><input type=\"checkbox\" value=\"false\"/>foo</div>"
            (test-util/render-to-text item)))))
 
 (deftest handle-message-simple
@@ -90,7 +90,7 @@
 
 (defn dom-content
   [comp]
-  (.-textContent (.getDOMNode comp)))
+  (.-textContent comp))
 
 (deftest initial-state-test
   (testing "initial-state-test sees app-state, locals and args"

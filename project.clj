@@ -12,11 +12,11 @@
                  [cljsjs/react-with-addons "0.13.3-0"]] ; addons needed for tests only
 
   :plugins [[lein-cljsbuild "1.1.5"]
-            [lein-doo "0.1.6"]
+            [lein-doo "0.1.7"]
             [lein-codox "0.9.3"]]
 
   :profiles {:dev {:dependencies [[active-clojure "0.11.0" :exclusions [org.clojure/clojure]]
-                                  [lein-doo "0.1.6"]]}}
+                                  [lein-doo "0.1.7"]]}}
 
   :clean-targets [:target-path "out"]
   

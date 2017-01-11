@@ -8,9 +8,9 @@
 
   :dependencies [[org.clojure/clojure "1.9.0-alpha10" :scope "provided"]
                  [org.clojure/clojurescript "1.9.293" :scope "provided"]
-                 [cljsjs/react-with-addons "15.3.1-0"] ; addons needed for tests only
-                 [cljsjs/react-dom "15.3.1-0" :exclusions [cljsjs/react]]
-                 [cljsjs/react-dom-server "15.3.1-0" :exclusions [cljsjs/react]]
+                 [cljsjs/react-with-addons "15.4.0-0"] ; addons needed for tests only
+                 [cljsjs/react-dom "15.4.0-0" :exclusions [cljsjs/react]]
+                 [cljsjs/react-dom-server "15.4.0-0" :exclusions [cljsjs/react]]
                  ]
 
   :plugins [[lein-cljsbuild "1.1.5"]

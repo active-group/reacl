@@ -100,10 +100,10 @@ Here is a component class for a single item, which allows marking the
    [checkbox (dom/input
               {:type "checkbox"
                :value (:done? todo)
-               :onChange #(reacl/send-message! this
+               :onchange #(reacl/send-message! this
                                                (.-checked (dom/dom-node this checkbox)))})]
    (dom/div checkbox
-            (dom/button {:onClick #(reacl/send-message! parent (Delete. todo))}
+            (dom/button {:onclick #(reacl/send-message! parent (Delete. todo))}
                         "Zap")
             (:text todo)))
   handle-message
@@ -189,10 +189,10 @@ method:
                                this)))
                  (:todos app-state)))
    (dom/form
-    {:onSubmit (fn [e _]
+    {:onsubmit (fn [e _]
                  (.preventDefault e)
                  (reacl/send-message! this (Submit.)))}
-    (dom/input {:onChange 
+    (dom/input {:onchange 
                 (fn [e]
                   (reacl/send-message!
                    this

@@ -7,8 +7,7 @@
   :jvm-opts ^:replace ["-Xmx512m" "-server"]
 
   :dependencies [[org.clojure/clojure "1.9.0-alpha10" :scope "provided"]
-                 ;; 1.9.198 onwards gives us "No such var: string/index-of"
-                 [org.clojure/clojurescript "1.9.89" :scope "provided"]
+                 [org.clojure/clojurescript "1.9.293" :scope "provided"]
                  [cljsjs/react-with-addons "15.3.1-0"] ; addons needed for tests only
                  [cljsjs/react-dom "15.3.1-0" :exclusions [cljsjs/react]]
                  [cljsjs/react-dom-server "15.3.1-0" :exclusions [cljsjs/react]]

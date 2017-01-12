@@ -368,27 +368,19 @@
 
    A state can be set to nil. To keep a state unchanged, do not specify
   that option, or specify the value [[reacl.core/keep-state]]."
-  ([]
-   (State. keep-state keep-state))
-  ([st0 v0]
-   (State. (if (= st0 :app-state)
-             v0
-             keep-state)
-           (if (= st0 :local-state)
-             v0
-             keep-state)))
-  ([st0 v0 st1 v1]
-   (State. (if (= st1 :app-state)
-             v1
-             (if (= st0 :app-state)
-               v0
-               keep-state))
-           (if (= st1 :local-state)
-             v1
-             (if (= st0 :local-state)
-               v0
-               keep-state)))))
-
+  [& args]
+  (loop [args (seq args)
+         app-state keep-state
+         local-state keep-state]
+    (if (empty? args)
+      (State. app-state local-state)
+      (let [arg (second args)
+            nxt (nnext args)]
+        (case (first args)
+          (:app-state) (recur nxt arg local-state)
+          (:local-state) (recur nxt app-state arg)
+          (throw (str "invalid argument " (first args) " to reacl/return")))))))
+ 
 (defn set-state!
   "Set the app state and component state according to what return returned."
   [component ^State ps]

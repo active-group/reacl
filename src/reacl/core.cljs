@@ -351,11 +351,11 @@
        :no-doc true}
   keep-state (KeepState.))
 
-(defrecord ^{:doc "Composite object for app state and local state.
+(defrecord ^{:doc "Composite object for return values of [[reacl.core/return]].
             For internal use in reacl.core/return."
              :private true
              :no-doc true}
-    State
+    Returned
     [app-state local-state])
 
 (defn return
@@ -373,7 +373,7 @@
          app-state keep-state
          local-state keep-state]
     (if (empty? args)
-      (State. app-state local-state)
+      (Returned. app-state local-state)
       (let [arg (second args)
             nxt (nnext args)]
         (case (first args)
@@ -383,7 +383,7 @@
  
 (defn set-state!
   "Set the app state and component state according to what return returned."
-  [component ^State ps]
+  [component ^Returned ps]
   (let [ls (:local-state ps)
         as (:app-state ps)]
     (.setState component
@@ -426,7 +426,7 @@
 
   For internal use.
 
-  This returns a State object."
+  This returns a Returned object."
   [comp msg]
   ((aget comp "__handleMessage") msg))
 
@@ -444,7 +444,7 @@
 (defn send-message!
   "Send a message to a Reacl component.
 
-  Returns the `State` object returned by the message handler."
+  Returns the `Returned` object returned by the message handler."
   [comp msg]
   (let [st (handle-message comp msg)]
     (set-state! comp st)
@@ -452,7 +452,7 @@
 
 (defn opt-set-state! [component v]
   (when v
-    (assert (instance? State v))
+    (assert (instance? Returned v))
     (set-state! component v)))
 
 ;; Attention: duplicate definition for macro in core.clj

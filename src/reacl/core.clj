@@ -128,10 +128,10 @@
                                    this)))
                      (:todos app-state)))
        (dom/form
-        {:onSubmit (fn [e _]
+        {:onsubmit (fn [e _]
                      (.preventDefault e)
                      (reacl/send-message! this (Submit.)))}
-        (dom/input {:onChange 
+        (dom/input {:onchange 
                     (fn [e]
                       (reacl/send-message!
                        this

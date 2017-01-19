@@ -46,6 +46,15 @@
                           (dom/keyed (str i) (comment-entry comment reacl/no-reaction)))
                         comments)))
 
+; messages
+(defrecord NewComments [comments])
+(defrecord Refresh [])
+(defrecord DidMount [])
+
+; action
+(defrecord RefreshMeEvery [component interval])
+(defrecord EdnXhr [component url make-message])
+
 (reacl/defclass comment-box
   this comments []
   render
@@ -54,22 +63,40 @@
            (comment-list comments reacl/no-reaction))
   handle-message
   (fn [msg]
-    (reacl/return :app-state 
-                  (map (fn [e]
-                         (Comment. (:author e) (:text e)))
-                       msg)))
-  component-will-mount
-  (fn []
-    (let [refresh
-          (fn []
-            (edn-xhr
-             {:method :get
-              :url "comments.edn"
-              :on-complete #(reacl/send-message! this %)}))]
-      (refresh)
-      (js/setInterval refresh 2000)
-      nil)))
+    (cond
+      (instance? NewComments msg)
+      (reacl/return :app-state 
+                    (map (fn [e]
+                           (Comment. (:author e) (:text e)))
+                         (:comments msg)))
 
-(reacl/render-component
+      (instance? DidMount msg)
+      (reacl/return :action (RefreshMeEvery. this 2000))
+
+      (instance? Refresh msg)
+      (reacl/return :action (EdnXhr. this "comments.edn" ->NewComments))))
+
+  component-did-mount
+  (fn []
+    (reacl/send-message! this (DidMount.))))
+
+(defn handle-action
+  [action]
+  (cond
+    (instance? RefreshMeEvery action)
+    (let [refresh (fn []
+                    (reacl/send-message! (:component action) (Refresh.)))]
+      (refresh)
+      (js/setInterval refresh 2000))
+    
+    (instance? EdnXhr action)
+    (edn-xhr {:method :get
+              :url (:url action)
+              :on-complete (fn [edn]
+                             (reacl/send-message! (:component action) (NewComments. edn)))})))
+
+(reacl/render-component-with-actions
  (.getElementById js/document "content")
- comment-box [])
+ comment-box
+ handle-action
+ [])

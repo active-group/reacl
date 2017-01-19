@@ -236,7 +236,7 @@
   (-react-class [clazz]))
 
 (defprotocol ^:no-doc IReaclClass
-  (-instantiate-toplevel [clazz app-state args])
+  (-instantiate-toplevel [clazz app-state handle-action args])
   (-instantiate-embedded [clazz app-state reaction args]))
 
 (defprotocol ^:no-doc IReaclView
@@ -276,13 +276,15 @@
 
   - `clazz` is the React class (not the Reacl class ...).
   - `app-state` is the  application state.
+  - `handle-action` is a unary function that gets passed an action
   - `args` are the arguments to the component.
   - `locals` are the local variables of the components."
-  [clazz app-state args locals]
+  [clazz app-state handle-action args locals]
   (js/React.createElement clazz 
                           #js {:reacl_initial_app_state app-state
                                :reacl_initial_locals locals
-                               :reacl_args args}))
+                               :reacl_args args
+                               :reacl_handle_action handle-action}))
 
 (defn ^:no-doc instantiate-embedded-internal
   "Internal function to instantiate an embedded Reacl component.
@@ -297,16 +299,39 @@
                           #js {:reacl_initial_app_state app-state
                                :reacl_initial_locals locals
                                :reacl_args args
-                               :reacl_reaction reaction}))
+                               :reacl_reaction reaction
+                               :reacl_handle_action (fn [this cmd]
+                                                      (let [parent (aget (.-state this) "reacl_parent")
+                                                            parent-handle (aget (.-state parent) "reacl_handle_action")]
+                                                        (parent-handle cmd)))}))
 
 (defn instantiate-toplevel
   "Instantiate a Reacl component at the top level.
 
   - `clazz` is the Reacl class.
   - `app-state` is the application state
+  - `handle-action` is a unary function that gets passed an action
   - `args` are the arguments to the component."
-  [clazz app-state & args]
-  (-instantiate-toplevel clazz app-state args))
+  [clazz app-state handle-action & args]
+  (-instantiate-toplevel clazz app-state handle-action args))
+
+(defn render-component-with-actions
+  "Instantiate and render a component into the DOM.
+
+  - `element` is the DOM element
+  - `clazz` is the Reacl clazz or view
+  - `handle-action` is a unary function that gets passed an action
+  - `args` are the arguments of the component,
+    which must start with the application state if `clazz` is a class."
+  ;; FIXME: argument order
+  [element clazz handle-action & args]
+  (js/ReactDOM.render
+   ;; TODO remove this hack, after introducing an initial-app-state
+   ;; clause (or drop support for classes here)
+   (if (satisfies? IReaclView clazz)
+     (-instantiate clazz args)
+     (apply instantiate-toplevel clazz (first args) handle-action (rest args)))
+   element))
 
 (defn render-component
   "Instantiate and render a component into the DOM.
@@ -316,13 +341,7 @@
   - `args` are the arguments of the component,
     which must start with the application state if `clazz` is a class."
   [element clazz & args]
-  (js/ReactDOM.render
-   ;; TODO remove this hack, after introducing an initial-app-state
-   ;; clause (or drop support for classes here)
-   (if (satisfies? IReaclView clazz)
-     (-instantiate clazz args)
-     (apply instantiate-toplevel clazz args))
-   element))
+  (apply render-component-with-actions element clazz (fn [] nil) args))
 
 (defn embed
   "Embed a Reacl component.
@@ -356,7 +375,7 @@
              :private true
              :no-doc true}
     Returned
-    [app-state local-state])
+    [app-state local-state actions])
 
 (defn return
   "Return state from a Reacl event handler.
@@ -365,61 +384,36 @@
 
    - `:app-state` is for a new app state.
    - `:local-state` is for a new component-local state.
+   - `:action` is for an action
 
    A state can be set to nil. To keep a state unchanged, do not specify
   that option, or specify the value [[reacl.core/keep-state]]."
   [& args]
   (loop [args (seq args)
          app-state keep-state
-         local-state keep-state]
+         local-state keep-state
+         actions (transient [])]
     (if (empty? args)
-      (Returned. app-state local-state)
+      (Returned. app-state local-state (persistent! actions))
       (let [arg (second args)
             nxt (nnext args)]
         (case (first args)
-          (:app-state) (recur nxt arg local-state)
-          (:local-state) (recur nxt app-state arg)
+          (:app-state) (recur nxt arg local-state actions)
+          (:local-state) (recur nxt app-state arg actions)
+          (:action) (recur nxt app-state local-state (conj! actions arg))
           (throw (str "invalid argument " (first args) " to reacl/return")))))))
  
 (defn set-state!
   "Set the app state and component state according to what return returned."
-  [component ^Returned ps]
-  (let [ls (:local-state ps)
-        as (:app-state ps)]
+  [component ^Returned ret]
+  (let [ls (:local-state ret)
+        as (:app-state ret)]
     (.setState component
                (cond-> #js {}
                        (not= keep-state ls) (local-state-state ls)
                        (not= keep-state as) (app-state+recompute-locals-state component as)))
     (when (not= keep-state as)
       (app-state-changed! component as))))
-
-(defn event-handler
-  "Create a Reacl event handler from a function.
-
-   `f` must be a function that returns a return value created by
-   [[reacl.core/return]], with a new application state and/or component-local
-   state.
-
-   [[reacl.core/event-handler]] turns that function `f` into an event
-   handler, that is, a function that sets the new application state
-   and/or component-local state.  `f` gets passed any argument the event
-   handler gets passed, plus, as its last argument, the component-local
-   state.
-
-   This example event handler can be used with onSubmit, for example:
-
-       (reacl/event-handler
-        (fn [e _ text]
-          (.preventDefault e)
-          (reacl/return :app-state (concat todos [{:text text :done? false}])
-                        :local-state \"\")))
-
-   Note that `text` is the component-local state."
-  [f]
-  (fn [component & args]
-    (let [local-state (extract-local-state component)
-          ps (apply f (concat args [local-state]))]
-      (set-state! component ps))))
 
 (defn- ^:no-doc handle-message
   "Handle a message for a Reacl component.
@@ -437,18 +431,26 @@
 
   This returns application state and local state."
   [comp msg]
-  (let [ps (handle-message comp msg)]
-    [(if (not= keep-state (:app-state ps)) (:app-state ps) (extract-app-state comp))
-     (if (not= keep-state (:local-state ps)) (:local-state ps) (extract-local-state comp))]))
+  (let [ret (handle-message comp msg)]
+    [(if (not= keep-state (:app-state ret)) (:app-state ret) (extract-app-state comp))
+     (if (not= keep-state (:local-state ret)) (:local-state ret) (extract-local-state comp))]))
+
+(defn ^:no-doc handle-actions!
+  "Handle actions returned by message handler."
+  [comp actions]
+  (let [handle (aget (.-props comp) "reacl_handle_action")]
+    (doseq [a actions]
+      (handle a))))
 
 (defn send-message!
   "Send a message to a Reacl component.
 
   Returns the `Returned` object returned by the message handler."
   [comp msg]
-  (let [st (handle-message comp msg)]
-    (set-state! comp st)
-    st))
+  (let [ret (handle-message comp msg)]
+    (set-state! comp ret)
+    (handle-actions! comp (:actions ret))
+    ret))
 
 (defn opt-set-state! [component v]
   (when v
@@ -589,7 +591,12 @@
             (std+state component-will-mount)
 
             "componentDidMount"
-            (std component-did-mount)
+            (let [user (std component-did-mount)]
+              (fn []
+                (this-as this
+                  ;; http://stackoverflow.com/questions/32855077/react-get-bound-parent-dom-element-name-within-component
+                  (.setState this #js {:reacl_parent (.-parentNode (js/ReactDOM.findDOMNode this))})
+                  (when user (.call user this)))))
 
             "componentWillReceiveProps"
             (let [f (with-args component-will-receive-args)]
@@ -647,8 +654,8 @@
         (-invoke [this app-state reaction & args]
           (-instantiate-embedded this app-state reaction args))
         IReaclClass
-        (-instantiate-toplevel [this app-state args]
-          (instantiate-toplevel-internal react-class app-state args
+        (-instantiate-toplevel [this app-state handle-action args]
+          (instantiate-toplevel-internal react-class app-state handle-action args
                                          (compute-locals app-state args)))
         (-instantiate-embedded [this app-state reaction args]
           (instantiate-embedded-internal react-class app-state

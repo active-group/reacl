@@ -91,7 +91,7 @@
     
     (instance? EdnXhr action)
     (edn-xhr {:method :get
-              :url (:url action)
+              :url (str (:url action) "?") ; prevent caching
               :on-complete (fn [edn]
                              (reacl/send-message! (:component action) (NewComments. edn)))})))
 

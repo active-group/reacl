@@ -455,6 +455,7 @@
 (defn opt-set-state! [component v]
   (when v
     (assert (instance? Returned v))
+    ;; FIXME: make analogous to send-message!
     (set-state! component v)))
 
 ;; Attention: duplicate definition for macro in core.clj
@@ -591,6 +592,7 @@
             (std+state component-will-mount)
 
             "componentDidMount"
+            ;; FIXME: why is this not std+state?
             (let [user (std component-did-mount)]
               (fn []
                 (this-as this

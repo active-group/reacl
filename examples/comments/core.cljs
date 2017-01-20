@@ -43,7 +43,7 @@
   render
   (dom/div {:class "commentList"}
            (map-indexed (fn [i comment]
-                          (dom/keyed (str i) (comment-entry comment reacl/no-reaction)))
+                          (dom/keyed (str i) (comment-entry comment)))
                         comments)))
 
 ; messages
@@ -60,7 +60,7 @@
   render
   (dom/div {:class "commentBox"}
            (dom/h1 "Comments")
-           (comment-list comments reacl/no-reaction))
+           (comment-list comments))
   handle-message
   (fn [msg]
     (cond
@@ -95,8 +95,8 @@
               :on-complete (fn [edn]
                              (reacl/send-message! (:component action) (NewComments. edn)))})))
 
-(reacl/render-component-with-actions
+(reacl/render-component
  (.getElementById js/document "content")
  comment-box
- handle-action
+ :handle-action handle-action
  [])

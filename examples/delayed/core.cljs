@@ -28,13 +28,13 @@
   render 
   (do
     (dom/div
-     (dom/p "What you enter in the text field below gets published immediately (via embed and local-state):"
-            (filter-input local-state (reacl/pass-through-reaction this)))
+     (dom/p "What you enter in the text field below gets published immediately (via embed and local-state):")
+     (filter-input local-state :reaction (reacl/pass-through-reaction this))
      
      (dom/hr)
      
-     (dom/p "What you enter in the text filed below gets published after a delay of one second (via embed and local-state):"
-            (util/delayed local-state (reacl/pass-through-reaction this) filter-input 1000))
+     (dom/p "What you enter in the text filed below gets published after a delay of one second (via embed and local-state):")
+     (util/delayed local-state :reaction (reacl/pass-through-reaction this) filter-input 1000)
 
      (dom/hr)
 
@@ -49,7 +49,7 @@
   render
   (do
     (dom/div 
-     (filter-parent state reacl/no-reaction))))
+     (filter-parent state))))
 
 (reacl/render-component
  (.getElementById js/document "content")

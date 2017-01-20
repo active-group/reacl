@@ -41,24 +41,24 @@
                   (assoc todo :done? checked?))))
 
 (deftest simple
-  (let [item (reacl/instantiate-toplevel to-do-item (Todo. 42 "foo" false) nil)]
+  (let [item (reacl/instantiate-toplevel to-do-item (Todo. 42 "foo" false))]
     (is (= (reacl/extract-app-state item)
            (Todo. 42 "foo" false)))
     (is (= "<div><input type=\"checkbox\" value=\"false\"/>foo</div>"
            (test-util/render-to-text item)))))
 
 (deftest handle-message-simple
-  (let [item (test-util/instantiate&mount to-do-item (Todo. 42 "foo" false) nil)]
+  (let [item (test-util/instantiate&mount to-do-item (Todo. 42 "foo" false))]
     (let [[app-state _] (reacl/handle-message->state item true)]
       (is (= app-state (Todo. 42 "foo" true))))))
 
 (deftest to-do-elements
-  (let [e (to-do-item (Todo. 42 "foo" true) reacl/no-reaction)]
+  (let [e (to-do-item (Todo. 42 "foo" true))]
     (is (test-util/hiccup-matches? [:div [:input {:type "checkbox", :value true, :onChange fn?}] "foo"]
                                    (test-util/render->hiccup e)))))
 
 (deftest to-do-message
-  (let [e (to-do-item (Todo. 42 "foo" true) reacl/no-reaction)
+  (let [e (to-do-item (Todo. 42 "foo" true))
         renderer (js/React.addons.TestUtils.createRenderer)]
     (.render renderer e)
     (let [t (.getRenderOutput renderer)]
@@ -118,20 +118,20 @@
            (map dom-content divs)))))
 
 (deftest foo-element
-  (let [e (foo 42 reacl/no-reaction 12)]
+  (let [e (foo 42 12)]
     (is (reacl/has-class? foo e))
     (is (= [12] (reacl/extract-args e)))
     (is (= 42 (reacl/extract-initial-app-state e)))))
 
 (deftest foo-render
-  (let [e (foo 42 reacl/no-reaction 12)]
+  (let [e (foo 42 12)]
     (is (= [:span [:div "57"] [:div "76"]] (test-util/render->hiccup e)))))
 
 (reacl/defclass bar
   this app-state local-state []
   initial-state 1
   render
-  (dom/span (foo app-state reacl/no-reaction local-state))
+  (dom/span (foo app-state local-state))
   handle-message
   (fn [new]
     (reacl/return :local-state new)))
@@ -160,7 +160,7 @@
 (reacl/defclass blaz
   this app-state []
   render
-  (dom/span (blam 5 reacl/no-reaction)))
+  (dom/span (blam 5)))
   
 (deftest local-app-state-change-embed
   (let [item (test-util/instantiate&mount blaz 5)
@@ -172,7 +172,7 @@
 (reacl/defclass blaz2
   this app-state []
   render
-  (blam (* 2 app-state) reacl/no-reaction)
+  (blam (* 2 app-state))
   handle-message
   (fn [new]
     (reacl/return :app-state new)))

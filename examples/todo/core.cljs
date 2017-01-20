@@ -60,7 +60,7 @@
            (dom/keyed (str (:id todo))
                       (to-do-item
                        todo
-                       (reacl/reaction this ->Change)
+                       :reaction (reacl/reaction this ->Change)
                        this)))
          (:todos app-state)))
    (dom/form

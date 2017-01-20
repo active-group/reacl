@@ -235,22 +235,21 @@
 (defprotocol ^:no-doc HasReactClass
   (-react-class [clazz]))
 
-(defprotocol ^:no-doc IReaclClass
-  (-instantiate-toplevel [clazz app-state handle-action args])
-  (-instantiate-embedded [clazz app-state reaction args]))
-
-(defprotocol ^:no-doc IReaclView
-  (-instantiate [clazz args]))
-
 (defn react-class
   "Extract the React class from a Reacl class."
   [clazz]
   (-react-class clazz))
 
+(defprotocol ^:no-doc IReaclClass
+  (-compute-locals [clazz app-state args]))
+
+(defprotocol ^:no-doc IReaclView
+  (-instantiate [clazz args]))
+
 (defn has-class?
   "Find out if an element was generated from a certain Reacl class."
   [clazz element]
-  (identical? (.-type element) (-react-class clazz)))
+  (identical? (.-type element) (react-class clazz)))
 
 (defn ^:no-doc make-local-state
   "Make a React state containing Reacl local variables and local state.
@@ -274,88 +273,70 @@
 (defn ^:no-doc instantiate-toplevel-internal
   "Internal function to instantiate a Reacl component.
 
-  - `clazz` is the React class (not the Reacl class ...).
-  - `app-state` is the  application state.
-  - `handle-action` is a unary function that gets passed an action
-  - `args` are the arguments to the component.
-  - `locals` are the local variables of the components."
-  [clazz app-state handle-action args locals]
-  (js/React.createElement clazz 
-                          #js {:reacl_initial_app_state app-state
-                               :reacl_initial_locals locals
-                               :reacl_args args
-                               :reacl_handle_action handle-action}))
+  - `clazz` is the Reacl class
+  - `app-state` is the  application state."
+  [clazz app-state rest]
+  (loop [rest rest
+         handle-action (fn [_] nil)]
+    (if (or (empty? rest)
+            (not (keyword? (first rest))))
+      (js/React.createElement (react-class clazz)
+                              #js {:reacl_initial_app_state app-state
+                                   :reacl_initial_locals (-compute-locals clazz app-state rest)
+                                   :reacl_args rest
+                                   :reacl_handle_action handle-action})
+      (let [arg (second rest)
+            nxt (nnext rest)]
+        (case (first rest)
+          (:handle-action) (recur nxt arg)
+          (throw (str "invalid argument " (first rest) " to top-level instantiation")))))))
 
+(defn instantiate-toplevel
+  "For testing purposes mostly."
+  [clazz app-state & rest]
+  (instantiate-toplevel-internal clazz app-state rest))
+                         
 (defn ^:no-doc instantiate-embedded-internal
   "Internal function to instantiate an embedded Reacl component.
 
-  - `clazz` is the React class (not the Reacl class ...).
-  - `app-state` is the  application state.
-  - `reaction` is a reaction invoked with a new app state on changes; see [[reaction]].
-  - `args` are the arguments to the component.
-  - `locals` are the local variables of the components."
-  [clazz app-state reaction args locals]
-  (js/React.createElement clazz
-                          #js {:reacl_initial_app_state app-state
-                               :reacl_initial_locals locals
-                               :reacl_args args
-                               :reacl_reaction reaction
-                               :reacl_handle_action (fn [this cmd]
-                                                      (let [parent (aget (.-state this) "reacl_parent")
-                                                            parent-handle (aget (.-state parent) "reacl_handle_action")]
-                                                        (parent-handle cmd)))}))
-
-(defn instantiate-toplevel
-  "Instantiate a Reacl component at the top level.
-
-  - `clazz` is the Reacl class.
-  - `app-state` is the application state
-  - `handle-action` is a unary function that gets passed an action
-  - `args` are the arguments to the component."
-  [clazz app-state handle-action & args]
-  (-instantiate-toplevel clazz app-state handle-action args))
-
-(defn render-component-with-actions
-  "Instantiate and render a component into the DOM.
-
-  - `element` is the DOM element
-  - `clazz` is the Reacl clazz or view
-  - `handle-action` is a unary function that gets passed an action
-  - `args` are the arguments of the component,
-    which must start with the application state if `clazz` is a class."
-  ;; FIXME: argument order
-  [element clazz handle-action & args]
-  (js/ReactDOM.render
-   ;; TODO remove this hack, after introducing an initial-app-state
-   ;; clause (or drop support for classes here)
-   (if (satisfies? IReaclView clazz)
-     (-instantiate clazz args)
-     (apply instantiate-toplevel clazz (first args) handle-action (rest args)))
-   element))
+  - `clazz` is the Reacl class
+  - `app-state` is the  application state."
+  [clazz app-state rest]
+  (loop [rest rest
+         reaction no-reaction
+         transform-action identity]
+    (if (or (empty? rest)
+            (not (keyword? (first rest))))
+      (js/React.createElement (react-class clazz)
+                              #js {:reacl_initial_app_state app-state
+                                   :reacl_initial_locals (-compute-locals clazz app-state rest)
+                                   :reacl_args rest
+                                   :reacl_reaction reaction
+                                   :reacl_handle_action (fn [this cmd]
+                                                          (let [parent (aget (.-state this) "reacl_parent")
+                                                                parent-handle (aget (.-state parent) "reacl_handle_action")]
+                                                            (parent-handle cmd)))})
+      (let [arg (second rest)
+            nxt (nnext rest)]
+        (case (first rest)
+          (:reaction) (recur nxt arg transform-action)
+          (:transform-action) (recur nxt reaction arg)
+          (throw (str "invalid argument " (first rest) " to instantiation")))))))
 
 (defn render-component
   "Instantiate and render a component into the DOM.
 
   - `element` is the DOM element
   - `clazz` is the Reacl clazz or view
-  - `args` are the arguments of the component,
-    which must start with the application state if `clazz` is a class."
-  [element clazz & args]
-  (apply render-component-with-actions element clazz (fn [] nil) args))
-
-(defn embed
-  "Embed a Reacl component.
-
-  This creates a component with its own application state that can be
-  embedded in a surrounding application.  Any changes to the app state 
-  lead to the callback being invoked.
-
-  - `clazz` is the Reacl class.
-  - `app-state` is the application state.
-  - `reaction` is a reaction invoked with a new app state on changes; see [[reaction]].
-  - `args` are the arguments to the component."
-  [clazz app-state reaction & args]
-  (-instantiate-embedded clazz app-state reaction args))
+  - `rest` are the remaining arguments of the component FIXME"
+  [element clazz & rest]
+  (js/ReactDOM.render
+   ;; TODO remove this hack, after introducing an initial-app-state
+   ;; clause (or drop support for classes here)
+   (if (satisfies? IReaclView clazz)
+     (-instantiate clazz rest)
+     (instantiate-toplevel-internal clazz (first rest) (next rest)))
+   element))
 
 (defrecord ^{:doc "Type of a unique value to distinguish nil from no change of state.
             For internal use in [[reacl.core/return]] and [[reacl.core/set-state!]]."
@@ -653,19 +634,13 @@
           ]
       (reify
         IFn
-        (-invoke [this app-state reaction & args]
-          (-instantiate-embedded this app-state reaction args))
+        (-invoke [this app-state & rest]
+          (instantiate-embedded-internal this app-state rest))
         IReaclClass
-        (-instantiate-toplevel [this app-state handle-action args]
-          (instantiate-toplevel-internal react-class app-state handle-action args
-                                         (compute-locals app-state args)))
-        (-instantiate-embedded [this app-state reaction args]
-          (instantiate-embedded-internal react-class app-state
-                                         reaction args
-                                         (compute-locals app-state args)))
+        (-compute-locals [this app-state args]
+          (compute-locals app-state args))
         HasReactClass
-        (-react-class [this] react-class)
-        ))))
+        (-react-class [this] react-class)))))
 
 (def ^:private mixin-methods #{:component-will-mount :component-did-mount
                                :component-will-update :component-did-update
@@ -715,7 +690,7 @@
 
 (defn ^:no-doc class->view
   [clazz]
-  (let [react-class (-react-class clazz)
+  (let [react-class (react-class clazz)
         className (.-displayName react-class)
         error-reaction
         (fn [v]
@@ -726,7 +701,7 @@
         (-instantiate this args))
       IReaclView
       (-instantiate [this args]
-        (-instantiate-embedded clazz nil error-reaction args))
+        (instantiate-embedded-internal clazz nil args))
       HasReactClass
       (-react-class [this] react-class)
       )))

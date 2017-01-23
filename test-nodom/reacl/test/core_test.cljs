@@ -83,7 +83,6 @@
     (dom/button {:onclick (fn [e] (reacl/send-message! this (->Add (parse-contact new-text))))} "Add contact")))
   handle-message
   (fn [msg]
-    (println "Msg" msg)
     (cond
       (instance? Delete msg)
       (reacl/return :app-state
@@ -96,6 +95,36 @@
       (reacl/return :app-state (conj data (:contact msg))
                     :local-state ""))))
 
+; messages
+(defrecord NewComments [comments])
+(defrecord Refresh [])
+
+; action
+(defrecord RefreshMeEvery [component interval])
+(defrecord EdnXhr [component url make-message])
+
+(reacl/defclass comment-box
+  this comments []
+  render
+  (dom/div {:class "commentBox"}
+           (dom/h1 "Comments")
+           (dom/div {:class "commentList"}
+                    (map-indexed (fn [i comment]
+                                   (dom/keyed (str i) comment))
+                                 comments)))
+  handle-message
+  (fn [msg]
+    (println "handle-message" msg)
+    (cond
+      (instance? NewComments msg)
+      (reacl/return :app-state msg)
+
+      (instance? Refresh msg)
+      (reacl/return :action (EdnXhr. this "comments.edn" ->NewComments))))
+
+  component-did-mount
+  (fn []
+    (reacl/return :action (RefreshMeEvery. this 2000))))
 
 ;; Tests
 
@@ -118,12 +147,12 @@
         (is (reacl-test/element-has-type? c :li))))))
 
 (deftest contacts-display-handle-message-test
-  (let [st (reacl-test/handle-message contacts-display [{:first "David" :last "Frese"}] [] "Foo"
-                                      (->Add {:first "Mike" :last "Sperber"}))]
+  (let [[_ st] (reacl-test/handle-message contacts-display [{:first "David" :last "Frese"}] [] "Foo"
+                                          (->Add {:first "Mike" :last "Sperber"}))]
     (is (= [{:first "David", :last "Frese"} {:first "Mike", :last "Sperber"}]
            (:app-state st))))
-  (let [st (reacl-test/handle-message contacts-display [{:first "David" :last "Frese"}] [] "Foo"
-                                      (->NewText "David Frese"))]
+  (let [[_ st] (reacl-test/handle-message contacts-display [{:first "David" :last "Frese"}] [] "Foo"
+                                          (->NewText "David Frese"))]
     (is (= "David Frese"
            (:local-state st)))))
 
@@ -153,3 +182,10 @@
     (time (dotimes [n 10000]
             (dom/div mp (dom/br))))
     (assert true)))
+
+(deftest comments-action-test
+  (let [[cmp st] (reacl-test/handle-message comment-box ["foo" "bar" "baz"] [] nil (Refresh.))]
+    (is (= [(EdnXhr. cmp "comments.edn" ->NewComments)]
+           (:actions st)))))
+
+        

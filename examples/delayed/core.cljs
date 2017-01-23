@@ -29,12 +29,12 @@
   (do
     (dom/div
      (dom/p "What you enter in the text field below gets published immediately (via embed and local-state):")
-     (filter-input local-state :reaction (reacl/pass-through-reaction this))
+     (filter-input (reacl/opt :reaction (reacl/pass-through-reaction this)) local-state)
      
      (dom/hr)
      
      (dom/p "What you enter in the text filed below gets published after a delay of one second (via embed and local-state):")
-     (util/delayed local-state :reaction (reacl/pass-through-reaction this) filter-input 1000)
+     (util/delayed (reacl/opt :reaction (reacl/pass-through-reaction this)) local-state filter-input 1000)
 
      (dom/hr)
 

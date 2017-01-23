@@ -94,5 +94,5 @@
 (reacl/render-component
  (.getElementById js/document "content")
  comment-box
- []
- :handle-action handle-action)
+ (reacl/opt :handle-action handle-action)
+ [])

@@ -85,7 +85,7 @@
   this products search-params []
   render
   (dom/div
-   (search-bar search-params :reaction (reacl/pass-through-reaction this))
+   (search-bar (reacl/opt :reaction (reacl/pass-through-reaction this)) search-params)
    (product-table products
                   (:filter-text search-params)
                   (:in-stock-only? search-params)))

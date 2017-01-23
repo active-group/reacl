@@ -59,8 +59,8 @@
     (map (fn [todo]
            (dom/keyed (str (:id todo))
                       (to-do-item
+                       (reacl/opt :reaction (reacl/reaction this ->Change))
                        todo
-                       :reaction (reacl/reaction this ->Change)
                        this)))
          (:todos app-state)))
    (dom/form

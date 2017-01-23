@@ -267,68 +267,78 @@
       (not= args
             next-args)))
 
+(defrecord ^{:doc "Optional arguments for instantiation."}
+    Options
+    [map])
+
+(defn opt
+  "Create options for component instantiation.
+
+  Takes keyword arguments `:handle-action` (toplevel),
+  `:reaction` and `:transform-action` (embedded)."
+  [& {:as mp}]
+  (Options. mp))
+
+(defn ^:no-doc deconstruct-opt
+  [frst rst]
+  (if (instance? Options frst)
+    [(:map frst) rst]
+    [{} (cons frst rst)]))
+    
+
 (defn ^:no-doc instantiate-toplevel-internal
   "Internal function to instantiate a Reacl component.
 
   - `clazz` is the Reacl class
-  - `app-state` is the  application state."
-  [clazz app-state rest]
-  (loop [rest rest
-         handle-action (fn [_] nil)]
-    (if (or (empty? rest)
-            (not (keyword? (first rest))))
-      (js/React.createElement (react-class clazz)
-                              #js {:reacl_initial_app_state app-state
-                                   :reacl_initial_locals (-compute-locals clazz app-state rest)
-                                   :reacl_args rest
-                                   :reacl_handle_action handle-action})
-      (let [arg (second rest)
-            nxt (nnext rest)]
-        (case (first rest)
-          (:handle-action) (recur nxt arg)
-          (throw (str "invalid argument " (first rest) " to top-level instantiation")))))))
+  - `opts` is an object created with [[opt]]
+  - `args` is a seq of class arguments"
+  [clazz frst rst]
+  (let [[opts [app-state & args]] (deconstruct-opt frst rst)]
+    (js/React.createElement (react-class clazz)
+                            #js {:reacl_initial_app_state app-state
+                                 :reacl_initial_locals (-compute-locals clazz app-state args)
+                                 :reacl_args args
+                                 :reacl_handle_action (or (:handle-action opts) (fn [_] nil))})))
 
 (defn instantiate-toplevel
   "For testing purposes mostly."
-  [clazz app-state & rest]
-  (instantiate-toplevel-internal clazz app-state rest))
+    {:arglists '([clazz opts app-state args]
+               [clazz app-state args])}
+  [clazz frst & rst]
+  (instantiate-toplevel-internal clazz frst rst))
                          
 (defn ^:no-doc instantiate-embedded-internal
   "Internal function to instantiate an embedded Reacl component.
 
   - `clazz` is the Reacl class
-  - `app-state` is the  application state."
-  [clazz app-state rest]
-  (loop [rest rest
-         reaction no-reaction
-         transform-action identity]
-    (if (or (empty? rest)
-            (not (keyword? (first rest))))
-      (js/React.createElement (react-class clazz)
-                              #js {:reacl_initial_app_state app-state
-                                   :reacl_initial_locals (-compute-locals clazz app-state rest)
-                                   :reacl_args rest
-                                   :reacl_reaction reaction
-                                   :reacl_handle_action (fn [this cmd]
-                                                          (let [parent (aget (.-state this) "reacl_parent")
-                                                                parent-handle (aget (.-state parent) "reacl_handle_action")]
-                                                            (parent-handle cmd)))})
-      (let [arg (second rest)
-            nxt (nnext rest)]
-        (case (first rest)
-          (:reaction) (recur nxt arg transform-action)
-          (:transform-action) (recur nxt reaction arg)
-          (throw (str "invalid argument " (first rest) " to instantiation")))))))
+  - `opts` is an object created with [[opt]]
+  - `args` is a seq of class arguments"
+  {:arglists '([opts app-state args]
+               [app-state args])}
+  [clazz frst rst]
+  (let [[opts [app-state & args]] (deconstruct-opt frst rst)]
+    (js/React.createElement (react-class clazz)
+                            #js {:reacl_initial_app_state app-state
+                                 :reacl_initial_locals (-compute-locals clazz app-state args)
+                                 :reacl_args args
+                                 :reacl_reaction (or (:reaction opts) no-reaction)
+                                 :reacl_handle_action (fn [this cmd]
+                                                        (let [parent (aget (.-state this) "reacl_parent")
+                                                              parent-handle (aget (.-state parent) "reacl_handle_action")]
+                                                          (parent-handle cmd)))})))
 
 (defn render-component
   "Instantiate and render a component into the DOM.
 
+  - `clazz` is the Reacl class
   - `element` is the DOM element
-  - `clazz` is the Reacl clazz
-  - `rest` are the remaining arguments of the component FIXME"
-  [element clazz & rest]
+  - `opts` is an object created with [[opt]]
+  - `args` is a seq of class arguments"
+  {:arglists '([element clazz opts app-state args]
+               [element clazz app-state args])}
+  [element clazz frst & rst]
   (js/ReactDOM.render
-   (instantiate-toplevel-internal clazz (first rest) (next rest))
+   (instantiate-toplevel-internal clazz frst rst)
    element))
 
 (defrecord ^{:doc "Type of a unique value to distinguish nil from no change of state.
@@ -630,8 +640,8 @@
           ]
       (reify
         IFn
-        (-invoke [this app-state & rest]
-          (instantiate-embedded-internal this app-state rest))
+        (-invoke [this frst & rst]
+          (instantiate-embedded-internal this frst rst))
         IReaclClass
         (-compute-locals [this app-state args]
           (compute-locals app-state args))

@@ -49,7 +49,6 @@
 ; messages
 (defrecord NewComments [comments])
 (defrecord Refresh [])
-(defrecord DidMount [])
 
 ; action
 (defrecord RefreshMeEvery [component interval])
@@ -70,15 +69,12 @@
                            (Comment. (:author e) (:text e)))
                          (:comments msg)))
 
-      (instance? DidMount msg)
-      (reacl/return :action (RefreshMeEvery. this 2000))
-
       (instance? Refresh msg)
       (reacl/return :action (EdnXhr. this "comments.edn" ->NewComments))))
 
   component-did-mount
   (fn []
-    (reacl/send-message! this (DidMount.))))
+    (reacl/return :action (RefreshMeEvery. this 2000))))
 
 (defn handle-action
   [action]
@@ -98,5 +94,5 @@
 (reacl/render-component
  (.getElementById js/document "content")
  comment-box
- :handle-action handle-action
- [])
+ []
+ :handle-action handle-action)

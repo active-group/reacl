@@ -423,21 +423,25 @@
     (doseq [a actions]
       (handle a))))
 
+(defn handle-returned!
+  "Handle all effects described in a [[Returned]] object."
+  [comp ret]
+  (set-state! comp ret)
+  (handle-actions! comp (:actions ret)))
+  
 (defn send-message!
   "Send a message to a Reacl component.
 
   Returns the `Returned` object returned by the message handler."
   [comp msg]
   (let [ret (handle-message comp msg)]
-    (set-state! comp ret)
-    (handle-actions! comp (:actions ret))
+    (handle-returned! comp ret)
     ret))
 
-(defn opt-set-state! [component v]
+(defn opt-handle-returned! [component v]
   (when v
     (assert (instance? Returned v))
-    ;; FIXME: make analogous to send-message!
-    (set-state! component v)))
+    (handle-returned! component v)))
 
 ;; Attention: duplicate definition for macro in core.clj
 (def ^:private specials #{:render :initial-state :handle-message
@@ -512,7 +516,7 @@
             (apply std
                    (when f
                      (fn [this & args]
-                       (opt-set-state! this (apply f this args))))
+                       (opt-handle-returned! this (apply f this args))))
                    flags))
           ;; and one arg with next/prev-props
           with-props-and-args
@@ -573,8 +577,7 @@
             (std+state component-will-mount)
 
             "componentDidMount"
-            ;; FIXME: why is this not std+state?
-            (let [user (std component-did-mount)]
+            (let [user (std+state component-did-mount)]
               (fn []
                 (this-as this
                   ;; http://stackoverflow.com/questions/32855077/react-get-bound-parent-dom-element-name-within-component
@@ -593,7 +596,7 @@
                          (.setState this #js {:reacl_app_state (props-extract-initial-app-state next-props)})
                          (when f
                            ;; must preserve 'this' here via .call!
-                           (opt-set-state! this (.call f this next-props))))))
+                           (opt-handle-returned! this (.call f this next-props))))))
 
             "shouldComponentUpdate"
             (let [f (with-state-and-args should-component-update?)]
@@ -674,8 +677,8 @@
         pass-through (fn [this res] res)
         entries (filter identity
                         (vector 
-                         (entry :component-did-mount "componentDidMount" pass-through)
-                         (entry :component-will-mount "componentWillMount" (fn [this res] (opt-set-state! this res)))
+                         (entry :component-did-mount "componentDidMount" (fn [this res] (opt-handle-returned! this res)))
+                         (entry :component-will-mount "componentWillMount" (fn [this res] (opt-handle-returned! this res)))
                          (entry :component-will-unmount "componentWillUnmount" pass-through)
                          (app+local-entry :component-will-update "componentWillUpdate")
                          (app+local-entry :component-did-update "componentDidUpdate")

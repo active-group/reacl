@@ -243,9 +243,6 @@
 (defprotocol ^:no-doc IReaclClass
   (-compute-locals [clazz app-state args]))
 
-(defprotocol ^:no-doc IReaclView
-  (-instantiate [clazz args]))
-
 (defn has-class?
   "Find out if an element was generated from a certain Reacl class."
   [clazz element]
@@ -327,15 +324,11 @@
   "Instantiate and render a component into the DOM.
 
   - `element` is the DOM element
-  - `clazz` is the Reacl clazz or view
+  - `clazz` is the Reacl clazz
   - `rest` are the remaining arguments of the component FIXME"
   [element clazz & rest]
   (js/ReactDOM.render
-   ;; TODO remove this hack, after introducing an initial-app-state
-   ;; clause (or drop support for classes here)
-   (if (satisfies? IReaclView clazz)
-     (-instantiate clazz rest)
-     (instantiate-toplevel-internal clazz (first rest) (next rest)))
+   (instantiate-toplevel-internal clazz (first rest) (next rest))
    element))
 
 (defrecord ^{:doc "Type of a unique value to distinguish nil from no change of state.
@@ -691,20 +684,3 @@
                            [name (fnfn arg-fns)])
                          entries))))))
 
-(defn ^:no-doc class->view
-  [clazz]
-  (let [react-class (react-class clazz)
-        className (.-displayName react-class)
-        error-reaction
-        (fn [v]
-          (throw (str "Error: " className " tried to return an app-state, but it is a view. Use defclass for programm elements with an app-state.")))]
-    (reify
-      IFn
-      (-invoke [this & args]
-        (-instantiate this args))
-      IReaclView
-      (-instantiate [this args]
-        (instantiate-embedded-internal clazz nil args))
-      HasReactClass
-      (-react-class [this] react-class)
-      )))

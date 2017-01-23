@@ -113,16 +113,10 @@
                                        todo))
                                    (:todos app-state))))))))
 
-(reacl/defview demo
-  this []
-  render
-  (to-do-app (TodosApp. 0 [])
-             ;; ignore changes in demo
-             reacl/no-reaction))
-
 (reacl/render-component
  (.getElementById js/document "content")
- demo)
+ to-do-app
+ (TodosApp. 0 []))
 
 
           

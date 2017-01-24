@@ -68,8 +68,8 @@
 (defrecord Add [contact])
 
 (reacl/defclass contacts-display
-  this data new-text []
-  initial-state ""
+  this data []
+  local-state [new-text ""]
   render
   (dom/div
    (dom/h2 "Contact list")

@@ -180,13 +180,15 @@
 
   (let [[?component ?stuff] (split-symbol ?stuff `component#)
         [?app-state ?stuff] (split-symbol ?stuff `app-state#)
-        [?local-state ?stuff] (split-symbol ?stuff `local-state#)
 
-        [[& ?args] & ?clauses] ?stuff
+        [[& ?args] & ?clauses] ?stuff ; FIXME: simplify, also mixin
 
         ?clause-map (apply hash-map ?clauses)
         ?locals-clauses (get ?clause-map 'local [])
         ?locals-ids (map first (partition 2 ?locals-clauses))
+
+        [?local-state ?initial-state-expr] (or (get ?clause-map 'local-state)
+                                               [`local-state# nil])
 
         ?wrap-expression (fn [?sym]
                            (let [?exists (contains? ?clause-map ?sym)
@@ -194,9 +196,10 @@
                              (when ?exists
                                `(fn [] ~?expr))))
         ?render-fn (?wrap-expression 'render)
-        ?initial-state-fn (?wrap-expression 'initial-state)
+        ?initial-state-fn (and ?initial-state-expr
+                               `(fn [] ~?initial-state-expr))
 
-        ?other-fns-map (dissoc ?clause-map 'local 'render 'initial-state 'mixins)
+        ?other-fns-map (dissoc ?clause-map 'local 'render 'mixins 'local-state)
         ?misc-fns-map (apply dissoc ?other-fns-map
                              special-tags)
 

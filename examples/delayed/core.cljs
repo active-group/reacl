@@ -22,8 +22,8 @@
  (fn [data]
    (reacl/return :app-state data)))
 
-(reacl/defclass filter-parent this state local-state []
-  initial-state ""
+(reacl/defclass filter-parent this state []
+  local-state [local-state ""]
 
   render 
   (do

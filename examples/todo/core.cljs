@@ -48,9 +48,9 @@
 (defrecord Change [todo])
 
 (reacl/defclass to-do-app
-  this app-state local-state []
+  this app-state []
 
-  initial-state ""
+  local-state [local-state ""]
 
   render
   (dom/div

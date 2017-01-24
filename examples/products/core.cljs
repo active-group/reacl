@@ -82,7 +82,10 @@
      (reacl/return :app-state (assoc params :in-stock-only? (:value msg))))))
 
 (reacl/defclass filterable-product-table
-  this products search-params []
+  this products []
+
+  local-state [search-params (SearchParams. "" false)]
+
   render
   (dom/div
    (search-bar (reacl/opt :reaction (reacl/pass-through-reaction this)) search-params)
@@ -90,8 +93,6 @@
                   (:filter-text search-params)
                   (:in-stock-only? search-params)))
 
-  initial-state (SearchParams. "" false)
-  
   handle-message
   (fn [msg]
     (reacl/return :local-state msg)))

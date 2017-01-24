@@ -95,12 +95,11 @@
 (deftest initial-state-test
   (testing "initial-state-test sees app-state, locals and args"
     (let [item (test-util/instantiate&mount
-                (reacl/class "initial-state-test" this app-state local-state [arg1]
-                             initial-state
-                             (do (is (= app-state "app-state"))
-                                 (is (= arg1 "arg1"))
-                                 (is (= local1 "local1"))
-                                 "local-state")
+                (reacl/class "initial-state-test" this app-state [arg1]
+                             local-state [local-state (do (is (= app-state "app-state"))
+                                                          (is (= arg1 "arg1"))
+                                                          (is (= local1 "local1"))
+                                                          "local-state")]
                              local [local1 "local1"]
                              render
                              (do
@@ -128,8 +127,8 @@
     (is (= [:span [:div "57"] [:div "76"]] (test-util/render->hiccup e)))))
 
 (reacl/defclass bar
-  this app-state local-state []
-  initial-state 1
+  this app-state []
+  local-state [local-state 1]
   render
   (dom/span (foo app-state local-state))
   handle-message

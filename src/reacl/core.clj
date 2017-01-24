@@ -181,7 +181,7 @@
   (let [[?component ?stuff] (split-symbol ?stuff `component#)
         [?app-state ?stuff] (split-symbol ?stuff `app-state#)
 
-        [[& ?args] & ?clauses] ?stuff ; FIXME: simplify, also mixin
+        [?args & ?clauses] ?stuff
 
         ?clause-map (apply hash-map ?clauses)
         ?locals-clauses (get ?clause-map 'local [])
@@ -190,12 +190,8 @@
         [?local-state ?initial-state-expr] (or (get ?clause-map 'local-state)
                                                [`local-state# nil])
 
-        ?wrap-expression (fn [?sym]
-                           (let [?exists (contains? ?clause-map ?sym)
-                                 ?expr (get ?clause-map ?sym)]
-                             (when ?exists
-                               `(fn [] ~?expr))))
-        ?render-fn (?wrap-expression 'render)
+        ?render-fn (when-let [?expr (get ?clause-map 'render)]
+                     `(fn [] ~?expr))
         ?initial-state-fn (and ?initial-state-expr
                                `(fn [] ~?initial-state-expr))
 
@@ -203,14 +199,7 @@
         ?misc-fns-map (apply dissoc ?other-fns-map
                              special-tags)
 
-        ?wrap-nlocal
-        (fn [?f]
-          (if ?f
-            (let [?more `more#]
-              `(fn [~?component ~?app-state [~@?locals-ids] [~@?args] & ~?more]
-                 (apply ~?f ~?more)))
-            'nil))
-        ?wrap-std ;; reuse wrap-nlocal?!
+        ?wrap-std
         (fn [?f]
           (if ?f
             (let [?more `more#]
@@ -223,7 +212,13 @@
         ?std-fns-map (assoc ?other-fns-map
                        'render ?render-fn)
 
-        ?wrapped-nlocals [['initial-state (?wrap-nlocal ?initial-state-fn)]]
+        ?wrapped-nlocals [['initial-state
+                           (if ?initial-state-expr
+                             `(fn [~?component ~?app-state ~?local-state [~@?locals-ids] [~@?args]]
+                                ;; every user misc fn is also visible
+                                (let [~@(mapcat (fn [[n f]] [n `(aget ~?component ~(str n))]) ?misc-fns-map)]
+                                  ~?initial-state-expr))
+                             `nil)]
 
         ?wrapped-std (map (fn [[?n ?f]] [?n (?wrap-std ?f)])
                           ?std-fns-map)
@@ -289,7 +284,7 @@
         [?app-state ?stuff] (split-symbol ?stuff `app-state#)
         [?local-state ?stuff] (split-symbol ?stuff `local-state#)
           
-        [[& ?args] & ?clauses] ?stuff
+        [?args & ?clauses] ?stuff
 
         ?clause-map (apply hash-map ?clauses)
         ?wrap (fn [?f]

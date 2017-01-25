@@ -291,7 +291,10 @@
 
   - `clazz` is the Reacl class
   - `opts` is an object created with [[opt]]
+  - `app-state` is the application state
   - `args` is a seq of class arguments"
+  {:arglists '([opts app-state & args]
+               [app-state & args])}
   [clazz frst rst]
   (let [[opts [app-state & args]] (deconstruct-opt frst rst)]
     (js/React.createElement (react-class clazz)
@@ -302,8 +305,8 @@
 
 (defn instantiate-toplevel
   "For testing purposes mostly."
-    {:arglists '([clazz opts app-state args]
-               [clazz app-state args])}
+  {:arglists '([clazz opts app-state & args]
+               [clazz app-state & args])}
   [clazz frst & rst]
   (instantiate-toplevel-internal clazz frst rst))
                          
@@ -312,9 +315,10 @@
 
   - `clazz` is the Reacl class
   - `opts` is an object created with [[opt]]
+  - `app-state` is the application state
   - `args` is a seq of class arguments"
-  {:arglists '([opts app-state args]
-               [app-state args])}
+  {:arglists '([opts app-state & args]
+               [app-state & args])}
   [clazz frst rst]
   (let [[opts [app-state & args]] (deconstruct-opt frst rst)]
     (js/React.createElement (react-class clazz)
@@ -330,12 +334,13 @@
 (defn render-component
   "Instantiate and render a component into the DOM.
 
-  - `clazz` is the Reacl class
   - `element` is the DOM element
+  - `clazz` is the Reacl class
   - `opts` is an object created with [[opt]]
+  - `app-state` is the application state
   - `args` is a seq of class arguments"
-  {:arglists '([element clazz opts app-state args]
-               [element clazz app-state args])}
+  {:arglists '([element clazz opts app-state & args]
+               [element clazz app-state & args])}
   [element clazz frst & rst]
   (js/ReactDOM.render
    (instantiate-toplevel-internal clazz frst rst)

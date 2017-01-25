@@ -21,7 +21,7 @@
   (dom/li {:style {:background-color bgc}} text))
 
 (reacl/defclass list-display
-  this lis []
+  this [lis]
   render
   (dom/ul {:class "animals"}
           (map (fn [bgc keyn text]

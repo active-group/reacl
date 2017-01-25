@@ -30,7 +30,7 @@
 (defrecord Comment [author text])
 
 (reacl/defclass comment-entry
-  this comment []
+  this [comment]
   render
   (let [author (:author comment)
         text (:text comment)]
@@ -39,7 +39,7 @@
              text)))
 
 (reacl/defclass comment-list
-  this comments []
+  this [comments]
   render
   (dom/div {:class "commentList"}
            (map-indexed (fn [i comment]

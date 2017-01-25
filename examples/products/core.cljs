@@ -23,7 +23,7 @@
        (dom/td (str (:price product))))))
 
 (reacl/defclass product-table
-  this products [filter-text in-stock-only?]
+  this [products filter-text in-stock-only?]
   render
   (let [rows
         (mapcat (fn [product last-product]
@@ -82,7 +82,7 @@
      (reacl/return :app-state (assoc params :in-stock-only? (:value msg))))))
 
 (reacl/defclass filterable-product-table
-  this products []
+  this [products]
 
   local-state [search-params (SearchParams. "" false)]
 
@@ -92,7 +92,7 @@
    (product-table products
                   (:filter-text search-params)
                   (:in-stock-only? search-params)))
-
+    
   handle-message
   (fn [msg]
     (reacl/return :local-state msg)))

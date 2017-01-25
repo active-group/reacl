@@ -232,6 +232,7 @@
   (.setState this (app-state+recompute-locals-state #js {} this app-state))
   (app-state-changed! this app-state))
 
+;; FIXME: merge this into IReaclClass?
 (defprotocol ^:no-doc HasReactClass
   (-react-class [clazz]))
 
@@ -241,6 +242,7 @@
   (-react-class clazz))
 
 (defprotocol ^:no-doc IReaclClass
+  (-instantiate-toplevel-internal [clazz rst])
   (-compute-locals [clazz app-state args]))
 
 (defn has-class?
@@ -280,11 +282,21 @@
   (Options. mp))
 
 (defn ^:no-doc deconstruct-opt
-  [frst rst]
-  (if (instance? Options frst)
-    [(:map frst) rst]
-    [{} (cons frst rst)]))
-    
+  [rst]
+  (if (empty? rst)
+    [{} rst]
+    (let [frst (first rst)]
+      (if (instance? Options frst)
+        [(:map frst) (rest rst)]
+        [{} rst]))))
+
+(defn ^:no-doc deconstruct-opt+app-state
+  [has-app-state? rst]
+  (let [[opts rst] (deconstruct-opt rst)
+        [app-state args] (if has-app-state?
+                           [(first rst) (rest rst)]
+                           [nil rst])]
+    [opts app-state args]))
 
 (defn ^:no-doc instantiate-toplevel-internal
   "Internal function to instantiate a Reacl component.
@@ -293,10 +305,12 @@
   - `opts` is an object created with [[opt]]
   - `app-state` is the application state
   - `args` is a seq of class arguments"
-  {:arglists '([opts app-state & args]
-               [app-state & args])}
-  [clazz frst rst]
-  (let [[opts [app-state & args]] (deconstruct-opt frst rst)]
+  {:arglists '([clazz opts app-state & args]
+               [clazz app-state & args]
+               [clazz opts & args]
+               [clazz & args])}
+  [clazz has-app-state? rst]
+  (let [[opts app-state args] (deconstruct-opt+app-state has-app-state? rst)]
     (js/React.createElement (react-class clazz)
                             #js {:reacl_initial_app_state app-state
                                  :reacl_initial_locals (-compute-locals clazz app-state args)
@@ -305,10 +319,11 @@
 
 (defn instantiate-toplevel
   "For testing purposes mostly."
+  ;; FIXME: make app-state optional here, too?
   {:arglists '([clazz opts app-state & args]
                [clazz app-state & args])}
   [clazz frst & rst]
-  (instantiate-toplevel-internal clazz frst rst))
+  (instantiate-toplevel-internal clazz true (cons frst rst)))
                          
 (defn ^:no-doc instantiate-embedded-internal
   "Internal function to instantiate an embedded Reacl component.
@@ -317,10 +332,12 @@
   - `opts` is an object created with [[opt]]
   - `app-state` is the application state
   - `args` is a seq of class arguments"
-  {:arglists '([opts app-state & args]
-               [app-state & args])}
-  [clazz frst rst]
-  (let [[opts [app-state & args]] (deconstruct-opt frst rst)]
+  {:arglists '([clazz opts app-state & args]
+               [clazz app-state & args]
+               [clazz opts & args]
+               [& args])}
+  [clazz has-app-state? rst]
+  (let [[opts app-state args] (deconstruct-opt+app-state has-app-state? rst)]
     (js/React.createElement (react-class clazz)
                             #js {:reacl_initial_app_state app-state
                                  :reacl_initial_locals (-compute-locals clazz app-state args)
@@ -340,10 +357,12 @@
   - `app-state` is the application state
   - `args` is a seq of class arguments"
   {:arglists '([element clazz opts app-state & args]
-               [element clazz app-state & args])}
-  [element clazz frst & rst]
+               [element clazz app-state & args]
+               [element clazz opts & args]
+               [element clazz & args])}
+  [element clazz & rst]
   (js/ReactDOM.render
-   (instantiate-toplevel-internal clazz frst rst)
+   (-instantiate-toplevel-internal clazz rst)
    element))
 
 (defrecord ^{:doc "Type of a unique value to distinguish nil from no change of state.
@@ -466,7 +485,7 @@
 
 ;; FIXME: just pass all the lifecycle etc. as separate arguments
 
-(defn create-class [display-name mixins compute-locals fns]
+(defn create-class [display-name mixins has-app-state? compute-locals fns]
   ;; split special functions and miscs
   (let [{specials true misc false} (group-by is-special-fn? fns)
         {:keys [render
@@ -645,9 +664,11 @@
           ]
       (reify
         IFn
-        (-invoke [this frst & rst]
-          (instantiate-embedded-internal this frst rst))
+        (-invoke [this & rst]
+          (instantiate-embedded-internal this has-app-state? rst))
         IReaclClass
+        (-instantiate-toplevel-internal [this rst]
+          (instantiate-toplevel-internal this has-app-state? rst))
         (-compute-locals [this app-state args]
           (compute-locals app-state args))
         HasReactClass

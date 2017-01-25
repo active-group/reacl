@@ -179,7 +179,9 @@
   [?name & ?stuff]
 
   (let [[?component ?stuff] (split-symbol ?stuff `component#)
-        [?app-state ?stuff] (split-symbol ?stuff `app-state#)
+        [has-app-state? ?app-state ?stuff] (if (symbol? (first ?stuff))
+                                             [true (first ?stuff) (rest ?stuff)]
+                                             [false `app-state# ?stuff])
 
         [?args & ?clauses] ?stuff
 
@@ -214,11 +216,11 @@
 
         ?wrapped-nlocals [['initial-state
                            (if ?initial-state-expr
-                             `(fn [~?component ~?app-state ~?local-state [~@?locals-ids] [~@?args]]
+                             `(fn [~?component ~?app-state [~@?locals-ids] [~@?args]]
                                 ;; every user misc fn is also visible
                                 (let [~@(mapcat (fn [[n f]] [n `(aget ~?component ~(str n))]) ?misc-fns-map)]
                                   ~?initial-state-expr))
-                             `nil)]
+                             `nil)]]
 
         ?wrapped-std (map (fn [[?n ?f]] [?n (?wrap-std ?f)])
                           ?std-fns-map)
@@ -246,7 +248,7 @@
            (let ~?locals-clauses
              [~@?locals-ids]))
         ]
-    `(reacl.core/create-class ~?name ~(if ?mixins `[~@?mixins] `nil)  ~?compute-locals ~?fns)))
+    `(reacl.core/create-class ~?name ~(if ?mixins `[~@?mixins] `nil) ~has-app-state? ~?compute-locals ~?fns)))
 
 (defmacro defclass
   "Define a Reacl class, see [[class]] for documentation.

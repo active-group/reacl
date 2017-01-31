@@ -310,12 +310,17 @@
                [clazz opts & args]
                [clazz & args])}
   [clazz has-app-state? rst]
-  (let [[opts app-state args] (deconstruct-opt+app-state has-app-state? rst)]
+  (let [[opts app-state args] (deconstruct-opt+app-state has-app-state? rst)
+        handle-action (if-let [handle-action (:handle-action opts)]
+                        (fn [this action]
+                          (handle-action action))
+                        (fn [this action]
+                          nil))]
     (js/React.createElement (react-class clazz)
                             #js {:reacl_initial_app_state app-state
                                  :reacl_initial_locals (-compute-locals clazz app-state args)
                                  :reacl_args args
-                                 :reacl_handle_action (or (:handle-action opts) (fn [_] nil))})))
+                                 :reacl_handle_action handle-action})))
 
 (defn instantiate-toplevel
   "For testing purposes mostly."
@@ -337,16 +342,17 @@
                [clazz opts & args]
                [& args])}
   [clazz has-app-state? rst]
-  (let [[opts app-state args] (deconstruct-opt+app-state has-app-state? rst)]
+  (let [[opts app-state args] (deconstruct-opt+app-state has-app-state? rst)
+        transform-action (or (:transform-action opts) identity)]
     (js/React.createElement (react-class clazz)
                             #js {:reacl_initial_app_state app-state
                                  :reacl_initial_locals (-compute-locals clazz app-state args)
                                  :reacl_args args
                                  :reacl_reaction (or (:reaction opts) no-reaction)
-                                 :reacl_handle_action (fn [this cmd]
-                                                        (let [parent (aget (.-state this) "reacl_parent")
-                                                              parent-handle (aget (.-state parent) "reacl_handle_action")]
-                                                          (parent-handle cmd)))})))
+                                 :reacl_handle_action (fn [this action]
+                                                        (let [parent (aget (.-context this) "reacl_parent")
+                                                              parent-handle (aget (.-props parent) "reacl_handle_action")]
+                                                          (parent-handle parent (transform-action action))))})))
 
 (defn render-component
   "Instantiate and render a component into the DOM.
@@ -448,7 +454,7 @@
   [comp actions]
   (let [handle (aget (.-props comp) "reacl_handle_action")]
     (doseq [a actions]
-      (handle a))))
+      (handle comp a))))
 
 (defn handle-returned!
   "Handle all effects described in a [[Returned]] object."
@@ -603,13 +609,12 @@
             "componentWillMount"
             (std+state component-will-mount)
 
+            "getChildContext" (fn []
+                                (this-as this 
+                                  #js {:reacl_parent this}))
+
             "componentDidMount"
-            (let [user (std+state component-did-mount)]
-              (fn []
-                (this-as this
-                  ;; http://stackoverflow.com/questions/32855077/react-get-bound-parent-dom-element-name-within-component
-                  (.setState this #js {:reacl_parent (.-parentNode (js/ReactDOM.findDOMNode this))})
-                  (when user (.call user this)))))
+            (std+state component-did-mount)
 
             "componentWillReceiveProps"
             (let [f (with-args component-will-receive-args)]
@@ -662,6 +667,8 @@
                                             (filter #(not (nil? (second %)))
                                                     react-method-map))))
           ]
+      (aset react-class "childContextTypes" #js {:reacl_parent js/React.PropTypes.object})
+       (aset react-class "contextTypes" #js {:reacl_parent js/React.PropTypes.object})
       (reify
         IFn
         (-invoke [this & rst]

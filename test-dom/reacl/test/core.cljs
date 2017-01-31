@@ -182,3 +182,27 @@
     (reacl/send-message! item 6)
     (is (= ["19"] ;; 2*6+7
            (map dom-content (doms-with-tag item "div"))))))
+
+(reacl/defclass action-class1
+  this []
+  render (dom/div "foo")
+
+  component-will-mount
+  (fn []
+    (reacl/return :action :action)))
+
+(reacl/defclass action-class2
+  this []
+  render (dom/div (action-class1 (reacl/opt :transform-action
+                                            (fn [action]
+                                              (case action
+                                                (:action) :this-action
+                                                :another-action))))))
+
+
+(deftest transform-action-test
+  (let [msga (atom nil)
+        item (test-util/instantiate&mount action-class2 (reacl/opt :handle-action
+                                                                   (fn [msg]
+                                                                     (reset! msga msg))))]
+    (is (= :this-action @msga))))

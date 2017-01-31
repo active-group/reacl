@@ -11,14 +11,14 @@
 
 ; see http://stackoverflow.com/questions/22463156/updating-react-component-state-in-jasmine-test
 (defn instantiate&mount
-  [clazz app-state & args]
+  [clazz & args]
   (let [div (js/document.createElement "div")]
-    (apply reacl/render-component div clazz app-state args)))
+    (apply reacl/render-component div clazz args)))
 
-(defn- test-class* [clazz app-state & args]
+(defn- test-class* [clazz & args]
   (let [root (js/document.createElement "div")
         ;;_ (.appendChild (.-body js/document) root)
-        comp (apply reacl/render-component root clazz app-state args)]
+        comp (apply reacl/render-component root clazz args)]
     {:send-message! #(reacl/send-message! comp %)
      :get-app-state! #(reacl/extract-current-app-state comp)
      :get-local-state! #(reacl/extract-local-state comp)
@@ -45,8 +45,8 @@
      (after (set-lang-message \"de\")
             (the-dom #(is (= \"Hallo Welt\" (.-innerText %))))))
 "
-  [[clazz init-app-state & args] initial-check & interactions]
-  (let [utils (apply test-class* clazz init-app-state args)]
+  [[clazz & args] initial-check & interactions]
+  (let [utils (apply test-class* clazz args)]
     (initial-check utils)
     (doseq [interaction interactions]
       (doseq [check (interaction utils)]

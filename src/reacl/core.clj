@@ -248,7 +248,7 @@
            (let ~?locals-clauses
              [~@?locals-ids]))
         ]
-    `(reacl.core/create-class ~?name ~(if ?mixins `[~@?mixins] `nil) ~has-app-state? ~?compute-locals ~?fns)))
+    `(reacl2.core/create-class ~?name ~(if ?mixins `[~@?mixins] `nil) ~has-app-state? ~?compute-locals ~?fns)))
 
 (defmacro defclass
   "Define a Reacl class, see [[class]] for documentation.
@@ -274,7 +274,7 @@
 
           <event-handler-name> <event-handler-exp> ...))"
   [?name & ?stuff]
-  `(def ~?name (reacl.core/class ~(str ?name) ~@?stuff)))
+  `(def ~?name (reacl2.core/class ~(str ?name) ~@?stuff)))
 
 ;; (mixin [<this-name> [<app-state-name> [<local-state-name>]]] [<param> ...])
 
@@ -298,5 +298,5 @@
         ?wrapped (into {}
                        (map (fn [[?n ?f]] [(keyword ?n) (?wrap ?f)])
                             ?clause-map))]
-    `(reacl.core/create-mixin ~?wrapped)))
+    `(reacl2.core/create-mixin ~?wrapped)))
 

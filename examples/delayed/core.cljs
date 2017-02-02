@@ -3,9 +3,9 @@
 ; http://localhost:8000/index.html
 
 (ns examples.delayed.core
-  (:require [reacl.core :as reacl :include-macros true]
-            [reacl.dom :as dom :include-macros true]
-            [reacl.util :as util]))
+  (:require [reacl2.core :as reacl :include-macros true]
+            [reacl2.dom :as dom :include-macros true]
+            [reacl2.util :as util]))
 
 (enable-console-print!)
 

@@ -28,14 +28,14 @@
              {:id "test-dom"
               :source-paths ["src" "test-dom"]
               :compiler {:output-to "target/test-dom.js"
-                         :main reacl.test.runner
+                         :main reacl2.test.runner
                          :optimizations :none}}
 
              ;; these can run under Nashorn
              {:id "test-nodom"
               :source-paths ["src" "test-nodom"]
               :compiler {:output-to "target/test-nodom.js"
-                         :main reacl.test.runner
+                         :main reacl2.test.runner
                          :optimizations :whitespace}}
              
               ;; examples
@@ -51,6 +51,13 @@
                :compiler {:output-to "target/todo/main.js"
                           :output-dir "target/todo/out"
                           :source-map "target/todo/main.map"
+                          :optimizations :whitespace
+                          :parallel-build true}}
+             {:id "todo-reacl1"
+               :source-paths ["src" "examples/todo-reacl1"]
+               :compiler {:output-to "target/todo-reacl1/main.js"
+                          :output-dir "target/todo-reacl1/out"
+                          :source-map "target/todo-reacl1/main.map"
                           :optimizations :whitespace
                           :parallel-build true}}
               {:id "comments"

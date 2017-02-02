@@ -1,7 +1,7 @@
-(ns reacl.test.core
-  (:require [reacl.core :as reacl :include-macros true]
-            [reacl.dom :as dom :include-macros true]
-            [reacl.test-util :as test-util]
+(ns reacl2.test.core
+  (:require [reacl2.core :as reacl :include-macros true]
+            [reacl2.dom :as dom :include-macros true]
+            [reacl2.test-util :as test-util]
             [active.clojure.lens :as lens]
             [cljsjs.react]
             [cljs.test :as t])

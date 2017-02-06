@@ -354,6 +354,18 @@
                                                               parent-handle (aget (.-props parent) "reacl_handle_action")]
                                                           (parent-handle parent (transform-action action))))})))
 
+(defn ^:no-doc instantiate-embedded-internal-v1
+  [clazz app-state reaction args]
+  (js/React.createElement (react-class clazz)
+                          #js {:reacl_initial_app_state app-state
+                               :reacl_initial_locals (-compute-locals clazz app-state args)
+                               :reacl_args args
+                               :reacl_reaction reaction
+                               :reacl_handle_action (fn [this action]
+                                                      (let [parent (aget (.-context this) "reacl_parent")
+                                                            parent-handle (aget (.-props parent) "reacl_handle_action")]
+                                                        (parent-handle parent action)))}))
+
 (defn render-component
   "Instantiate and render a component into the DOM.
 
@@ -491,7 +503,7 @@
 
 ;; FIXME: just pass all the lifecycle etc. as separate arguments
 
-(defn create-class [display-name mixins has-app-state? compute-locals fns]
+(defn create-class [display-name compat-v1? mixins has-app-state? compute-locals fns]
   ;; split special functions and miscs
   (let [{specials true misc false} (group-by is-special-fn? fns)
         {:keys [render
@@ -668,18 +680,30 @@
                                                     react-method-map))))
           ]
       (aset react-class "childContextTypes" #js {:reacl_parent js/React.PropTypes.object})
-       (aset react-class "contextTypes" #js {:reacl_parent js/React.PropTypes.object})
-      (reify
-        IFn
-        (-invoke [this & rst]
-          (instantiate-embedded-internal this has-app-state? rst))
-        IReaclClass
-        (-instantiate-toplevel-internal [this rst]
-          (instantiate-toplevel-internal this has-app-state? rst))
-        (-compute-locals [this app-state args]
-          (compute-locals app-state args))
-        HasReactClass
-        (-react-class [this] react-class)))))
+      (aset react-class "contextTypes" #js {:reacl_parent js/React.PropTypes.object})
+      (if compat-v1?
+        (reify
+          IFn ; only this is different between v1 and v2
+          (-invoke [this app-state reaction & args]
+            (instantiate-embedded-internal-v1 this app-state reaction args))
+          IReaclClass
+          (-instantiate-toplevel-internal [this rst]
+            (instantiate-toplevel-internal this has-app-state? rst))
+          (-compute-locals [this app-state args]
+            (compute-locals app-state args))
+          HasReactClass
+          (-react-class [this] react-class))
+        (reify
+          IFn
+          (-invoke [this & rst]
+            (instantiate-embedded-internal this has-app-state? rst))
+          IReaclClass
+          (-instantiate-toplevel-internal [this rst]
+            (instantiate-toplevel-internal this has-app-state? rst))
+          (-compute-locals [this app-state args]
+            (compute-locals app-state args))
+          HasReactClass
+          (-react-class [this] react-class))))))
 
 (def ^:private mixin-methods #{:component-will-mount :component-did-mount
                                :component-will-update :component-did-update

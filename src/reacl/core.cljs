@@ -20,8 +20,35 @@
 
 (def ^:static instantiate-toplevel reacl2/instantiate-toplevel)
 
-(def ^:static render-component reacl2/render-component)
+(defprotocol ^:no-doc IReaclView
+  (-instantiate [clazz args]))
+
+(defn render-component
+  [element clazz & args]
+  (if (satisfies? IReaclView clazz)
+    (js/ReactDOM.render
+     (-instantiate clazz args)
+     element)
+    (apply reacl2/render-component element clazz args)))
 
 (def ^:static return reacl2/return)
 
 (def ^:static send-message! reacl2/send-message!)
+
+(defn ^:no-doc class->view
+  [clazz]
+  (let [react-class (reacl2/react-class clazz)
+        className (.-displayName react-class)
+        error-reaction
+        (fn [v]
+          (throw (str "Error: " className " tried to return an app-state, but it is a view. Use defclass for programm elements with an app-state.")))]
+    (reify
+      IFn
+      (-invoke [this & args]
+        (-instantiate this args))
+      IReaclView
+      (-instantiate [this args]
+        (reacl2/instantiate-embedded-internal-v1 clazz nil error-reaction args))
+      reacl2/HasReactClass
+      (-react-class [this] react-class)
+      )))

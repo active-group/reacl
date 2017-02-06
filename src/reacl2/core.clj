@@ -197,7 +197,9 @@
         ?initial-state-fn (and ?initial-state-expr
                                `(fn [] ~?initial-state-expr))
 
-        ?other-fns-map (dissoc ?clause-map 'local 'render 'mixins 'local-state)
+        compat-v1? (get ?clause-map 'compat-v1?)
+        
+        ?other-fns-map (dissoc ?clause-map 'local 'render 'mixins 'local-state 'compat-v1?)
         ?misc-fns-map (apply dissoc ?other-fns-map
                              special-tags)
 
@@ -248,7 +250,7 @@
            (let ~?locals-clauses
              [~@?locals-ids]))
         ]
-    `(reacl2.core/create-class ~?name ~(if ?mixins `[~@?mixins] `nil) ~has-app-state? ~?compute-locals ~?fns)))
+    `(reacl2.core/create-class ~?name ~compat-v1? ~(if ?mixins `[~@?mixins] `nil) ~has-app-state? ~?compute-locals ~?fns)))
 
 (defmacro defclass
   "Define a Reacl class, see [[class]] for documentation.

@@ -61,8 +61,8 @@
     (map (fn [todo]
            (dom/keyed (str (:id todo))
                       (to-do-item
-                       (reacl/opt :reaction (reacl/reaction this ->Change))
                        todo
+                       (reacl/reaction this ->Change)
                        this)))
          (:todos app-state)))
    (dom/form
@@ -115,10 +115,14 @@
                                        todo))
                                    (:todos app-state))))))))
 
+(reacl/defview demo
+  this []
+  render
+  (to-do-app (TodosApp. 0 [])
+             ;; ignore changes in demo
+             reacl/no-reaction))
+
 (reacl/render-component
  (.getElementById js/document "content")
- to-do-app
- (TodosApp. 0 []))
+ demo)
 
-
-          

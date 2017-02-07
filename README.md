@@ -9,7 +9,7 @@ Your `project.clj` should contain something like this:
 
 	  :dependencies [[org.clojure/clojure "1.9.0-alpha10" :scope "provided"]
                      [org.clojure/clojurescript "1.9.293" :scope "provided"]
-					 [reacl "1.6.0"]]
+					 [reacl "2.0.0"]]
 
 ## API Documentation
 
@@ -46,10 +46,10 @@ happened.  The component can declare a *message handler* that receives
 the message, and returns a new application state and/or new local
 state.
 
-The key to tying these aspects together are the `reacl.core/defclass`
+The key to tying these aspects together are the `reacl2.core/defclass`
 macro for defining a Reacl class (just a React component class, but
 implementing Reacl's internal protocols), and the
-`reacl.core/send-message!` for sending a message to a component.
+`reacl2.core/send-message!` for sending a message to a component.
 
 In addition to this core model, Reacl also provides a convenience
 layer on React's virtual dom. (The convenience layer can be used
@@ -60,12 +60,12 @@ dom should be usable with Reacl.)
 
 Reacl consists of three namespaces:
 
-- `reacl.core` with Reacl's core programming model
-- `reacl.dom` for conveniently constructing virtual DOM nodes in
+- `reacl2.core` with Reacl's core programming model
+- `reacl2.dom` for conveniently constructing virtual DOM nodes in
   ClojureScript
 
-The `reacl.dom` namespace can be used independently.
-While `reacl.core` depends on `reacl.dom`, it could also be used
+The `reacl2.dom` namespace can be used independently.
+While `reacl2.core` depends on `reacl2.dom`, it could also be used
 directly with React's virtual-DOM API or other DOM binding.
 
 ## Example
@@ -77,8 +77,8 @@ expect [TodoMVC](http://todomvc.com/)).  We use this namespace header:
 
 ```clj
 (ns examples.todo.core
-  (:require [reacl.core :as reacl :include-macros true]
-			[reacl.dom :as dom :include-macros true]))
+  (:require [reacl2.core :as reacl :include-macros true]
+			[reacl2.dom :as dom :include-macros true]))
 ```
 
 First of all, we define a record type for to-dos, with a unique id
@@ -177,15 +177,16 @@ method:
 
 ```cljs
 (reacl/defclass to-do-app
-  this app-state local-state []
+  this app-state []
+  local-state [local-state ""]
   render
   (dom/div
    (dom/h3 "TODO")
    (dom/div (map (fn [todo]
                    (dom/keyed (str (:id todo))
                               (to-do-item
+							   (reacl/opt :reaction (reacl/reaction this ->Change))
                                todo
-                               (reacl/reaction this ->Change)
                                this)))
                  (:todos app-state)))
    (dom/form
@@ -207,9 +208,10 @@ a list of `dom/keyed` elements that attach string keys to the
 individual items.
 
 Each `to-do-item` component is instantiated by calling the class as a function,
-passing its app state (the individual todo item), a *reaction*, and
+passing its app state (the individual todo item), and
 any further arguments - in this case `this` is passed for
-`to-do-item`'s `parent` parameter.
+`to-do-item`'s `parent` parameter.  The `reacl/opt` argument provides
+options for its call, in this case specifying a *reaction*.
 
 The reaction is a slightly restricted version of a callback that gets
 invoked whenever the component's app state changes.  (Remember that a
@@ -227,13 +229,11 @@ or press the `Add` button, which submits the current to-do item in a
 `Submit` message.  The event handlers for these actions send these
 objects as messages.
 
-The `to-do-app` class has more clauses in addition to render.  The
-`initial-state` clauses initializes the text entered by the user to
-the empty string:
+The `to-do-app` class has more clauses in addition to render.
 
-```clj
-  initial-state ""
-```
+The `local-state` clauses gives the local state a name (in this case,
+`local-state`), and the expression `""` initializes the text entered by the
+user to the empty string:
 
 The `handle-message` function finally handles all the different
 message types.  The `New-text` message leads to a new local state
@@ -297,7 +297,7 @@ or the [`comments` example](examples/comments/core.cljs)
 
 ## License
 
-Copyright © 2015 Active Group GmbH
+Copyright © 2015-2017 Active Group GmbH
 
 Distributed under the Eclipse Public License either version 1.0 or (at
 your option) any later version.

@@ -27,9 +27,9 @@
 
   The syntax is
 
-      (reacl.core/class <name> [<this-name> [<app-state-name> [<local-state-name>]]] [<param> ...]
+      (reacl.core/class <name> [<this-name> [<app-state-name>]] [<param> ...]
         render <renderer-exp>
-        [initial-state <initial-state-exp>]
+        [local-state [<name> <initial-state-exp>]
         [local [<local-name> <local-expr>]]
         [handle-message <messager-handler-exp>]
         [<lifecycle-method-name> <lifecycle-method-exp> ...])
@@ -86,10 +86,11 @@
   via [[reacl.core/return]]. If that changes the state, the component
   will only render once.
 
-  `(component-did-mount)` The component can update it's DOM in this method.
+  `(component-did-mount)` The component can update its DOM in this
+  method.  It can also return a new state via [[reacl.core/return]].
 
   `(component-will-receive-args next-arg1 next-arg2 ...)` The
-  component has the chance to update it's local state in this method
+  component has the chance to update its local state in this method
   by sending itself a message or optionally return a new state
   via [[reacl.core/return]].
 
@@ -104,7 +105,7 @@
   Called immediately before an update.
   
   `(component-did-update prev-app-state prev-local-state prev-arg1 prev-arg2 ...)`
-  Called immediately after an update. The component can update it's DOM here.
+  Called immediately after an update. The component can update its DOM here.
   
   `(component-will-unmount)`
   The component can cleanup it's DOM here for example.
@@ -116,7 +117,10 @@
     (defrecord Change [todo])
 
     (reacl/defclass to-do-app
-      this app-state local-state []
+      this app-state []
+
+      local-state [local-state \"\"]
+
       render
       (dom/div
        (dom/h3 \"TODO\")
@@ -139,8 +143,6 @@
                     :value local-state})
         (dom/button
          (str \"Add #\" (:next-id app-state)))))
-
-      initial-state \"\"
 
       handle-message
       (fn [msg]

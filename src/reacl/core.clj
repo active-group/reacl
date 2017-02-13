@@ -1,6 +1,7 @@
 (ns ^{:doc "Supporting macros for Reacl."}
   reacl.core
-  (:require [clojure.set :as set])
+  (:require [clojure.set :as set]
+            [reacl2.core])
   (:refer-clojure :exclude [class]))
 
 (defn- split-symbol [stuff]

@@ -232,16 +232,13 @@
   (.setState this (app-state+recompute-locals-state #js {} this app-state))
   (app-state-changed! this app-state))
 
-;; FIXME: merge this into IReaclClass?
-(defprotocol ^:no-doc HasReactClass
-  (-react-class [clazz]))
-
 (defn react-class
   "Extract the React class from a Reacl class."
   [clazz]
   (-react-class clazz))
 
 (defprotocol ^:no-doc IReaclClass
+  (-react-class [clazz])
   (-instantiate-toplevel-internal [clazz rst])
   (-compute-locals [clazz app-state args]))
 
@@ -694,7 +691,6 @@
             (instantiate-toplevel-internal this has-app-state? rst))
           (-compute-locals [this app-state args]
             (compute-locals app-state args))
-          HasReactClass
           (-react-class [this] react-class))
         (reify
           IFn
@@ -705,7 +701,6 @@
             (instantiate-toplevel-internal this has-app-state? rst))
           (-compute-locals [this app-state args]
             (compute-locals app-state args))
-          HasReactClass
           (-react-class [this] react-class))))))
 
 (def ^:private mixin-methods #{:component-will-mount :component-did-mount

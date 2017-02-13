@@ -39,14 +39,14 @@
      `delayed`:
 
           (delayed this local-state (reacl/pass-through-reaction this) filter-input 200)"}
-  delayed this state [clazz delay & args]
+  delayed this state local-state [clazz delay & args]
   render
-  (apply clazz
-         (core/opt :reaction (core/reaction this (fn [app-state] [:update app-state])))
-         state
+  (apply clazz state (core/reaction this (fn [app-state] [:update app-state]))
          args)
 
-  local-state [local-state {:st nil :id nil}]
+  initial-state 
+  {:st nil
+   :id nil}
 
   handle-message
   (fn [[msg data]]

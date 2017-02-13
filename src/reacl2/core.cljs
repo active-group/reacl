@@ -277,7 +277,7 @@
   "Create options for component instantiation.
 
   Takes keyword arguments `:handle-action` (toplevel),
-  `:reaction` and `:transform-action` (embedded)."
+  `:reaction`, `:transform-action`, and `transform-action*` (embedded)."
   [& {:as mp}]
   (Options. mp))
 
@@ -344,7 +344,8 @@
                [& args])}
   [clazz has-app-state? rst]
   (let [[opts app-state args] (deconstruct-opt+app-state has-app-state? rst)
-        transform-action (or (:transform-action opts) identity)]
+        transform-action (or (:transform-action opts) identity)
+        transform-action* (or (:transform-action* opts) list)]
     (js/React.createElement (react-class clazz)
                             #js {:reacl_initial_app_state app-state
                                  :reacl_initial_locals (-compute-locals clazz app-state args)
@@ -353,7 +354,8 @@
                                  :reacl_handle_action (fn [this action]
                                                         (let [parent (aget (.-context this) "reacl_parent")
                                                               parent-handle (aget (.-props parent) "reacl_handle_action")]
-                                                          (parent-handle parent (transform-action action))))})))
+                                                          (doseq [action (transform-action* action)]
+                                                            (parent-handle parent (transform-action action)))))})))
 
 (defn ^:no-doc instantiate-embedded-internal-v1
   [clazz app-state reaction args]

@@ -193,7 +193,10 @@
 
 (reacl/defclass action-class2
   this []
-  render (dom/div (action-class1 (reacl/opt :transform-action
+  render (dom/div (action-class1 (reacl/opt :transform-action*
+                                            (fn [action]
+                                              (list action action))
+                                            :transform-action
                                             (fn [action]
                                               (case action
                                                 (:action) :this-action
@@ -201,8 +204,8 @@
 
 
 (deftest transform-action-test
-  (let [msga (atom nil)
+  (let [msga (atom [])
         item (test-util/instantiate&mount action-class2 (reacl/opt :handle-action
                                                                    (fn [msg]
-                                                                     (reset! msga msg))))]
-    (is (= :this-action @msga))))
+                                                                     (swap! msga conj msg))))]
+    (is (= [:this-action :this-action] @msga))))

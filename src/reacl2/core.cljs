@@ -324,9 +324,10 @@
 
 (defn instantiate-toplevel
   "For testing purposes mostly."
-  ;; FIXME: make app-state optional here, too?
   {:arglists '([clazz opts app-state & args]
-               [clazz app-state & args])}
+               [clazz app-state & args]
+               [clazz opts & args]
+               [clazz & args])}
   [clazz frst & rst]
   (instantiate-toplevel-internal clazz true (cons frst rst)))
                          

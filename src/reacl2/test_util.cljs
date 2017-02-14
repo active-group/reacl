@@ -245,7 +245,7 @@
      (string? tag)
      (= tag ty)
 
-     (satisfies? reacl/HasReactClass tag)
+     (satisfies? reacl/IReaclClass tag)
      (js/React.addons.TestUtils.isElementOfType element (reacl/react-class tag))
 
      :else

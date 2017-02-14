@@ -232,15 +232,15 @@
   (.setState this (app-state+recompute-locals-state #js {} this app-state))
   (app-state-changed! this app-state))
 
-(defn react-class
-  "Extract the React class from a Reacl class."
-  [clazz]
-  (-react-class clazz))
-
 (defprotocol ^:no-doc IReaclClass
   (-react-class [clazz])
   (-instantiate-toplevel-internal [clazz rst])
   (-compute-locals [clazz app-state args]))
+
+(defn react-class
+  "Extract the React class from a Reacl class."
+  [clazz]
+  (-react-class clazz))
 
 (defn has-class?
   "Find out if an element was generated from a certain Reacl class."

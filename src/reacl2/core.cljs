@@ -521,74 +521,57 @@
         (into {} specials)
         ]
     ;; Note that it's args is not & args down there
-    (let [ ;; base: prepend this app-state and args
-          base
-          (fn [f & flags]
-            (when f
-              (let [get-app-state (if ((apply hash-set flags) :force-current-app-state)
-                                    ;; this is uptodate at any time
-                                    extract-current-app-state
-                                    ;; during the livecylcle/updates this might be older
-                                    extract-app-state)]
-                (fn [& react-args]
-                  (this-as this
-                           (apply f this (get-app-state this) (extract-args this)
-                                  react-args))))))
-          ;; with locals, but without local-state
+    (let [;; with locals, but without local-state
           nlocal
-          (fn [f & flags]
-            (apply
-             base (when f
-                    (fn [this app-state args & react-args]
-                      (apply f this app-state (extract-locals this) args
-                             react-args)))
-             flags))
+          (fn [f]
+            (and f
+                 (fn [& react-args]
+                   (this-as this
+                     (apply f this (extract-app-state this) (extract-locals this) (extract-args this)
+                            react-args)))))
           ;; also with local-state (most reacl methods)
           std
-          (fn [f & flags]
-            (apply
-             nlocal (when f
-                      (fn [this app-state locals args & react-args]
-                        (apply f this app-state (extract-local-state this)
-                               locals args
-                               react-args)))
-             flags))
+          (fn [f]
+            (and f
+                 (fn [& react-args]
+                   (this-as this
+                     (apply f this (extract-app-state this) (extract-local-state this)
+                            (extract-locals this) (extract-args this)
+                            react-args)))))
           std-current
           (fn [f]
-            (std f :force-current-app-state))
+            (and f
+                 (fn [& react-args]
+                   (this-as this
+                     (apply f this (extract-current-app-state this) (extract-local-state this)
+                            (extract-locals this) (extract-args this)
+                            react-args)))))
           std+state
-          (fn [f & flags]
-            (apply std
-                   (when f
-                     (fn [this & args]
-                       (opt-handle-returned! this (apply f this args))))
-                   flags))
-          ;; and one arg with next/prev-props
-          with-props-and-args
           (fn [f]
-            (std (when f
-                   (fn [this app-state local-state locals args other-props & more-react-args]
-                     (apply f this app-state local-state locals args
-                            (props-extract-args other-props)
-                            other-props
-                            more-react-args)))))
+            (and f
+                 (fn [& react-args]
+                   (this-as this
+                     (opt-handle-returned! this (apply f
+                                                       this
+                                                       (extract-app-state this) (extract-local-state this)
+                                                       (extract-locals this) (extract-args this)
+                                                       react-args))))))
           with-args
           (fn [f]
-            (with-props-and-args
-              (when f
-                (fn [this app-state local-state locals args other-args other-props]
-                  ;; 'roll out' args
-                  (apply f this app-state local-state locals args other-args)))))
+            (and f
+                 (fn [other-props]
+                   (this-as this
+                     (apply f this (extract-app-state this) (extract-local-state this) (extract-locals this) (extract-args this) (props-extract-args other-props))))))
           ;; and one arg with next/prev-state
           with-state-and-args
           (fn [f]
-            (with-props-and-args
-              (when f
-                (fn [this app-state local-state locals args other-args other-props other-state]
-                  (apply f this app-state local-state locals args
-                         (data-extract-app-state other-props other-state)
-                         (state-extract-local-state other-state)
-                         other-args)))))
+            (and f
+                 (fn [other-props other-state]
+                   (this-as this
+                     (apply f this (extract-app-state this) (extract-local-state this) (extract-locals this) (extract-args this)
+                            (data-extract-app-state other-props other-state)
+                            (state-extract-local-state other-state)
+                            (props-extract-args other-props))))))
 
           react-method-map
           (merge

@@ -307,7 +307,25 @@
 
   Takes keyword arguments `:handle-action` (toplevel),
   `:reaction`, `:embed-app-state`,
-  `:transform-action`, and `transform-action*` (embedded)."
+  `:transform-action`, and `transform-action*` (embedded).
+
+  - `:handle-action` is only valid with for top-level
+    components (via [[render-component]]) and accepts a function of one
+    argument.  It is called on every action that percolates to the top-level
+    component
+  - `:reaction` must be a reaction to an app-state change, typically created via
+    [[reaction]], [[no-reaction]], or [[pass-through-reaction]].  -
+  - `:embed-app-state` can be specified as an alternative to `:reaction`
+    and specifies, that the app state of this component is embedded in the parent
+    parent component's app state.  This must be a function of two arguments, the
+    parent app state and this component's app-state.  It must return a new parent
+    app state.
+  - `:transform-action` is a function that takes an action, returns an action.  It
+    transforms every action from this component into an action from the parent 
+    component.
+  - `:transform-action*` is a function that takes an action, returns a seq of 
+    actions. It transforms every action from this component into several actions
+    (possibly none) from the parent  component."
   [& {:as mp}]
   {:pre [(every? (fn [[k _]]
                    (contains? #{:handle-action :reaction :embed-app-state :transform-action :transform-action*} k))

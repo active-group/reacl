@@ -226,6 +226,12 @@
      embed ; function parent-apps-tate child-app-state |-> parent-app-state
      ])
 
+(defrecord KeywordEmbedder [keyword]
+  Fn
+  IFn
+  (-invoke [this outer inner]
+    (assoc outer keyword inner)))
+
 (defn- ^:no-doc app-state-changed!
   "Invoke the app-state change reaction for the given component.
 
@@ -234,7 +240,11 @@
   (when-let [reaction (props-extract-reaction (.-props this))]
     (cond
       (instance? EmbedReaction reaction)
-      (send-message! (component-parent this) (EmbedAppState. app-state (:embed reaction)))
+      (let [embed-spec (:embed reaction)
+            embed (if (keyword? embed-spec)
+                    (KeywordEmbedder. embed-spec)
+                    embed-spec)]
+        (send-message! (component-parent this) (EmbedAppState. app-state embed)))
 
       (instance? Reaction reaction)
       (invoke-reaction reaction app-state)
@@ -290,6 +300,8 @@
     Options
     [map])
 
+                                        ; FIXME: actually document
+  
 (defn opt
   "Create options for component instantiation.
 

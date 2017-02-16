@@ -276,6 +276,9 @@
   Takes keyword arguments `:handle-action` (toplevel),
   `:reaction`, `:transform-action`, and `transform-action*` (embedded)."
   [& {:as mp}]
+  {:pre [(every? (fn [[k _]]
+                   (contains? #{:handle-action :reaction :transform-action :transform-action*} k))
+                 mp)]}
   (Options. mp))
 
 (defn ^:no-doc deconstruct-opt

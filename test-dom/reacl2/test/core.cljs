@@ -31,7 +31,7 @@
    [checkbox (dom/input
               {:type "checkbox"
                :value (:done? todo)
-               :onChange (fn [e]
+               :onchange (fn [e]
                            (reacl/send-message! this (.-checked e)))})]
    (dom/div checkbox
             (:text todo)))
@@ -54,7 +54,7 @@
 
 (deftest to-do-elements
   (let [e (to-do-item (Todo. 42 "foo" true))]
-    (is (test-util/hiccup-matches? [:div [:input {:type "checkbox", :value true, :onChange fn?}] "foo"]
+    (is (test-util/hiccup-matches? [:div [:input {:type "checkbox", :value true, :onchange fn?}] "foo"]
                                    (test-util/render->hiccup e)))))
 
 (deftest to-do-message

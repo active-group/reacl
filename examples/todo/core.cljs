@@ -46,7 +46,7 @@
 (defrecord NewText [text])
 (defrecord Submit [])
 
-;; Note this needs to be a top-level function as as not to ruin update checks
+;; Note this needs to be a top-level function as not to ruin update checks
 
 (defn embed-changed-todo
   [app-state changed-todo]

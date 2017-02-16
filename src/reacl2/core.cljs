@@ -156,7 +156,7 @@
 (defrecord ^{:doc "Type for a reaction, a restricted representation for callback."
              :no-doc true}
     Reaction 
-  [component make-message args]
+    [component make-message args]
   Fn
   IFn
   (-invoke [this value]
@@ -186,6 +186,9 @@
   (assert (not (nil? make-message)))
   (Reaction. component make-message args))
 
+; internal reaction to go with :embed-app-state
+(defrecord EmbedReaction [embed])
+
 (declare send-message!)
 
 (defn invoke-reaction
@@ -214,13 +217,30 @@
       (locals-state (compute-locals (.-constructor this) app-state (extract-args this)))
       (app-state-state app-state)))
 
+(defn ^:no-doc component-parent
+  [comp]
+  (aget (.-context comp) "reacl_parent"))
+
+(defrecord EmbedAppState
+    [app-state ; new app state from child
+     embed ; function parent-apps-tate child-app-state |-> parent-app-state
+     ])
+
 (defn- ^:no-doc app-state-changed!
   "Invoke the app-state change reaction for the given component.
 
   For internal use."
   [this app-state]
   (when-let [reaction (props-extract-reaction (.-props this))]
-    (invoke-reaction reaction app-state)))
+    (cond
+      (instance? EmbedReaction reaction)
+      (send-message! (component-parent this) (EmbedAppState. app-state (:embed reaction)))
+
+      (instance? Reaction reaction)
+      (invoke-reaction reaction app-state)
+
+      :else
+      (throw (str "invalid reaction " reaction)))))
 
 (defn ^:no-doc set-app-state!
   "Set the application state associated with a Reacl component.
@@ -274,10 +294,11 @@
   "Create options for component instantiation.
 
   Takes keyword arguments `:handle-action` (toplevel),
-  `:reaction`, `:transform-action`, and `transform-action*` (embedded)."
+  `:reaction`, `:embed-app-state`,
+  `:transform-action`, and `transform-action*` (embedded)."
   [& {:as mp}]
   {:pre [(every? (fn [[k _]]
-                   (contains? #{:handle-action :reaction :transform-action :transform-action*} k))
+                   (contains? #{:handle-action :reaction :embed-app-state :transform-action :transform-action*} k))
                  mp)]}
   (Options. mp))
 
@@ -330,7 +351,7 @@
                [clazz & args])}
   [clazz frst & rst]
   (instantiate-toplevel-internal clazz true (cons frst rst)))
-                         
+
 (defn ^:no-doc instantiate-embedded-internal
   "Internal function to instantiate an embedded Reacl component.
 
@@ -350,9 +371,12 @@
                             #js {:reacl_initial_app_state app-state
                                  :reacl_initial_locals (-compute-locals clazz app-state args)
                                  :reacl_args args
-                                 :reacl_reaction (or (:reaction opts) no-reaction)
+                                 :reacl_reaction (or (:reaction opts) ; FIXME: what if we have both?
+                                                     (if-let [embed-app-state (:embed-app-state opts)]
+                                                       (reaction :parent ->EmbedAppState)
+                                                       no-reaction))
                                  :reacl_handle_action (fn [this action]
-                                                        (let [parent (aget (.-context this) "reacl_parent")
+                                                        (let [parent (component-parent this)
                                                               parent-handle (aget (.-props parent) "reacl_handle_action")]
                                                           (doseq [action (transform-action* action)]
                                                             (parent-handle parent (transform-action action)))))})))
@@ -449,9 +473,13 @@
 
   For internal use.
 
-  This returns a Returned object."
+  This returns a `Returned` object."
   [comp msg]
-  ((aget comp "__handleMessage") msg))
+  (if (instance? EmbedAppState msg)
+    (Returned. ((:embed msg) (extract-current-app-state comp) (:app-state msg))
+               keep-state
+               [])
+    ((aget comp "__handleMessage") msg)))
 
 (defn ^:no-doc handle-message->state
   "Handle a message for a Reacl component.

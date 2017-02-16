@@ -45,7 +45,18 @@
 
 (defrecord NewText [text])
 (defrecord Submit [])
-(defrecord Change [todo])
+
+;; Note this needs to be a top-level function as as not to ruin update checks
+
+(defn embed-changed-todo
+  [app-state changed-todo]
+  (let [changed-id (:id changed-todo)]
+    (assoc app-state
+           :todos (map (fn [todo]
+                         (if (= changed-id (:id todo) )
+                           changed-todo
+                           todo))
+                       (:todos app-state)))))
 
 (reacl/defclass to-do-app
   this app-state []
@@ -59,7 +70,7 @@
     (map (fn [todo]
            (dom/keyed (str (:id todo))
                       (to-do-item
-                       (reacl/opt :reaction (reacl/reaction this ->Change))
+                       (reacl/opt :embed-app-state embed-changed-todo)
                        todo
                        this)))
          (:todos app-state)))
@@ -100,18 +111,7 @@
                      (assoc app-state
                        :todos 
                        (remove (fn [todo] (= id (:id todo)))
-                               (:todos app-state)))))
-
-     (instance? Change msg)
-     (let [changed-todo (:todo msg)
-           changed-id (:id changed-todo)]
-       (reacl/return :app-state
-                     (assoc app-state
-                       :todos (map (fn [todo]
-                                     (if (= changed-id (:id todo) )
-                                       changed-todo
-                                       todo))
-                                   (:todos app-state))))))))
+                               (:todos app-state))))))))
 
 (reacl/render-component
  (.getElementById js/document "content")

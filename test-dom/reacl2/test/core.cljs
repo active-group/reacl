@@ -184,7 +184,7 @@
            (map dom-content (doms-with-tag item "div"))))))
 
 (reacl/defclass action-class1
-  this []
+  this app-state []
   render (dom/div "foo")
 
   component-will-mount
@@ -192,20 +192,32 @@
     (reacl/return :action :action)))
 
 (reacl/defclass action-class2
-  this []
-  render (dom/div (action-class1 (reacl/opt :transform-action*
-                                            (fn [action]
-                                              (list action action))
-                                            :transform-action
-                                            (fn [action]
+  this [register-app-state!]
+  render (dom/div (action-class1 (reacl/opt :reduce-action
+                                            (fn [app-state action]
                                               (case action
-                                                (:action) :this-action
-                                                :another-action))))))
+                                                (:action) (reacl/return :action :this-action
+                                                                        :app-state :app-state1)
+                                                (reacl/return :action :another-action)))
+                                            :reaction (reacl/reaction this
+                                                                      (fn [app-state]
+                                                                        (register-app-state! app-state))))
+                                 :app-state0))
+  handle-message ; the reaction sends a message
+  (fn [msg]
+    (reacl/return)))
 
 
 (deftest transform-action-test
   (let [msga (atom [])
-        item (test-util/instantiate&mount action-class2 (reacl/opt :handle-action
-                                                                   (fn [msg]
-                                                                     (swap! msga conj msg))))]
-    (is (= [:this-action :this-action] @msga))))
+        app-statea (atom [])
+        item (test-util/instantiate&mount action-class2
+                                          (reacl/opt :reduce-action
+                                                                   (fn [app-state action]
+                                                                     (swap! msga conj action)
+                                                                     (reacl/return)))
+                                          (fn [app-state]
+                                            (swap! app-statea conj app-state)))]
+    (is (= [:this-action] @msga))
+    (is (= [:app-state1] @app-statea))))
+

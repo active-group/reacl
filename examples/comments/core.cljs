@@ -77,7 +77,7 @@
     (reacl/return :action (RefreshMeEvery. this 2000))))
 
 (defn handle-action
-  [action]
+  [app-state action]
   (cond
     (instance? RefreshMeEvery action)
     (let [refresh (fn []
@@ -94,5 +94,5 @@
 (reacl/render-component
  (.getElementById js/document "content")
  comment-box
- (reacl/opt :handle-action handle-action)
+ (reacl/opt :reduce-action handle-action)
  [])

@@ -284,5 +284,6 @@
                  :state (reacl/make-state cl app-state local-state args)}
         handle-message-internal (.bind (aget (.-prototype rcl) "__handleMessage")
                                        cmp)]
-    [cmp (handle-message-internal msg)]))
+    ;; FIXME: move Reacl guts exposed here back into the core
+    [cmp (reacl/effects->returned cmp (handle-message-internal msg))]))
 

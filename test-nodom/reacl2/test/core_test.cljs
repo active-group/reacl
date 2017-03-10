@@ -114,7 +114,6 @@
                                  comments)))
   handle-message
   (fn [msg]
-    (println "handle-message" msg)
     (cond
       (instance? NewComments msg)
       (reacl/return :app-state msg)

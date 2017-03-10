@@ -385,7 +385,7 @@
   [this]
   (aget (.-props this) "reacl_reduce_action"))
 
-(declare action-effect set-state! keep-state) ; FIXME: reduce this
+(declare reduce-and-handle-action!)
 
 (defn ^:no-doc instantiate-embedded-internal
   "Internal function to instantiate an embedded Reacl component.
@@ -413,12 +413,7 @@
                                                             (return :action action)))
                                  ;; propagate the action upwards
                                  :reacl_handle_action (fn [this action] ; this is an action already reduced by this component
-                                                        (let [parent (component-parent this)
-                                                              [app-state actions] (action-effect (action-reducer parent) (extract-app-state parent) action)
-                                                              parent-handle (aget (.-props parent) "reacl_handle_action")]
-                                                          (set-state! parent app-state keep-state)
-                                                          (doseq [action actions]
-                                                            (parent-handle parent action))))})))
+                                                        (reduce-and-handle-action! (component-parent this) action))})))
 
 (defn ^:no-doc instantiate-embedded-internal-v1
   [clazz app-state reaction args]
@@ -606,6 +601,14 @@
   "Handle all effects described in a [[Effects]] object."
   [comp ^Effects efs]
   (handle-returned! comp (effects->returned comp efs)))
+
+(defn- ^:no-doc reduce-and-handle-action!
+  [this action]
+  (let [[app-state actions] (action-effect (action-reducer this) (extract-app-state this) action)
+        handle (aget (.-props this) "reacl_handle_action")]
+    (set-state! this app-state keep-state)
+    (doseq [action actions]
+      (handle this action))))
   
 (defn send-message!
   "Send a message to a Reacl component.
@@ -615,6 +618,13 @@
   (let [^Returned ret (handle-message comp msg)]
     (handle-returned! comp ret)
     ret))
+
+(defn dispatch-action!
+  "Dispatch an action from a Reacl component.
+
+  You can call this from a regular event handler."
+  [comp action]
+  (reduce-and-handle-action! comp action))
 
 (defn opt-handle-effects! [component v]
   (when v

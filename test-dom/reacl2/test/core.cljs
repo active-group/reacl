@@ -221,3 +221,42 @@
     (is (= [:this-action] @msga))
     (is (= [:app-state1] @app-statea))))
 
+
+(reacl/defclass action-class3
+  this app-state []
+  render (dom/div "foo")
+
+  component-will-mount
+  (fn []
+    (reacl/return :app-state :app-state1 :action :action)))
+
+(reacl/defclass action-class4
+  this [register-app-state!]
+  render (dom/div (action-class3 (reacl/opt :reduce-action
+                                            (fn [app-state action]
+                                              (case action
+                                                (:action)
+                                                (case app-state
+                                                  (:app-state0) (reacl/return :action :this-action :app-state :app-state0a)
+                                                  (:app-state1) (reacl/return :action :this-action :app-state :app-state1a))
+                                                (reacl/return :action :another-action)))
+                                            :reaction (reacl/reaction this
+                                                                      (fn [app-state]
+                                                                        (register-app-state! app-state))))
+                                 :app-state0))
+  handle-message ; the reaction sends a message
+  (fn [msg]
+    (reacl/return)))
+
+(deftest app-state-n-action-test
+  (let [msga (atom [])
+        app-statea (atom [])
+        item (test-util/instantiate&mount action-class4
+                                          (reacl/opt :reduce-action
+                                                     (fn [app-state action]
+                                                       (swap! msga conj action)
+                                                       (reacl/return)))
+                                          (fn [app-state]
+                                            (swap! app-statea conj app-state)))]
+    (is (= [:this-action] @msga))
+    (is (= [:app-state1a] @app-statea))))

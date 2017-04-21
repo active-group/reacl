@@ -190,9 +190,6 @@
   (assert (not (nil? make-message)))
   (Reaction. component make-message args))
 
-; internal reaction to go with :embed-app-state
-(defrecord EmbedReaction [embed])
-
 (declare send-message!)
 
 (defn invoke-reaction
@@ -242,19 +239,8 @@
   For internal use."
   [this app-state]
   (when-let [reaction (props-extract-reaction (.-props this))]
-    (cond
-      (instance? EmbedReaction reaction)
-      (let [embed-spec (:embed reaction)
-            embed (if (keyword? embed-spec)
-                    (KeywordEmbedder. embed-spec)
-                    embed-spec)]
-        (send-message! (component-parent this) (EmbedAppState. app-state embed)))
-
-      (instance? Reaction reaction)
-      (invoke-reaction reaction app-state)
-
-      :else
-      (throw (str "invalid reaction " reaction)))))
+    (assert (instance? Reaction reaction))
+    (invoke-reaction reaction app-state)))
 
 (defn ^:no-doc set-app-state!
   "Set the application state associated with a Reacl component.

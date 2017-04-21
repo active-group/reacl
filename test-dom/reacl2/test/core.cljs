@@ -213,9 +213,9 @@
         app-statea (atom [])
         item (test-util/instantiate&mount action-class2
                                           (reacl/opt :reduce-action
-                                                                   (fn [app-state action]
-                                                                     (swap! msga conj action)
-                                                                     (reacl/return)))
+                                                     (fn [app-state action]
+                                                       (swap! msga conj action)
+                                                       (reacl/return)))
                                           (fn [app-state]
                                             (swap! app-statea conj app-state)))]
     (is (= [:this-action] @msga))

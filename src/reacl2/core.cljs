@@ -547,8 +547,8 @@
                (not= keep-state ls) (local-state-state ls)
                (not= keep-state as) (app-state+recompute-locals-state component as)))
   (when (not= keep-state as)
-    (app-state-changed! component as)
-    (aset component "reacl_current_app_state" as)))
+    (aset component "reacl_current_app_state" as)
+    (app-state-changed! component as)))
 
 (defn- ^:no-doc handle-message
   "Handle a message for a Reacl component.

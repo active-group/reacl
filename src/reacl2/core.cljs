@@ -250,6 +250,7 @@
   [this app-state]
   (assert (.hasOwnProperty (.-state this) "reacl_app_state"))
   (.setState this (app-state+recompute-locals-state #js {} this app-state))
+  (aset this "reacl_current_app_state" app-state)
   (app-state-changed! this app-state))
 
 (defprotocol ^:no-doc IReaclClass
@@ -536,14 +537,18 @@
             (throw (str "invalid argument " (first args) " to reacl/return"))))))))
 
 (defn- ^:no-doc set-state!
-  "Set the app state and component state according to what return returned."
+  "Set the app state and component state according to what return returned.
+
+  Note that the actual update of `(.-state component)` might be deferred and thus not
+  visible immediately."
   [component as ls]
   (.setState component
              (cond-> #js {}
                (not= keep-state ls) (local-state-state ls)
                (not= keep-state as) (app-state+recompute-locals-state component as)))
   (when (not= keep-state as)
-    (app-state-changed! component as)))
+    (app-state-changed! component as)
+    (aset component "reacl_current_app_state" as)))
 
 (defn- ^:no-doc handle-message
   "Handle a message for a Reacl component.
@@ -577,10 +582,22 @@
     (doseq [a actions]
       (handle comp a))))
 
+(defn- ^:no-doc reduce-and-handle-action!
+  [this action]
+  ;; "setState() does not always immediately update the component. It
+  ;; may batch or defer the update until later. This makes reading
+  ;; this.state right after calling setState() a potential pitfall."
+
+  ;; We manage reacl_current_app_state to always have a current value.
+  (let [[app-state actions] (action-effect (action-reducer this) (aget this "reacl_current_app_state") action)]
+    (set-state! this app-state keep-state)
+    (handle-actions! this actions)))
+
 (defn handle-returned!
   "Handle all effects described in a [[Returned]] object."
   [comp ^Returned ret]
   (set-state! comp (:app-state ret) (:local-state ret))
+  ;; see above
   (handle-actions! comp (:actions ret)))
 
 (defn ^:no-doc handle-effects!
@@ -588,14 +605,7 @@
   [comp ^Effects efs]
   (handle-returned! comp (effects->returned comp efs)))
 
-(defn- ^:no-doc reduce-and-handle-action!
-  [this action]
-  (let [[app-state actions] (action-effect (action-reducer this) (extract-app-state this) action)
-        handle (aget (.-props this) "reacl_handle_action")]
-    (set-state! this app-state keep-state)
-    (doseq [action actions]
-      (handle this action))))
-  
+ 
 (defn send-message!
   "Send a message to a Reacl component.
 
@@ -746,13 +756,15 @@
               ;; changed (prevent that?)
               (fn [next-props]
                 (this-as this
-                         ;; embedded/toplevel has been
-                         ;; 'reinstantiated', so take over new
-                         ;; initial app-state
-                         (.setState this #js {:reacl_app_state (props-extract-initial-app-state next-props)})
-                         (when f
-                           ;; must preserve 'this' here via .call!
-                           (opt-handle-effects! this (.call f this next-props))))))
+                  ;; embedded/toplevel has been
+                  ;; 'reinstantiated', so take over new
+                  ;; initial app-state
+                  (let [app-state (props-extract-initial-app-state next-props)]
+                    (.setState this #js {:reacl_app_state app-state})
+                    (aset this "reacl_current_app_state" app-state)
+                    (when f
+                      ;; must preserve 'this' here via .call!
+                      (opt-handle-effects! this (.call f this next-props)))))))
 
             "shouldComponentUpdate"
             (let [f (with-state-and-args should-component-update?)]

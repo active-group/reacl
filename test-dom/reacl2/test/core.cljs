@@ -222,12 +222,18 @@
     (is (= [:app-state1] @app-statea))))
 
 
+
 (reacl/defclass action-class3
   this app-state []
   render (dom/div "foo")
 
-  component-will-mount
+  component-did-mount
   (fn []
+    (reacl/send-message! this nil)
+    nil)
+
+  handle-message
+  (fn [msg]
     (reacl/return :app-state :app-state1 :action :action)))
 
 (reacl/defclass action-class4
@@ -260,3 +266,24 @@
                                             (swap! app-statea conj app-state)))]
     (is (= [:this-action] @msga))
     (is (= [:app-state1a] @app-statea))))
+
+
+(reacl/defclass app-state-change-with-reaction-class this state []
+                render
+                (dom/div (str state))
+
+                handle-message
+                (fn [msg]
+                  (reacl/return :app-state msg
+                                :action :doAction)))
+
+
+(deftest app-state-change-with-reaction-test
+  (let [item (test-util/instantiate&mount app-state-change-with-reaction-class 1)]
+    (is (= ["1"]
+           (map dom-content (doms-with-tag item "div"))))
+    (reacl/send-message! item 2)
+    (is (= ["2"]
+           (map dom-content (doms-with-tag item "div"))))))
+
+

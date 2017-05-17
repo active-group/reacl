@@ -501,11 +501,8 @@
   (if-let [^Effects efs (reduce-action app-state action)]
     (let [ret (action-effects->returned efs)
           app-state-2 (:app-state ret)]
-      [(if (instance? KeepState app-state-2)
-         app-state
-         app-state-2)
-       (:actions ret)])
-    [app-state [action]]))
+      [(:app-state ret) (:actions ret)])
+    [keep-state [action]]))
 
 (defn ^:no-doc effects->returned
   "Reduce the effects of a [[return]] invocation, returning a `Returned` object.
@@ -525,13 +522,15 @@
           (case (first args)
             (:app-state) (recur nxt arg local-state actions)
             (:local-state) (recur nxt app-state arg actions)
-            (:action) (let [[app-state new-actions] (action-effect reduce-action
+            (:action) (let [[action-app-state new-actions] (action-effect reduce-action
                                                                    (if (keep-state? app-state)
                                                                      actual-app-state
                                                                      app-state)
                                                                    arg)]
                         (recur nxt
-                               app-state
+                               (if (instance? KeepState action-app-state)
+                                 app-state
+                                 action-app-state)
                                local-state
                                (reduce conj! actions new-actions)))
             (throw (str "invalid argument " (first args) " to reacl/return"))))))))

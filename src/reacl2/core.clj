@@ -1,21 +1,18 @@
 (ns ^{:doc "Supporting macros for Reacl."}
   reacl2.core
-  (:require [clojure.set :as set])
+  (:require [clojure.set :as set]
+            [clojure.string :as string])
   (:refer-clojure :exclude [class]))
 
-(def ^{:private true} lifecycle-name-map
-  {'component-will-mount 'componentWillMount
-   'component-did-mount 'componentDidMount
-   'component-will-receive-args 'componentWillReceiveProps
-   'should-component-update? 'shouldComponentUpdate
-   'component-will-update 'componentWillUpdate
-   'component-did-update 'componentDidUpdate
-   'component-will-unmount 'componentWillUnmount})
-
-;; Attention: duplicate definition in core.cljs
 (def ^{:private true} special-tags
-  (set/union (into #{} (map val lifecycle-name-map))
-             #{'render 'handle-message 'local 'mixins}))
+  (concat ['handle-message
+           'component-will-mount
+           'component-did-mount
+           'component-will-receive-args
+           'should-component-update?
+           'component-will-update
+           'component-did-update
+           'component-will-unmount]))
 
 (defn- split-symbol [stuff dflt]
   (if (symbol? (first stuff))
@@ -200,17 +197,22 @@
                                `(fn [] ~?initial-state-expr))
 
         compat-v1? (get ?clause-map 'compat-v1?)
-        
+
+        ;; handle-message, lifecycle methods, and user-defined functions (v1 only)
         ?other-fns-map (dissoc ?clause-map 'local 'render 'mixins 'local-state 'compat-v1?)
-        ?misc-fns-map (apply dissoc ?other-fns-map
-                             special-tags)
+        ;; user-defined functions
+        ?misc-fns-map (apply dissoc ?other-fns-map special-tags)
+
+        _ (when (and compat-v1? (not-empty ?misc-fns-map))
+            (throw (Error. "invalid clauses in class definition: " (keys ?misc-fns-map))))
+        
 
         ?wrap-std
         (fn [?f]
           (if ?f
             (let [?more `more#]
               `(fn [~?component ~?app-state ~?local-state [~@?locals-ids] [~@?args] & ~?more]
-                 ;; every user misc fn is also visible
+                 ;; every user misc fn is also visible; for v1 compat
                  (let [~@(mapcat (fn [[n f]] [n `(aget ~?component ~(str n))]) ?misc-fns-map)]
                    (apply ~?f ~?more))))
             'nil))
@@ -221,7 +223,7 @@
         ?wrapped-nlocals [['initial-state
                            (if ?initial-state-expr
                              `(fn [~?component ~?app-state [~@?locals-ids] [~@?args]]
-                                ;; every user misc fn is also visible
+                                ;; every user misc fn is also visible; for v1 compat
                                 (let [~@(mapcat (fn [[n f]] [n `(aget ~?component ~(str n))]) ?misc-fns-map)]
                                   ~?initial-state-expr))
                              `nil)]]

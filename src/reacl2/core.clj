@@ -15,7 +15,7 @@
 ;; Attention: duplicate definition in core.cljs
 (def ^{:private true} special-tags
   (set/union (into #{} (map val lifecycle-name-map))
-             #{'render 'handle-message 'component-will-mount 'local 'mixins}))
+             #{'render 'handle-message 'local 'mixins}))
 
 (defn- split-symbol [stuff dflt]
   (if (symbol? (first stuff))

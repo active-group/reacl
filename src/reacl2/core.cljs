@@ -823,8 +823,47 @@
       (if compat-v1?
         (reify
           IFn ; only this is different between v1 and v2
-          (-invoke [this app-state reaction & args]
-            (instantiate-embedded-internal-v1 this app-state reaction args))
+          ;; this + 20 regular args, then rest, so a1..a18
+          (-invoke [this app-state reaction]
+            (instantiate-embedded-internal-v1 this app-state reaction []))
+          (-invoke [this app-state reaction a1]
+            (instantiate-embedded-internal-v1 this app-state reaction [a1]))
+          (-invoke [this app-state reaction a1 a2]
+            (instantiate-embedded-internal-v1 this app-state reaction [a1 a2]))
+          (-invoke [this app-state reaction a1 a2 a3]
+            (instantiate-embedded-internal-v1 this app-state reaction [a1 a2 a3]))
+          (-invoke [this app-state reaction a1 a2 a3 a4]
+            (instantiate-embedded-internal-v1 this app-state reaction [a1 a2 a3 a4]))
+          (-invoke [this app-state reaction a1 a2 a3 a4 a5]
+            (instantiate-embedded-internal-v1 this app-state reaction [a1 a2 a3 a4 a5]))
+          (-invoke [this app-state reaction a1 a2 a3 a4 a5 a6]
+            (instantiate-embedded-internal-v1 this app-state reaction [a1 a2 a3 a4 a5 a6]))
+          (-invoke [this app-state reaction a1 a2 a3 a4 a5 a6 a7]
+            (instantiate-embedded-internal-v1 this app-state reaction [a1 a2 a3 a4 a5 a6 a7]))
+          (-invoke [this app-state reaction a1 a2 a3 a4 a5 a6 a7 a8]
+            (instantiate-embedded-internal-v1 this app-state reaction [a1 a2 a3 a4 a5 a6 a7 a8]))
+          (-invoke [this app-state reaction a1 a2 a3 a4 a5 a6 a7 a8 a9]
+            (instantiate-embedded-internal-v1 this app-state reaction [a1 a2 a3 a4 a5 a6 a7 a8 a9]))
+          (-invoke [this app-state reaction a1 a2 a3 a4 a5 a6 a7 a8 a9 a10]
+            (instantiate-embedded-internal-v1 this app-state reaction [a1 a2 a3 a4 a5 a6 a7 a8 a9 a10]))
+          (-invoke [this app-state reaction a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11]
+            (instantiate-embedded-internal-v1 this app-state reaction [a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11]))
+          (-invoke [this app-state reaction a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12]
+            (instantiate-embedded-internal-v1 this app-state reaction [a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12]))
+          (-invoke [this app-state reaction a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12 a13]
+            (instantiate-embedded-internal-v1 this app-state reaction [a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12 a13]))
+          (-invoke [this app-state reaction a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12 a13 a14]
+            (instantiate-embedded-internal-v1 this app-state reaction [a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12 a13 a14]))
+          (-invoke [this app-state reaction a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12 a13 a14 a15]
+            (instantiate-embedded-internal-v1 this app-state reaction [a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12 a13 a14 a15]))
+          (-invoke [this app-state reaction a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12 a13 a14 a15 a16]
+            (instantiate-embedded-internal-v1 this app-state reaction [a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12 a13 a14 a15 a16]))
+          (-invoke [this app-state reaction a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12 a13 a14 a15 a16 a17]
+            (instantiate-embedded-internal-v1 this app-state reaction [a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12 a13 a14 a15 a16 a17]))
+          (-invoke [this app-state reaction a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12 a13 a14 a15 a16 a17 a18]
+            (instantiate-embedded-internal-v1 this app-state reaction [a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12 a13 a14 a15 a16 a17 a18]))
+          (-invoke [this app-state reaction a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12 a13 a14 a15 a16 a17 a18 rest]
+            (apply instantiate-embedded-internal-v1 this app-state reaction (concat [a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12 a13 a14 a15 a16 a17 a18] rest)))
           IReaclClass
           (-instantiate-toplevel-internal [this rst]
             (instantiate-toplevel-internal this has-app-state? rst))
@@ -833,8 +872,50 @@
           (-react-class [this] react-class))
         (reify
           IFn
-          (-invoke [this & rst]
-            (instantiate-embedded-internal this has-app-state? rst))
+          (-invoke [this]
+            (instantiate-embedded-internal this has-app-state? []))
+          (-invoke [this a1]
+            (instantiate-embedded-internal this has-app-state? [a1]))
+          (-invoke [this a1 a2]
+            (instantiate-embedded-internal this has-app-state? [a1 a2]))
+          (-invoke [this a1 a2 a3]
+            (instantiate-embedded-internal this has-app-state? [a1 a2 a3]))
+          (-invoke [this a1 a2 a3 a4]
+            (instantiate-embedded-internal this has-app-state? [a1 a2 a3 a4]))
+          (-invoke [this a1 a2 a3 a4 a5]
+            (instantiate-embedded-internal this has-app-state? [a1 a2 a3 a4 a5]))
+          (-invoke [this a1 a2 a3 a4 a5 a6]
+            (instantiate-embedded-internal this has-app-state? [a1 a2 a3 a4 a5 a6]))
+          (-invoke [this a1 a2 a3 a4 a5 a6 a7]
+            (instantiate-embedded-internal this has-app-state? [a1 a2 a3 a4 a5 a6 a7]))
+          (-invoke [this a1 a2 a3 a4 a5 a6 a7 a8]
+            (instantiate-embedded-internal this has-app-state? [a1 a2 a3 a4 a5 a6 a7 a8]))
+          (-invoke [this a1 a2 a3 a4 a5 a6 a7 a8 a9]
+            (instantiate-embedded-internal this has-app-state? [a1 a2 a3 a4 a5 a6 a7 a8 a9]))
+          (-invoke [this a1 a2 a3 a4 a5 a6 a7 a8 a9 a10]
+            (instantiate-embedded-internal this has-app-state? [a1 a2 a3 a4 a5 a6 a7 a8 a9 a10]))
+          (-invoke [this a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11]
+            (instantiate-embedded-internal this has-app-state? [a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11]))
+          (-invoke [this a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12]
+            (instantiate-embedded-internal this has-app-state? [a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12]))
+          (-invoke [this a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12 a13]
+            (instantiate-embedded-internal this has-app-state? [a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12 a13]))
+          (-invoke [this a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12 a13 a14]
+            (instantiate-embedded-internal this has-app-state? [a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12 a13 a14]))
+          (-invoke [this a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12 a13 a14 a15]
+            (instantiate-embedded-internal this has-app-state? [a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12 a13 a14 a15]))
+          (-invoke [this a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12 a13 a14 a15 a16]
+            (instantiate-embedded-internal this has-app-state? [a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12 a13 a14 a15 a16]))
+          (-invoke [this a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12 a13 a14 a15 a16 a17]
+            (instantiate-embedded-internal this has-app-state? [a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12 a13 a14 a15 a16 a17]))
+          (-invoke [this a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12 a13 a14 a15 a16 a17 a18]
+            (instantiate-embedded-internal this has-app-state? [a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12 a13 a14 a15 a16 a17 a18]))
+          (-invoke [this a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12 a13 a14 a15 a16 a17 a18 a19]
+            (instantiate-embedded-internal this has-app-state? [a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12 a13 a14 a15 a16 a17 a18 a19]))
+          (-invoke [this a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12 a13 a14 a15 a16 a17 a18 a19 a20]
+            (instantiate-embedded-internal this has-app-state? [a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12 a13 a14 a15 a16 a17 a18 a19 a20]))
+          (-invoke [this a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12 a13 a14 a15 a16 a17 a18 a19 a20 rest]
+            (instantiate-embedded-internal this has-app-state? (concat [a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12 a13 a14 a15 a16 a17 a18 a19 a20] rest)))
           IReaclClass
           (-instantiate-toplevel-internal [this rst]
             (instantiate-toplevel-internal this has-app-state? rst))

@@ -3,6 +3,16 @@
   (:require [cljsjs.react]
             [cljsjs.react.dom]))
 
+;; This is needed to keep track of the current local state of the
+;; components as we process an action.  Actions can observe changes to
+;; the local state.  However, React processes changes to its
+;; state (which contains the local state) in a delayed fashion.
+
+;; So this is a dynamically bound map from component to local state to
+;; track the local state in the current cycle.
+
+(def ^:dynamic *local-state-map* {})
+
 (defn- ^:no-doc local-state-state
   "Set Reacl local state in the given state object.
 
@@ -31,7 +41,10 @@
 
    For internal use."
   [this]
-  (state-extract-local-state (.-state this)))
+  (let [res (get *local-state-map* this ::not-found)]
+    (case res
+      (::not-found) (state-extract-local-state (.-state this))
+      res)))
 
 (defn- ^:no-doc props-extract-initial-app-state
   "Extract initial applications state from props of a Reacl 2toplevel component.
@@ -540,14 +553,16 @@
 
   Note that the actual update of `(.-state component)` might be deferred and thus not
   visible immediately."
-  [component as ls]
+  [component as ls cont]
   (.setState component
              (cond-> #js {}
                (not= keep-state ls) (local-state-state ls)
                (not= keep-state as) (app-state+recompute-locals-state component as)))
   (when (not= keep-state as)
     (aset component "reacl_current_app_state" as)
-    (app-state-changed! component as)))
+    (app-state-changed! component as))
+  (binding [*local-state-map* (assoc *local-state-map* component ls)]
+    (cont)))
 
 (defn- ^:no-doc handle-message
   "Handle a message for a Reacl component.
@@ -589,15 +604,14 @@
 
   ;; We manage reacl_current_app_state to always have a current value.
   (let [[app-state actions] (action-effect (action-reducer this) (aget this "reacl_current_app_state") action)]
-    (set-state! this app-state keep-state)
-    (handle-actions! this actions)))
+    (set-state! this app-state keep-state
+                #(handle-actions! this actions))))
 
 (defn handle-returned!
   "Handle all effects described in a [[Returned]] object."
   [comp ^Returned ret]
-  (set-state! comp (:app-state ret) (:local-state ret))
-  ;; see above
-  (handle-actions! comp (:actions ret)))
+  (set-state! comp (:app-state ret) (:local-state ret)
+              #(handle-actions! comp (:actions ret))))
 
 (defn ^:no-doc handle-effects!
   "Handle all effects described in a [[Effects]] object."

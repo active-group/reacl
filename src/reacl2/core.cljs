@@ -13,6 +13,9 @@
 
 (def ^:dynamic *local-state-map* {})
 
+;; Ditto for the app state, but read access to this is much more focussed.
+(def ^:dynamic *app-state-map* {})
+
 (defn- ^:no-doc local-state-state
   "Set Reacl local state in the given state object.
 
@@ -263,7 +266,6 @@
   [this app-state]
   (assert (.hasOwnProperty (.-state this) "reacl_app_state"))
   (.setState this (app-state+recompute-locals-state #js {} this app-state))
-  (aset this "reacl_current_app_state" app-state)
   (app-state-changed! this app-state))
 
 (defprotocol ^:no-doc IReaclClass
@@ -559,9 +561,9 @@
                (not= keep-state ls) (local-state-state ls)
                (not= keep-state as) (app-state+recompute-locals-state component as)))
   (when (not= keep-state as)
-    (aset component "reacl_current_app_state" as)
     (app-state-changed! component as))
-  (binding [*local-state-map* (assoc *local-state-map* component ls)]
+  (binding [*app-state-map* (assoc *app-state-map* component as)
+            *local-state-map* (assoc *local-state-map* component ls)]
     (cont)))
 
 (defn- ^:no-doc handle-message
@@ -602,8 +604,8 @@
   ;; may batch or defer the update until later. This makes reading
   ;; this.state right after calling setState() a potential pitfall."
 
-  ;; We manage reacl_current_app_state to always have a current value.
-  (let [[app-state actions] (action-effect (action-reducer this) (aget this "reacl_current_app_state") action)]
+  (let [[app-state actions]
+        (action-effect (action-reducer this) (get *app-state-map* this) action)]
     (set-state! this app-state keep-state
                 #(handle-actions! this actions))))
 

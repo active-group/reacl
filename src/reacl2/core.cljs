@@ -563,7 +563,10 @@
   (when (not= keep-state as)
     (app-state-changed! component as))
   (binding [*app-state-map* (assoc *app-state-map* component as)
-            *local-state-map* (assoc *local-state-map* component ls)]
+            *local-state-map* (assoc *local-state-map* component
+                                                       (if (= keep-state ls)
+                                                         (extract-local-state component)
+                                                         ls))]
     (cont)))
 
 (defn- ^:no-doc handle-message

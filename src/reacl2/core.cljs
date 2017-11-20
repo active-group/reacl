@@ -556,10 +556,13 @@
   Note that the actual update of `(.-state component)` might be deferred and thus not
   visible immediately."
   [component as ls cont]
-  (.setState component
-             (cond-> #js {}
-               (not= keep-state ls) (local-state-state ls)
-               (not= keep-state as) (app-state+recompute-locals-state component as)))
+  (when-not (and (= keep-state ls)
+                 (= keep-state as))
+    ;; avoid unnecessary re-rendering
+    (.setState component
+               (cond-> #js {}
+                 (not= keep-state ls) (local-state-state ls)
+                 (not= keep-state as) (app-state+recompute-locals-state component as))))
   (when (not= keep-state as)
     (app-state-changed! component as))
   (binding [*app-state-map* (assoc *app-state-map* component as)

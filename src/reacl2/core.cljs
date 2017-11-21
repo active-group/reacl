@@ -155,7 +155,7 @@
 
   For internal use."
   [cl app-state args]
-  #js {:reacl_args args
+  #js {:reacl_args (vec args)
        :reacl_reduce_action (fn [app-state action]
                               (return :action action))})
 
@@ -300,7 +300,7 @@
       (not= local-state
             next-local-state)
       (not= args
-            next-args)))
+            (vec next-args))))
 
 (defrecord ^{:doc "Optional arguments for instantiation."}
     Options
@@ -364,7 +364,7 @@
     (js/React.createElement (react-class clazz)
                             #js {:reacl_initial_app_state app-state
                                  :reacl_initial_locals (-compute-locals clazz app-state args)
-                                 :reacl_args args
+                                 :reacl_args (vec args)
                                  :reacl_reaction (or (:reaction opts) ; FIXME: what if we have both?
                                                      (if-let [embed-app-state (:embed-app-state opts)]
                                                        (reaction :parent ->EmbedAppState)
@@ -675,8 +675,9 @@
                 should-component-update?
                 component-will-update
                 component-did-update
-                component-will-unmount]
-         :or {:should-component-update? default-should-component-update?}
+                component-will-unmount
+                should-component-update?]
+         :or {should-component-update? default-should-component-update?}
          }
         (into {} specials)
         ]

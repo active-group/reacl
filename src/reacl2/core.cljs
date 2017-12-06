@@ -206,12 +206,18 @@
   (assert (not (nil? make-message)))
   (Reaction. component make-message args))
 
-(declare send-message!)
+(declare send-message! component-parent)
 
 (defn invoke-reaction
   "Invokes the given reaction with the given message value (usually an app-state)."
-  [reaction value]
-  (send-message! (:component reaction) (apply (:make-message reaction) value (:args reaction))))
+  [this reaction value]
+  (let [target (:component reaction)
+        real-target
+        (case target
+          :parent
+          (component-parent this)
+          target)]
+    (send-message! real-target (apply (:make-message reaction) value (:args reaction)))))
 
 ; On app state:
 ;
@@ -240,7 +246,7 @@
 
 (defrecord EmbedAppState
     [app-state ; new app state from child
-     embed ; function parent-apps-tate child-app-state |-> parent-app-state
+     embed ; function parent-app-state child-app-state |-> parent-app-state
      ])
 
 (defrecord KeywordEmbedder [keyword]
@@ -256,7 +262,7 @@
   [this app-state]
   (when-let [reaction (props-extract-reaction (.-props this))]
     (assert (instance? Reaction reaction))
-    (invoke-reaction reaction app-state)))
+    (invoke-reaction this reaction app-state)))
 
 (defn ^:no-doc set-app-state!
   "Set the application state associated with a Reacl component.
@@ -315,7 +321,7 @@
   - `:reaction` must be a reaction to an app-state change, typically created via
     [[reaction]], [[no-reaction]], or [[pass-through-reaction]].  -
   - `:embed-app-state` can be specified as an alternative to `:reaction`
-    and specifies, that the app state of this component is embedded in the parent
+    and specifies, that the app state of this component is embedded in the
     parent component's app state.  This must be a function of two arguments, the
     parent app state and this component's app-state.  It must return a new parent
     app state.
@@ -367,7 +373,7 @@
                                  :reacl_args (vec args)
                                  :reacl_reaction (or (:reaction opts) ; FIXME: what if we have both?
                                                      (if-let [embed-app-state (:embed-app-state opts)]
-                                                       (reaction :parent ->EmbedAppState)
+                                                       (reaction :parent ->EmbedAppState embed-app-state)
                                                        no-reaction))
                                  :reacl_reduce_action (or (:reduce-action opts)
                                                           (fn [app-state action] ; FIXME: can probably greatly optimize this case
@@ -408,7 +414,7 @@
                                  :reacl_args args
                                  :reacl_reaction (or (:reaction opts) ; FIXME: what if we have both?
                                                      (if-let [embed-app-state (:embed-app-state opts)]
-                                                       (reaction :parent ->EmbedAppState)
+                                                       (reaction :parent ->EmbedAppState embed-app-state)
                                                        no-reaction))
                                  :reacl_reduce_action (or (:reduce-action opts)
                                                           (fn [app-state action] ; FIXME: can probably greatly optimize this case

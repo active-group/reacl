@@ -180,7 +180,7 @@
   Fn
   IFn
   (-invoke [this value]
-    (invoke-reaction this value)))
+    (invoke-reaction component this value)))
 
 (def no-reaction 
   "Use this as a reaction if you don't want to react to an app-state change."

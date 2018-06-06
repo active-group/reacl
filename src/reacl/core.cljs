@@ -92,5 +92,9 @@
       (-instantiate [this args]
         (reacl2/instantiate-embedded-internal-v1 clazz nil error-reaction args))
       reacl2/IReaclClass
+      (-instantiate-toplevel-internal [this rst]
+        (reacl2/instantiate-toplevel-internal this false rst))
+      (-compute-locals [this app-state args]
+        #js [])
       (-react-class [this] react-class)
       )))

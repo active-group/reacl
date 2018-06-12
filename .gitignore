@@ -1,0 +1,7 @@
+.lein-failures
+.lein-repl-history
+examples
+pom.xml
+pom.xml.asc
+target
+doc

@@ -6,7 +6,7 @@
 
   :jvm-opts ^:replace ["-Xmx512m" "-server"]
 
-  :dependencies [[org.clojure/clojure "1.9.0-alpha10" :scope "provided"]
+  :dependencies [[org.clojure/clojure "1.9.0" :scope "provided"]
                  [org.clojure/clojurescript "1.9.293" :scope "provided"]
                  [cljsjs/react-with-addons "15.4.0-0"] ; addons needed for tests only
                  [cljsjs/react-dom "15.4.0-0" :exclusions [cljsjs/react]]

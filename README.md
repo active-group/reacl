@@ -7,9 +7,9 @@ framework.  This is very different from David Nolen's Om framework.
 
 Your `project.clj` should contain something like this:
 
-	  :dependencies [[org.clojure/clojure "1.9.0-alpha10" :scope "provided"]
+	  :dependencies [[org.clojure/clojure "1.9.0" :scope "provided"]
                      [org.clojure/clojurescript "1.9.293" :scope "provided"]
-					 [reacl "2.0.0"]]
+					 [reacl "2.0.1"]]
 
 ## API Documentation
 

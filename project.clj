@@ -7,14 +7,14 @@
   :jvm-opts ^:replace ["-Xmx512m" "-server"]
 
   :dependencies [[org.clojure/clojure "1.9.0" :scope "provided"]
-                 [org.clojure/clojurescript "1.9.293" :scope "provided"]
+                 [org.clojure/clojurescript "1.10.238" :scope "provided"]
                  [cljsjs/react-with-addons "15.4.0-0"] ; addons needed for tests only
                  [cljsjs/react-dom "15.4.0-0" :exclusions [cljsjs/react]]
                  [cljsjs/react-dom-server "15.4.0-0" :exclusions [cljsjs/react]]
                  ]
 
   :plugins [[lein-cljsbuild "1.1.5"]
-            [lein-doo "0.1.7"]
+            [lein-doo "0.1.10"]
             [lein-codox "0.9.3"]]
 
   :profiles {:dev {:dependencies [[active-clojure "0.11.0" :exclusions [org.clojure/clojure]]

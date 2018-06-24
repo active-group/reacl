@@ -1,7 +1,6 @@
-# Reacl
+<img src="https://raw.githubusercontent.com/markusschlegel/reacl/master/logo.png" width="180">
 
-A ClojureScript library for programming with Facebook's React
-framework.  This is very different from David Nolen's Om framework.
+A ClojureScript library for programming with Facebook's React framework.
 
 ## Using it
 

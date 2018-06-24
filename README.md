@@ -13,6 +13,66 @@ Your `project.clj` should contain something like this:
                [reacl "2.0.1"]]
 ```
 
+## Rationale
+
+Facebook’s React brought a wonderful programming model to user interface development on the web. React components are immutable and [`ReactDom/render`](https://reactjs.org/docs/rendering-elements.html) can be regarded as a pure function from state to UI. Still, with React your business logic is managed by impure imperative code with calls to `setState`. Reacl improves on this shortcoming by decoupling the triggering of change (`send-message!`) from the pure handling of application state transitions (`handle-message`). This makes your components functionally pure, which comes with the well-known advantages of testability and general peace of mind.
+
+## Reacl components
+
+A minimal Reacl component consists of a name, some *application state*, and a `render` function.
+
+```clj
+(reacl/defclass clock
+  this ;; A name for when you want to reference the current component
+  date ;; A name for this components application state
+  []   ;; Parameters (none for now)
+  
+  render
+  (dom/div
+    (dom/h1 "Hello, world!")
+    (dom/h2 (str "It is " (.toLocaleTimeString date) "."))))
+    
+(reacl/render-component
+  (.getElementById js/document "app") ;; Mount point
+  clock                               ;; Component to render
+  (js/Date.))                         ;; The components initial app state
+```
+
+So far this is mostly a 1-to-1 translation of the [corresponding React component.](https://reactjs.org/docs/state-and-lifecycle.html) The `render` clause lets you define a function going from your components app state to a virtual DOM tree.
+
+We now want this clock component to update every second. With React you would start a timer that called a method of your component and in that method you would call `setState` which in turn triggered the component to re-render. In contrast, with Reacl, the timer merely *sends a message* to the component. The message holds a representation of the action that occurred: the advancement of time. This forces you to think about the actions in your application as values, which leads to good design.
+
+```clj
+(defrecord Tick [time])
+```
+
+You can set up the timer in a `component-did-mount` clause. You use `send-message!` to send a message to a component.
+
+```clj
+...
+component-did-mount
+(fn []
+  (.setInterval
+    js/window
+    #(reacl/send-message! this (Tick. (js/Date.))) 1000))
+...
+```
+
+The component receives the message. The message handler defined in the `handle-message` clause has to compute a new application state depending on the contents of the message and its current app state.
+
+```clj
+...
+handle-message
+(fn [msg]
+  (reacl/return :app-state
+                (:time msg)))
+...
+```
+
+The component is now re-rendered with the new app state. Notice how we never set any state explicitly by calling something like `setState`. We only sent a message. The component’s `handle-message` function is a functionally pure description of your business logic.
+
+
+
 ## API Documentation
 
 [Here](http://active-group.github.io/reacl/).

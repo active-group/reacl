@@ -7,9 +7,11 @@ framework.  This is very different from David Nolen's Om framework.
 
 Your `project.clj` should contain something like this:
 
-	  :dependencies [[org.clojure/clojure "1.9.0" :scope "provided"]
-                     [org.clojure/clojurescript "1.9.293" :scope "provided"]
-					 [reacl "2.0.1"]]
+```clj
+:dependencies [[org.clojure/clojure "1.9.0" :scope "provided"]
+               [org.clojure/clojurescript "1.9.293" :scope "provided"]
+               [reacl "2.0.1"]]
+```
 
 ## API Documentation
 
@@ -78,7 +80,7 @@ expect [TodoMVC](http://todomvc.com/)).  We use this namespace header:
 ```clj
 (ns examples.todo.core
   (:require [reacl2.core :as reacl :include-macros true]
-			[reacl2.dom :as dom :include-macros true]))
+            [reacl2.dom :as dom :include-macros true]))
 ```
 
 First of all, we define a record type for to-dos, with a unique id
@@ -185,7 +187,7 @@ method:
    (dom/div (map (fn [todo]
                    (dom/keyed (str (:id todo))
                               (to-do-item
-							   (reacl/opt :reaction (reacl/reaction this ->Change))
+			       (reacl/opt :reaction (reacl/reaction this ->Change))
                                todo
                                this)))
                  (:todos app-state)))

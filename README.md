@@ -15,7 +15,16 @@ Your `project.clj` should contain something like this:
 
 ## Rationale
 
-Facebook’s React brought a wonderful programming model to user interface development on the web. React components are immutable and [`ReactDom/render`](https://reactjs.org/docs/rendering-elements.html) can be regarded as a pure function from state to UI. Still, with React your business logic is managed by impure imperative code with calls to `setState`. Reacl improves on this shortcoming by decoupling the triggering of change (`send-message!`) from the pure handling of application state transitions (`handle-message`). This makes your components functionally pure, which comes with the well-known advantages of testability and general peace of mind.
+Facebook’s React framework brought a wonderful programming model to user interface development on the web. With React, your UI is the result of a pure function application with your application state as input. A change in your app state signifies advancement of (logical) time. At every point in logical time your UI is (conceptually) entirely rerendered.
+
+<img src="https://raw.githubusercontent.com/markusschlegel/reacl/master/rationale-2.png" width="524">
+
+With React, the transitions in logical time (a.k.a. your business logic) are driven and managed implicitely by imperative calls to `setState`. Reacl improves on this model by decoupling the triggering of change (`send-message!`) from the pure handling of application state transitions (`handle-message`).
+
+<img src="https://raw.githubusercontent.com/markusschlegel/reacl/master/rationale-3.png" width="609">
+
+Advancement of logical time is now driven by calls to `send-message!`. The messages you send are then handled by the components in their `handle-message` functions, which are functionally pure descriptions of your business logic. The messages encode the change that happens in your application as values. This leads to good design, ease of reasoning, and general peace of mind.
+
 
 ## Reacl components
 

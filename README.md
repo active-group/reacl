@@ -24,6 +24,18 @@ With React, the transitions in logical time (a.k.a. your business logic) are dri
 
 Advancement of logical time is now driven by calls to `send-message!`. The messages you send are then handled by the components in their `handle-message` functions, which are functionally pure descriptions of your business logic. The messages encode the change that happens in your application as values. This leads to good design, ease of reasoning, and general peace of mind.
 
+## Organization
+
+Reacl consists of two namespaces:
+
+- `reacl2.core` with Reacl's core programming model
+- `reacl2.dom` for conveniently constructing virtual DOM nodes in
+  ClojureScript
+
+The `reacl2.dom` namespace can be used independently.
+While `reacl2.core` depends on `reacl2.dom`, it could also be used
+directly with React's virtual-DOM API or other DOM binding.
+
 
 ## Reacl components
 
@@ -31,27 +43,27 @@ A minimal Reacl component consists of a name, some *application state*, and a `r
 
 ```clj
 (reacl/defclass clock
-  this ;; A name for when you want to reference the current component
-  date ;; A name for this components application state
-  []   ;; Parameters (none for now)
+  this       ;; A name for when you want to reference the current component
+  app-state  ;; A name for this components application state
+  []         ;; Parameters (none for now)
   
   render
   (dom/div
-    (dom/h1 "Hello, world!")
-    (dom/h2 (str "It is " (.toLocaleTimeString date) "."))))
+    (dom/h1 (str (:greeting app-state) ", world!")
+    (dom/h2 (str "It is " (.toLocaleTimeString (:date app-state) "."))))
     
 (reacl/render-component
-  (.getElementById js/document "app") ;; Mount point
-  clock                               ;; Component to render
-  (js/Date.))                         ;; The components initial app state
+  (.getElementById js/document "app")   ;; Mount point
+  clock                                 ;; Component to render
+  {:date (js/Date.) :greeting "Hello"}) ;; The component's initial app state
 ```
 
-So far this is mostly a 1-to-1 translation of the [corresponding React component.](https://reactjs.org/docs/state-and-lifecycle.html) The `render` clause lets you define a function going from your components app state to a virtual DOM tree.
+The `render` clause lets you define a function going from your components app state to a virtual DOM tree. So far this is mostly a 1-to-1 translation of the [corresponding React component.](https://reactjs.org/docs/state-and-lifecycle.html)
 
-We now want this clock component to update every second. With React you would start a timer that called a method of your component and in that method you would call `setState` which in turn triggered the component to re-render. In contrast, with Reacl, the timer merely *sends a message* to the component. The message holds a representation of the action that occurred: the advancement of time. This forces you to think about the actions in your application as values, which leads to good design.
+We now want this clock component to update every second. With React you would start a timer that called a method of your component and in that method you would call `setState` which in turn triggered the component to rerender. In contrast, with Reacl, the timer merely *sends a message* to the component. The message holds a representation of the action that occurred: the advancement of time. This forces you to think about the actions in your application as values.
 
 ```clj
-(defrecord Tick [time])
+(defrecord Tick [date])
 ```
 
 You can set up the timer in a `component-did-mount` clause. You use `send-message!` to send a message to a component.
@@ -66,18 +78,20 @@ component-did-mount
 ...
 ```
 
-The component receives the message. The message handler defined in the `handle-message` clause has to compute a new application state depending on the contents of the message and its current app state.
+Every 1000ms the component receives the message. The message handler defined in the `handle-message` clause has to compute a new application state depending on the contents of the message and its current app state.
 
 ```clj
 ...
 handle-message
 (fn [msg]
   (reacl/return :app-state
-                (:time msg)))
+                (assoc app-state :date (:date msg))))
 ...
 ```
 
 The component is now re-rendered with the new app state. Notice how we never set any state explicitly by calling something like `setState`. We only sent a message. The component’s `handle-message` function is a functionally pure description of your business logic.
+
+// FIXME: This is a bit of a contrived example. :greeting better be a parameter if you can't change it inside the component.
 
 
 
@@ -125,18 +139,6 @@ In addition to this core model, Reacl also provides a convenience
 layer on React's virtual dom. (The convenience layer can be used
 independently; also, any other convenience layer over React's virtual
 dom should be usable with Reacl.)
-
-## Organization
-
-Reacl consists of three namespaces:
-
-- `reacl2.core` with Reacl's core programming model
-- `reacl2.dom` for conveniently constructing virtual DOM nodes in
-  ClojureScript
-
-The `reacl2.dom` namespace can be used independently.
-While `reacl2.core` depends on `reacl2.dom`, it could also be used
-directly with React's virtual-DOM API or other DOM binding.
 
 ## Example
 

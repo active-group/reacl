@@ -287,6 +287,23 @@
 ;; FIXME: should really be restricted to lifecycle methods we know we support
 
 (defmacro mixin
+  "Define a mixin. Mixins let you provide additional lifecycle method expressions that
+  you can mix into your components.
+  
+  The syntax is
+  
+      (reacl.core/mixin [<this> [<app-state> [<local-state>]]] [<param> ...]
+        [<lifecycle-method-name> <lifecycle-method-exp> ...])
+  
+  In order to use the mixin you can use the `mixins` clause in `defclass`
+
+      (reacl.core/defclass foo ...
+        mixins [(<your-mixin-var> [<param> ...])]
+        ...)
+
+  The lifecycle method expressions in the mixins will be called in order. Only after all
+  mixin lifecycle methods have been handled the component's own lifecycle method will be
+  called."
   [& ?stuff]
   (let [[?component ?stuff] (split-symbol ?stuff `component#)
         [?app-state ?stuff] (split-symbol ?stuff `app-state#)

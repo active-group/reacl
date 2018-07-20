@@ -56,6 +56,13 @@ A minimal Reacl component consists of a name, some *application state*, some *ar
     (dom/h1 (str greeting ", world!"))
     (dom/h2 (str "It is " (.toLocaleTimeString (:date app-state)) "."))
     (dom/p (str "Number of ticks: " (:ticks app-state)))))
+
+(reacl/render-component
+  (.getElementById js/document "editor")
+  clock
+  {:date (js/Date.)
+   :ticks 42}
+  "Hello")
 ```
 
 The `render` clause lets you define a function going from your components app state to a virtual DOM tree. So far this is mostly a 1-to-1 translation of the [corresponding React component.](https://reactjs.org/docs/state-and-lifecycle.html)

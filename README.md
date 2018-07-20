@@ -156,6 +156,10 @@ So far in our clock example we start a timer when the component mounts but we do
 
 TODO
 
+### Actions for side-effects
+
+TODO
+
 ## Model
 
 The central idea of Reacl is this: Reacl programs are pure.  They

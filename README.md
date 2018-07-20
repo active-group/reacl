@@ -12,6 +12,10 @@ Your `project.clj` should contain something like this:
                [reacl "2.0.1"]]
 ```
 
+## API Documentation
+
+[Here](http://active-group.github.io/reacl/).
+
 ## Rationale
 
 Facebook’s React framework brought a wonderful programming model to user interface development on the web. With React, your UI is the result of a pure function application with your application state as input. A change in your app state signifies advancement of (logical) time. At every point in logical time your UI is (conceptually) entirely rerendered.
@@ -144,14 +148,6 @@ So far in our clock example we start a timer when the component mounts but we do
 ### Reactions and `:embed-app-state`
 
 TODO
-
-
-
-
-
-## API Documentation
-
-[Here](http://active-group.github.io/reacl/).
 
 ## Model
 

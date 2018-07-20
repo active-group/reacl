@@ -1,19 +1,164 @@
-# Reacl
+<img src="https://raw.githubusercontent.com/markusschlegel/reacl/master/logo.png" width="180">
 
-A ClojureScript library for programming with Facebook's React
-framework.  This is very different from David Nolen's Om framework.
+A ClojureScript library for programming with Facebook's React framework.
 
 ## Using it
 
 Your `project.clj` should contain something like this:
 
-	  :dependencies [[org.clojure/clojure "1.9.0" :scope "provided"]
-                     [org.clojure/clojurescript "1.9.293" :scope "provided"]
-					 [reacl "2.0.1"]]
+```clj
+:dependencies [[org.clojure/clojure "1.9.0" :scope "provided"]
+               [org.clojure/clojurescript "1.9.293" :scope "provided"]
+               [reacl "2.0.1"]]
+```
 
 ## API Documentation
 
 [Here](http://active-group.github.io/reacl/).
+
+## Rationale
+
+Facebook’s React framework brought a wonderful programming model to user interface development on the web. With React, your UI is the result of a pure function application with your application state as input. A change in your app state signifies advancement of (logical) time. At every point in logical time your UI is (conceptually) entirely rerendered.
+
+<img src="https://raw.githubusercontent.com/markusschlegel/reacl/master/rationale-2.png" width="524">
+
+With React, the transitions in logical time (a.k.a. your business logic) are driven and managed implicitely by imperative calls to `setState`. Reacl improves on this model by decoupling the triggering of change (`send-message!`) from the pure handling of application state transitions (`handle-message`).
+
+<img src="https://raw.githubusercontent.com/markusschlegel/reacl/master/rationale-3.png" width="609">
+
+Advancement of logical time is now driven by calls to `send-message!`. The messages you send are then handled by the components in their `handle-message` functions, which are functionally pure descriptions of your business logic. The messages encode the change that happens in your application as values. This leads to good design, ease of reasoning, and general peace of mind.
+
+## Organization
+
+Reacl consists of two namespaces:
+
+- `reacl2.core` with Reacl's core programming model
+- `reacl2.dom` for conveniently constructing virtual DOM nodes in
+  ClojureScript
+
+The `reacl2.dom` namespace can be used independently.
+While `reacl2.core` depends on `reacl2.dom`, it could also be used
+directly with React's virtual-DOM API or other DOM binding.
+
+
+## Reacl components
+
+A minimal Reacl component consists of a name, some *application state*, some *arguments*, and a `render` function.
+
+```clj
+(reacl/defclass clock
+  this       ;; A name for when you want to reference the current component
+  app-state  ;; A name for this components application state
+  [greeting] ;; Arguments
+
+  render
+  (dom/div
+    (dom/h1 (str greeting ", world!"))
+    (dom/h2 (str "It is " (.toLocaleTimeString (:date app-state)) "."))
+    (dom/p (str "Number of ticks: " (:ticks app-state)))))
+
+(reacl/render-component
+  (.getElementById js/document "editor")
+  clock
+  {:date (js/Date.)
+   :ticks 42}
+  "Hello")
+```
+
+The `render` clause lets you define a function going from your components app state to a virtual DOM tree. So far this is mostly a 1-to-1 translation of the [corresponding React component.](https://reactjs.org/docs/state-and-lifecycle.html)
+
+We now want this clock component to update every second. With React you would start a timer that called a method of your component and in that method you would call `setState` which in turn triggered the component to rerender. In contrast, with Reacl, the timer merely *sends a message* to the component. The message holds a representation of the action that occurred: the advancement of time. This forces you to think about the actions in your application as values. It also decouples triggers (the impure world) and your business logic (the pure world).
+
+```clj
+(defrecord Tick [date])
+```
+
+You can set up the timer in a `component-did-mount` clause. You use `send-message!` to send a message to a component.
+
+```clj
+...
+  component-did-mount
+  (fn []
+    (let [timer (.setInterval
+                  js/window
+                  #(reacl/send-message! this (->Tick (js/Date.)))
+                  1000)]))
+...
+```
+
+Every 1000ms the component receives the message. The message handler defined in the `handle-message` clause has to compute a new application state depending on the contents of the message and its current app state.
+
+```clj
+...
+  handle-message
+  (fn [msg]
+    (reacl/return :app-state
+                  (assoc app-state
+                         :date
+                         (:date msg)
+                         :ticks
+                         (+ 1 (:ticks app-state)))))
+...
+```
+
+The component is now re-rendered with the new app state. Notice how we never set any state explicitly by calling something like `setState`. We only sent a message. The component’s `handle-message` function is a functionally pure description of your business logic.
+
+### Application state and composition
+
+Components can easily be composed. You just use a component's name as a function when you construct a virtual DOM tree.
+
+```clj
+(reacl/defclass two-clocks
+  this app-state []
+  render
+  (dom/div
+    {:class "clocks"}
+    (clock
+      {:date (js/Date.)
+       :ticks 0}
+      "Ciao")
+    (clock
+      {:date (js/Date.)
+       :ticks 1000}
+      "Gruezi")))
+```
+
+Here we define a component that holds two clocks. The two clocks work completely independently. Each component's application state (the date and the number of ticks) is only directly accessible within the component itself. There is no global application state. This makes composition a lot easier because you don't have to think about the allocation of resources inside a global store.
+
+### Local state
+
+App state represents something that's important to your application. In some situations you need a different kind of state, something that's just an aspect of the GUI but not yet tracked by the DOM. Therefore Reacl provides you with the notion of *local state*.
+
+So far in our clock example we start a timer when the component mounts but we don't stop it when the component unmounts. In order to fix this problem, we can save the timer ID as local state inside our component in order to reference it in a `component-will-unmount` lifecycle clause. We introduce local state to our component class with the `local-state` clause.
+
+```clj
+...
+  local-state [timer nil] ;; We refer to our local state as `timer`. Its default value is nil.
+
+  component-did-mount
+  (fn []
+    (let [timer (.setInterval
+                  js/window
+                  #(reacl/send-message! this (->Tick (js/Date.)))
+                  1000)]
+      (reacl/return :local-state
+                    timer)))
+
+  component-will-unmount
+  (fn []
+    (.clearInterval
+      js/window
+      timer))
+...
+```
+
+### Reactions and `:embed-app-state`
+
+TODO
+
+### Actions for side-effects
+
+TODO
 
 ## Model
 
@@ -56,18 +201,6 @@ layer on React's virtual dom. (The convenience layer can be used
 independently; also, any other convenience layer over React's virtual
 dom should be usable with Reacl.)
 
-## Organization
-
-Reacl consists of three namespaces:
-
-- `reacl2.core` with Reacl's core programming model
-- `reacl2.dom` for conveniently constructing virtual DOM nodes in
-  ClojureScript
-
-The `reacl2.dom` namespace can be used independently.
-While `reacl2.core` depends on `reacl2.dom`, it could also be used
-directly with React's virtual-DOM API or other DOM binding.
-
 ## Example
 
 Check out the very simple example for managing a to-do list in file
@@ -78,7 +211,7 @@ expect [TodoMVC](http://todomvc.com/)).  We use this namespace header:
 ```clj
 (ns examples.todo.core
   (:require [reacl2.core :as reacl :include-macros true]
-			[reacl2.dom :as dom :include-macros true]))
+            [reacl2.dom :as dom :include-macros true]))
 ```
 
 First of all, we define a record type for to-dos, with a unique id
@@ -185,7 +318,7 @@ method:
    (dom/div (map (fn [todo]
                    (dom/keyed (str (:id todo))
                               (to-do-item
-							   (reacl/opt :reaction (reacl/reaction this ->Change))
+			       (reacl/opt :reaction (reacl/reaction this ->Change))
                                todo
                                this)))
                  (:todos app-state)))

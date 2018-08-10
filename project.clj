@@ -13,7 +13,7 @@
                  [cljsjs/react-dom-server "15.4.0-0" :exclusions [cljsjs/react]]
                  ]
 
-  :plugins [[lein-cljsbuild "1.1.5"]
+  :plugins [[lein-cljsbuild "1.1.7"]
             [lein-doo "0.1.10"]
             [lein-codox "0.9.3"]]
 

@@ -24,14 +24,12 @@
   
   :cljsbuild
   
-  { :builds [;; these need phantom or something like it
-             {:id "test-dom"
+  { :builds [{:id "test-dom"
               :source-paths ["src" "test-dom"]
               :compiler {:output-to "target/test-dom.js"
                          :main reacl2.test.runner
                          :optimizations :none}}
 
-             ;; these can run under Nashorn
              {:id "test-nodom"
               :source-paths ["src" "test-nodom"]
               :compiler {:output-to "target/test-nodom.js"
@@ -74,9 +72,6 @@
                           :source-map "target/delayed/main.map"
                           :optimizations :whitespace
                           :parallel-build true}}]}
-
-  :aliases {"test-dom" ["doo" "phantom" "test-dom"]
-            "test-nodom" ["doo" "nashorn" "test-nodom"]}
 
   :codox {:language :clojurescript
           :metadata {:doc/format :markdown}

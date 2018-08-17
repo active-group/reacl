@@ -4,6 +4,8 @@
             [reacl2.test-util :as test-util]
             [active.clojure.lens :as lens]
             [cljsjs.react]
+            [cljsjs.react.test-renderer.shallow]
+            [cljsjs.react.dom.test-utils]
             [cljs.test :as t])
   (:require-macros [cljs.test
                     :refer (is deftest run-tests testing)]))
@@ -59,7 +61,7 @@
 
 (deftest to-do-message
   (let [e (to-do-item (Todo. 42 "foo" true))
-        renderer (js/React.addons.TestUtils.createRenderer)]
+        renderer (js/ReactShallowRenderer.)]
     (.render renderer e)
     (let [t (.getRenderOutput renderer)]
       (let [input (test-util/descend-into-element t [:div :input])]
@@ -77,16 +79,16 @@
 
 (defn dom-with-tag
   [comp tag-name]
-  (js/React.addons.TestUtils.findRenderedDOMComponentWithTag comp tag-name))
+  (js/ReactTestUtils.findRenderedDOMComponentWithTag comp tag-name))
 
 (defn doms-with-tag
   [comp tag-name]
   (into []
-        (js/React.addons.TestUtils.scryRenderedDOMComponentsWithTag comp tag-name)))
+        (js/ReactTestUtils.scryRenderedDOMComponentsWithTag comp tag-name)))
 
 (defn dom-with-class
   [comp clazz]
-  (js/React.addons.TestUtils.findRenderedComponentWithType comp (reacl/react-class clazz)))
+  (js/ReactTestUtils.findRenderedComponentWithType comp (reacl/react-class clazz)))
 
 (defn dom-content
   [comp]

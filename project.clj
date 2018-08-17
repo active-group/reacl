@@ -22,7 +22,7 @@
   :profiles {:dev {:dependencies [[active-clojure "0.11.0" :exclusions [org.clojure/clojure]]
                                   [lein-doo "0.1.7"]]}}
 
-  :clean-targets [:target-path "out"]
+  :clean-targets [:target-path "out" "target"]
   
   :cljsbuild
   

@@ -5,7 +5,7 @@
             [cljsjs.react]
             [cljsjs.react.dom.server]
             [cljsjs.react.dom.test-utils]
-            #_[cljsjs.react.test-renderer.shallow]))
+            [cljsjs.react.test-renderer.shallow]))
 
 (defn render-to-text
   [dom]
@@ -106,7 +106,7 @@
 (defn render-shallowly
   "Render an element shallowly."
   ([element]
-     (render-shallowly element (js/ShallowRenderer.)))
+     (render-shallowly element (js/ReactShallowRenderer.)))
   ([element renderer]
      (.render renderer element)
      (.getRenderOutput renderer)))
@@ -213,7 +213,7 @@
 (defn create-renderer
   "Create a shallow renderer for testing"
   []
-  (js/ShallowRenderer.))
+  (js/ReactShallowRenderer.))
 
 (defn render!
   "Render an element into a renderer."

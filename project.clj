@@ -34,7 +34,8 @@
               :source-paths ["src" "test-nodom"]
               :compiler {:output-to "target/test-nodom.js"
                          :main reacl2.test.runner
-                         :optimizations :whitespace}}
+                         :target :nodejs
+                         }}
              
               ;; examples
               {:id "products"

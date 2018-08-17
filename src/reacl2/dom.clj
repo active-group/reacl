@@ -4,7 +4,7 @@
 (defmacro ^:no-doc defdom
   "Internal macro for constructing DOM-construction wrappers."
   [n]
-  `(def ~n (dom-function ~(symbol (str "js/React.DOM." (name n))))))
+  `(def ~n (dom-function ~(name n))))
 
 (defmacro letdom
   "Bind DOM nodes to names for use in event handlers.

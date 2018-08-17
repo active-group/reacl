@@ -1,7 +1,9 @@
 (ns ^{:doc "Reacl core functionality."}
   reacl2.core
   (:require [cljsjs.react]
-            [cljsjs.react.dom]))
+            [cljsjs.react.dom]
+            [cljsjs.create-react-class]
+            [cljsjs.prop-types]))
 
 ;; This is needed to keep track of the current local state of the
 ;; components as we process an action.  Actions can observe changes to
@@ -826,13 +828,13 @@
             }
            )
 
-          react-class (js/React.createClass
+          react-class (js/createReactClass
                        (apply js-obj (apply concat
                                             (filter #(not (nil? (second %)))
                                                     react-method-map))))
           ]
-      (aset react-class "childContextTypes" #js {:reacl_parent js/React.PropTypes.object})
-      (aset react-class "contextTypes" #js {:reacl_parent js/React.PropTypes.object})
+      (aset react-class "childContextTypes" #js {:reacl_parent js/PropTypes.object})
+      (aset react-class "contextTypes" #js {:reacl_parent js/PropTypes.object})
       (if compat-v1?
         (reify
           IFn ; only this is different between v1 and v2

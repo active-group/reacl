@@ -454,31 +454,31 @@
 
 (defn ^:no-doc dom-function
   "Internal function for constructing wrappers for DOM-construction function."
-  [f]
+  [n]
   (fn
     ([]
-     (f nil))
+     (js/React.createElement n nil))
     ([maybe]
      (if (attributes? maybe)
-       (f (attributes maybe))
-       (f nil (normalize-arg maybe))))
+       (js/React.createElement n (attributes maybe))
+       (js/React.createElement n nil (normalize-arg maybe))))
     ([maybe a1]
      (if (attributes? maybe)
-       (f (attributes maybe) (normalize-arg a1))
-       (f nil (normalize-arg maybe) (normalize-arg a1))))
+       (js/React.createElement n (attributes maybe) (normalize-arg a1))
+       (js/React.createElement n nil (normalize-arg maybe) (normalize-arg a1))))
     ([maybe a1 a2]
      (if (attributes? maybe)
-       (f (attributes maybe) (normalize-arg a1) (normalize-arg a2))
-       (f nil (normalize-arg maybe) (normalize-arg a1) (normalize-arg a2))))
+       (js/React.createElement n (attributes maybe) (normalize-arg a1) (normalize-arg a2))
+       (js/React.createElement n nil (normalize-arg maybe) (normalize-arg a1) (normalize-arg a2))))
     ([maybe a1 a2 a3]
      (if (attributes? maybe)
-       (f (attributes maybe) (normalize-arg a1) (normalize-arg a2) (normalize-arg a3))
-       (f nil (normalize-arg maybe) (normalize-arg a1) (normalize-arg a2) (normalize-arg a3))))
+       (js/React.createElement n (attributes maybe) (normalize-arg a1) (normalize-arg a2) (normalize-arg a3))
+       (js/React.createElement n nil (normalize-arg maybe) (normalize-arg a1) (normalize-arg a2) (normalize-arg a3))))
     ([maybe a1 a2 a3 a4 & rest]
      (let [args (cljs.core/map normalize-arg rest)]
        (if (attributes? maybe)
-         (apply f (attributes maybe) (normalize-arg a1) (normalize-arg a2) (normalize-arg a3) (normalize-arg a4) args)
-         (apply f nil (normalize-arg maybe) (normalize-arg a1) (normalize-arg a2) (normalize-arg a3) (normalize-arg a4) args))))))
+         (apply js/React.createElement n (attributes maybe) (normalize-arg a1) (normalize-arg a2) (normalize-arg a3) (normalize-arg a4) args)
+         (apply js/React.createElement n nil (normalize-arg maybe) (normalize-arg a1) (normalize-arg a2) (normalize-arg a3) (normalize-arg a4) args))))))
 
 (defn ^:no-doc set-dom-binding!
   "Internal function for use by `letdom'.

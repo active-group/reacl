@@ -813,7 +813,7 @@
             (with-state-and-args component-will-update)
 
             "componentDidUpdate"
-            (with-state-and-args component-did-update) ;; here it's
+            (std+state component-did-update) ;; here it's
             ;; the previous state&args
 
             "componentWillUnmount"

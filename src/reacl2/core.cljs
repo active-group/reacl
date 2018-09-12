@@ -813,11 +813,11 @@
             (with-state-and-args component-will-update)
 
             "componentDidUpdate"
-            (with-state-and-args component-did-update) ;; here it's
+            (std+state component-did-update) ;; here it's
             ;; the previous state&args
 
             "componentWillUnmount"
-            (std component-will-unmount)
+            (std+state component-will-unmount)
 
             "statics"
             (js-obj "__computeLocals"
@@ -970,7 +970,7 @@
                         (vector 
                          (entry :component-did-mount "componentDidMount" (fn [this res] (opt-handle-effects! this res)))
                          (entry :component-will-mount "componentWillMount" (fn [this res] (opt-handle-effects! this res)))
-                         (entry :component-will-unmount "componentWillUnmount" pass-through)
+                         (entry :component-will-unmount "componentWillUnmount" (fn [this res] (opt-handle-effects! this res)))
                          (app+local-entry :component-will-update "componentWillUpdate")
                          (app+local-entry :component-did-update "componentDidUpdate")
                          ;; FIXME: :component-will-receive-args 

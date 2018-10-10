@@ -428,6 +428,18 @@ That's it.  Hopefully that's enough to get you started.  Be sure to
 also check out the [`products` example](examples/products/core.cljs)
 or the [`comments` example](examples/comments/core.cljs)
 
+## Running the tests
+
+The following commands run the tests defined in `test-dom` and `test-nodom`,
+respectively. To execute them, [karma](https://github.com/karma-runner/karma) is needed.
+
+```
+lein doo chrome-headless test-dom
+lein doo chrome-headless test-nodom
+```
+
+You may substitute `chrome-headless` with a runner of your choice.
+
 ## License
 
 Copyright © 2015-2017 Active Group GmbH

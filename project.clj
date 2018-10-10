@@ -27,12 +27,14 @@
   { :builds [{:id "test-dom"
               :source-paths ["src" "test-dom"]
               :compiler {:output-to "target/test-dom.js"
+                         :output-dir "target/test-dom"
                          :main reacl2.test.runner
-                         :optimizations :none}}
+                         :optimizations :whitespace}}
 
              {:id "test-nodom"
               :source-paths ["src" "test-nodom"]
               :compiler {:output-to "target/test-nodom.js"
+                         :output-dir "target/test-nodom"
                          :main reacl2.test.runner
                          :optimizations :whitespace}}
              

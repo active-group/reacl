@@ -6,7 +6,7 @@
             [clojure.string :as string])
   (:require-macros [cljs.test :refer (is deftest testing)]))
 
-; Code under test
+;; Code under test
 
 (reacl/defclass string-display
   this s []
@@ -90,16 +90,16 @@
 
       (instance? NewText msg)
       (reacl/return :local-state (:text msg))
-      
+
       (instance? Add msg)
       (reacl/return :app-state (conj data (:contact msg))
                     :local-state ""))))
 
-; messages
+;; messages
 (defrecord NewComments [comments])
 (defrecord Refresh [])
 
-; action
+;; action
 (defrecord RefreshMeEvery [component interval])
 (defrecord EdnXhr [component url make-message])
 
@@ -124,6 +124,16 @@
   component-did-mount
   (fn []
     (reacl/return :action (RefreshMeEvery. this 2000))))
+
+(reacl/defclass local-state-boolean-value-class this []
+  local-state [foo? false]
+  render
+  (dom/div))
+
+(reacl/defclass local-state-nil-value-class this []
+  local-state [foo? nil]
+  render
+  (dom/div))
 
 ;; Tests
 
@@ -187,4 +197,8 @@
     (is (= [(EdnXhr. cmp "comments.edn" ->NewComments)]
            (:actions st)))))
 
-        
+(deftest local-state-boolean-value-test
+  (let [item (reacl-test/instantiate&mount local-state-boolean-value-class)]
+    (is (false? (reacl/extract-local-state item))))
+  (let [item (reacl-test/instantiate&mount local-state-nil-value-class)]
+    (is (nil? (reacl/extract-local-state item)))))

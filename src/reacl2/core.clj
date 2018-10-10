@@ -193,8 +193,6 @@
 
         ?render-fn (when-let [?expr (get ?clause-map 'render)]
                      `(fn [] ~?expr))
-        ?initial-state-fn (and ?initial-state-expr
-                               `(fn [] ~?initial-state-expr))
 
         compat-v1? (get ?clause-map 'compat-v1?)
 
@@ -221,7 +219,7 @@
                        'render ?render-fn)
 
         ?wrapped-nlocals [['initial-state
-                           (if ?initial-state-expr
+                           (if (some? ?initial-state-expr)
                              `(fn [~?component ~?app-state [~@?locals-ids] [~@?args]]
                                 ;; every user misc fn is also visible; for v1 compat
                                 (let [~@(mapcat (fn [[n f]] [n `(aget ~?component ~(str n))]) ?misc-fns-map)]

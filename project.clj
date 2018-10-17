@@ -38,7 +38,6 @@
               :compiler {:output-to "target/test-nodom.js"
                          :output-dir "target/test-nodom"
                          :main reacl2.test.runner
-                         :target :nodejs
                          }}
              
               ;; examples

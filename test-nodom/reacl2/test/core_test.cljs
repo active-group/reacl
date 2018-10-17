@@ -125,16 +125,6 @@
   (fn []
     (reacl/return :action (RefreshMeEvery. this 2000))))
 
-(reacl/defclass local-state-boolean-value-class this []
-  local-state [foo? false]
-  render
-  (dom/div))
-
-(reacl/defclass local-state-nil-value-class this []
-  local-state [foo? nil]
-  render
-  (dom/div))
-
 ;; Tests
 
 (deftest string-display-test
@@ -196,9 +186,3 @@
   (let [[cmp st] (reacl-test/handle-message comment-box ["foo" "bar" "baz"] [] nil (Refresh.))]
     (is (= [(EdnXhr. cmp "comments.edn" ->NewComments)]
            (:actions st)))))
-
-(deftest local-state-boolean-value-test
-  (let [item (reacl-test/instantiate&mount local-state-boolean-value-class)]
-    (is (false? (reacl/extract-local-state item))))
-  (let [item (reacl-test/instantiate&mount local-state-nil-value-class)]
-    (is (nil? (reacl/extract-local-state item)))))

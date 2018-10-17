@@ -289,3 +289,18 @@
            (map dom-content (doms-with-tag item "div"))))))
 
 
+(reacl/defclass local-state-boolean-value-class this []
+  local-state [foo? false]
+  render
+  (dom/div))
+
+(reacl/defclass local-state-nil-value-class this []
+  local-state [foo? nil]
+  render
+  (dom/div))
+
+(deftest local-state-boolean-value-test
+  (let [item (test-util/instantiate&mount local-state-boolean-value-class)]
+    (is (false? (reacl/extract-local-state item))))
+  (let [item (test-util/instantiate&mount local-state-nil-value-class)]
+    (is (nil? (reacl/extract-local-state item)))))

@@ -405,9 +405,7 @@
   If `literally?` is not true, gensym the name."
   [n literally?]
   (DomBinding. nil 
-               (if literally?
-                 n
-                 (gensym n))
+               (js/React.createRef)
                literally?))
 
 (defn dom-node
@@ -415,7 +413,7 @@
 
   Needs the component object."
   [this binding]
-  (aget (.-refs this) (binding-get-ref binding)))
+  (.-current (binding-get-ref binding)))
 
 (defn keyed
   "Associate a key with a virtual DOM node."

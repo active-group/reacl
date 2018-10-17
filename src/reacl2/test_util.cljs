@@ -3,7 +3,9 @@
   (:require [reacl2.core :as reacl :include-macros true]
             [reacl2.dom :as dom :include-macros true]
             [cljsjs.react]
-            [cljsjs.react.dom.server]))
+            [cljsjs.react.dom.server]
+            [cljsjs.react.dom.test-utils]
+            [cljsjs.react.test-renderer.shallow]))
 
 (defn render-to-text
   [dom]
@@ -63,13 +65,13 @@
 
 (defn simulate
   "Creates an interaction, that will call `f` with the
-  React.addons.TestUtils.Simulate object and the dom node of the
+  ReactTestUtils.Simulate object and the dom node of the
   tested component. The simulator object has methods like `click` that
   you can call to dispatch a DOM event. The given checks are performed
   afterwards."
   [f & checks]
   (fn [{:keys [get-dom!]}]
-    (f js/React.addons.TestUtils.Simulate (get-dom!))
+    (f js/ReactTestUtils.Simulate (get-dom!))
     checks))
 
 (def no-check
@@ -104,7 +106,7 @@
 (defn render-shallowly
   "Render an element shallowly."
   ([element]
-     (render-shallowly element (js/React.addons.TestUtils.createRenderer)))
+     (render-shallowly element (js/ReactShallowRenderer.)))
   ([element renderer]
      (.render renderer element)
      (.getRenderOutput renderer)))
@@ -211,7 +213,7 @@
 (defn create-renderer
   "Create a shallow renderer for testing"
   []
-  (js/React.addons.TestUtils.createRenderer))
+  (js/ReactShallowRenderer.))
 
 (defn render!
   "Render an element into a renderer."
@@ -246,10 +248,10 @@
      (= tag ty)
 
      (satisfies? reacl/IReaclClass tag)
-     (js/React.addons.TestUtils.isElementOfType element (reacl/react-class tag))
+     (js/ReactTestUtils.isElementOfType element (reacl/react-class tag))
 
      :else
-     (js/React.addons.TestUtils.isElementOfType element tag))))
+     (js/ReactTestUtils.isElementOfType element tag))))
 
 (defn dom=?
   "Compare two React DOM elements for equality."

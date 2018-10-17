@@ -8,9 +8,11 @@
 
   :dependencies [[org.clojure/clojure "1.9.0" :scope "provided"]
                  [org.clojure/clojurescript "1.10.238" :scope "provided"]
-                 [cljsjs/react-with-addons "15.5.4-0"] ; addons needed for tests only
-                 [cljsjs/react-dom "15.5.4-0" :exclusions [cljsjs/react]]
-                 [cljsjs/react-dom-server "15.5.4-0" :exclusions [cljsjs/react]]
+                 [cljsjs/react "16.4.1-0" :exclusions [cljsjs/react]]
+                 [cljsjs/react-dom "16.4.1-0" :exclusions [cljsjs/react]]
+                 [cljsjs/create-react-class "15.6.3-0" :exclusions [cljsjs/react]]
+                 [cljsjs/prop-types "15.6.2-0" :exclusions [cljsjs/react]]
+                 [cljsjs/react-test-renderer-shallow "16.4.1-0" :exclusions [cljsjs/react]]
                  ]
 
   :plugins [[lein-cljsbuild "1.1.7"]
@@ -20,7 +22,7 @@
   :profiles {:dev {:dependencies [[active-clojure "0.11.0" :exclusions [org.clojure/clojure]]
                                   [lein-doo "0.1.7"]]}}
 
-  :clean-targets [:target-path "out"]
+  :clean-targets [:target-path "out" "target"]
   
   :cljsbuild
   
@@ -36,7 +38,8 @@
               :compiler {:output-to "target/test-nodom.js"
                          :output-dir "target/test-nodom"
                          :main reacl2.test.runner
-                         :optimizations :whitespace}}
+                         :target :nodejs
+                         }}
              
               ;; examples
               {:id "products"

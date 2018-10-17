@@ -9,7 +9,7 @@ Your `project.clj` should contain something like this:
 ```clj
 :dependencies [[org.clojure/clojure "1.9.0" :scope "provided"]
                [org.clojure/clojurescript "1.9.293" :scope "provided"]
-               [reacl "2.0.2"]]
+               [reacl "2.0.3"]]
 ```
 
 ## API Documentation

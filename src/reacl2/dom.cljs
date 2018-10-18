@@ -492,6 +492,11 @@
     (binding-set-dom! dn
                       (js/React.cloneElement dom #js {:ref (binding-get-ref dn)}))))
 
+
+(defn strict [c]
+  "Element which enables StrictMode, see https://reactjs.org/docs/strict-mode.html"
+  (js/React.createElement js/React.StrictMode nil c))
+
 ;; The following HTML elements are supported by react (http://facebook.github.io/react/docs/tags-and-attributes.html)
 (defdom a)
 (defdom abbr)

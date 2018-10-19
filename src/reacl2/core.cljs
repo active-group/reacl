@@ -791,7 +791,6 @@
                   ;; initial app-state
                   (let [app-state (props-extract-initial-app-state next-props)]
                     (.setState this #js {:reacl_app_state app-state})
-                    (aset this "reacl_current_app_state" app-state)
                     (when f
                       ;; must preserve 'this' here via .call!
                       (opt-handle-effects! this (.call f this next-props)))))))

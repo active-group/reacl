@@ -369,6 +369,7 @@
                [clazz & args])}
   [clazz has-app-state? rst]
   (let [[opts app-state args] (deconstruct-opt+app-state has-app-state? rst)]
+    (assert (not (and (:reaction opts) (:embed-app-state opts)))) ; FIXME: assertion to catch FIXME below
     (js/React.createElement (react-class clazz)
                             #js {:reacl_initial_app_state app-state
                                  :reacl_initial_locals (-compute-locals clazz app-state args)
@@ -410,6 +411,7 @@
                [& args])}
   [clazz has-app-state? rst]
   (let [[opts app-state args] (deconstruct-opt+app-state has-app-state? rst)]
+    (assert (not (and (:reaction opts) (:embed-app-state opts)))) ; FIXME: assertion to catch FIXME below
     (js/React.createElement (react-class clazz)
                             #js {:reacl_initial_app_state app-state
                                  :reacl_initial_locals (-compute-locals clazz app-state args)

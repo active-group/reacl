@@ -623,3 +623,4 @@
 (defdom linearGradient)
 (defdom radialGradient)
 (defdom stop)
+(defdom image)

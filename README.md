@@ -28,6 +28,26 @@ With React, the transitions in logical time (a.k.a. your business logic) are dri
 
 Advancement of logical time is now driven by calls to `send-message!`. The messages you send are then handled by the components in their `handle-message` functions, which are functionally pure descriptions of your business logic. The messages encode the change that happens in your application as values. This leads to good design, ease of reasoning, and general peace of mind.
 
+
+## The data flow model
+
+React components can pass data from parent to children via props. There is no standard way to pass data the other way. To circumvent this shortcoming, you could pass down callback functions that call `setState` on the parent. This callback model is brittle and error-prone.
+
+<img src="https://raw.githubusercontent.com/active-group/reacl/master/react.png" width="160">
+
+In an attempt to fix the React model, Redux and similar frameworks like re-frame and Om have a global application store that you can use to structure your app. With this model, data always flows through a central node.
+
+<img src="https://raw.githubusercontent.com/active-group/reacl/master/redux.png" width="160">
+
+The problem with this model is that components are no longer composable by default. Making components compose is hard work. You have to allocate storage in the global application store manually such that two components of the same kind don't interfere. This is because writing to the global store is essentially a side-effect.
+
+Reacl has a different model of passing data rootwards. Just as with React, data flows leafwards via simple props. In addition, data can flow rootwards via `return :app-state`.
+
+<img src="https://raw.githubusercontent.com/active-group/reacl/master/reacl.png" width="160">
+
+Components are therefore composable by default, because each parent has full control over what it passes down to its children and how it reacts to state changes.
+
+
 ## Organization
 
 Reacl consists of two namespaces:

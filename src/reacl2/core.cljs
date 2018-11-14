@@ -787,6 +787,7 @@
               ;; this might also be called when the args have not
               ;; changed (prevent that?)
               (fn [next-props]
+                ;; FIXME: only do this when props actually change
                 (this-as this
                   ;; embedded/toplevel has been
                   ;; 'reinstantiated', so take over new

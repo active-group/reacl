@@ -188,6 +188,14 @@
         ?locals-clauses (get ?clause-map 'local [])
         ?locals-ids (map first (partition 2 ?locals-clauses))
 
+        ;; locals are supposed to shadow parameters
+        ?args-parameters (let [ls (set ?locals-ids)]
+                           (map (fn [param]
+                                  (if (contains? ls param)
+                                    (gensym param)
+                                    param))
+                                ?args))
+
         [?local-state ?initial-state-expr] (or (get ?clause-map 'local-state)
                                                [`local-state# nil])
 
@@ -209,7 +217,7 @@
         (fn [?f]
           (if ?f
             (let [?more `more#]
-              `(fn [~?component ~?app-state ~?local-state [~@?locals-ids] [~@?args] & ~?more]
+              `(fn [~?component ~?app-state ~?local-state [~@?locals-ids] [~@?args-parameters] & ~?more]
                  ;; every user misc fn is also visible; for v1 compat
                  (let [~@(mapcat (fn [[n f]] [n `(aget ~?component ~(str n))]) ?misc-fns-map)]
                    (apply ~?f ~?more))))
@@ -220,7 +228,7 @@
 
         ?wrapped-nlocals [['initial-state
                            (if (some? ?initial-state-expr)
-                             `(fn [~?component ~?app-state [~@?locals-ids] [~@?args]]
+                             `(fn [~?component ~?app-state [~@?locals-ids] [~@?args-parameters]]
                                 ;; every user misc fn is also visible; for v1 compat
                                 (let [~@(mapcat (fn [[n f]] [n `(aget ~?component ~(str n))]) ?misc-fns-map)]
                                   ~?initial-state-expr))

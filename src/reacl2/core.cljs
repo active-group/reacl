@@ -234,12 +234,12 @@
 ;  state.reacl_app_state
 
 (defn- ^:no-doc app-state+recompute-locals-state
-  "Set Reacl app state and recomputed locals (for the given component) in the given state object.
+  "Compute Reacl state modification for app state modification and recomputed locals (for the given component) in the given state object.
 
   For internal use."
-  [st this app-state]
+  [st this app-state args]
   (-> st
-      (locals-state (compute-locals (.-constructor this) app-state (extract-args this)))
+      (locals-state (compute-locals (.-constructor this) app-state args))
       (app-state-state app-state)))
 
 (defn ^:no-doc locals-state-update
@@ -279,10 +279,12 @@
    May not be called before the first render.
 
    For internal use."
-  [this app-state]
-  (assert (.hasOwnProperty (.-state this) "reacl_app_state"))
-  (.setState this (app-state+recompute-locals-state #js {} this app-state))
-  (app-state-changed! this app-state))
+  ([this app-state args]
+   (assert (.hasOwnProperty (.-state this) "reacl_app_state"))
+   (.setState this (app-state+recompute-locals-state #js {} this app-state args))
+   (app-state-changed! this app-state))
+  ([this app-state]
+   (set-app-state! this app-state (extract-args this))))
 
 (defprotocol ^:no-doc IReaclClass
   (-react-class [clazz])
@@ -580,7 +582,7 @@
     (.setState component
                (cond-> #js {}
                  (not= keep-state ls) (local-state-state ls)
-                 (not= keep-state as) (app-state+recompute-locals-state component as))))
+                 (not= keep-state as) (app-state+recompute-locals-state component as (extract-args component)))))
   (when (not= keep-state as)
     (app-state-changed! component as))
   (binding [*app-state-map* (assoc *app-state-map* component as)
@@ -780,7 +782,7 @@
             "__handleMessage"
             (std-current handle-message)
 
-            "componentWillMount"
+            "UNSAFE_componentWillMount"
             (std+state component-will-mount)
 
             "getChildContext" (fn []
@@ -790,7 +792,7 @@
             "componentDidMount"
             (std+state component-did-mount)
 
-            "componentWillReceiveProps"
+            "UNSAFE_componentWillReceiveProps"
             (let [f (with-args component-will-receive-args)]
               ;; this might also be called when the args have not
               ;; changed (prevent that?)
@@ -801,7 +803,7 @@
                   ;; 'reinstantiated', so take over new
                   ;; initial app-state
                   (let [app-state (props-extract-initial-app-state next-props)]
-                    (.setState this #js {:reacl_app_state app-state})
+                    (set-app-state! this app-state (props-extract-args next-props))
                     (when f
                       ;; must preserve 'this' here via .call!
                       (opt-handle-effects! this (.call f this next-props)))))))
@@ -833,10 +835,8 @@
 
             "statics"
             #js {"__computeLocals"
-                 compute-locals ;; [app-state & args]
-                 "getDerivedStateFromProps"
-                 (fn [props state]
-                   (locals-state-update compute-locals props state))}
+                 compute-locals ;; [app-state & args]}
+                 }
             }
            )
 

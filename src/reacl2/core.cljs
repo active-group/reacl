@@ -242,6 +242,14 @@
       (locals-state (compute-locals (.-constructor this) app-state (extract-args this)))
       (app-state-state app-state)))
 
+(defn ^:no-doc locals-state-update
+  "Compute locals state update when app-state and args have been updated, but not the locals.
+
+   For internal use."
+  [computeLocals props state]
+  (locals-state #js {}
+                (computeLocals (data-extract-app-state props state) (props-extract-args props))))
+
 (defn ^:no-doc component-parent
   [comp]
   (aget (.-context comp) "reacl_parent"))
@@ -824,9 +832,11 @@
             (std+state component-will-unmount)
 
             "statics"
-            (js-obj "__computeLocals"
-                    compute-locals ;; [app-state & args]
-                    )
+            #js {"__computeLocals"
+                 compute-locals ;; [app-state & args]
+                 "getDerivedStateFromProps"
+                 (fn [props state]
+                   (locals-state-update compute-locals props state))}
             }
            )
 

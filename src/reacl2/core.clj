@@ -284,7 +284,7 @@
         ?make-refs
         `(fn []
           [~@(map (fn [_]
-                    `(reacl2.core/->Ref (js/React.createRef)))
+                    `(reacl2.core/->Ref nil))
                   ?ref-ids)])
         ]
     `(reacl2.core/create-class ~?name ~compat-v1? ~(if ?mixins `[~@?mixins] `nil) ~has-app-state? ~?compute-locals ~?make-refs ~?fns)))

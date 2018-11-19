@@ -117,6 +117,20 @@
   [this]
   (props-extract-args (.-props this)))
 
+(defn- ^:no-doc props-extract-refs
+  "Get the refs for a component from its props.
+
+   For internal use."
+  [props]
+  (aget props "reacl_refs"))
+
+(defn ^:no-doc extract-refs
+  "Get the refs for a component.
+
+   For internal use."
+  [this]
+  (props-extract-refs (.-props this)))
+
 (defn ^:no-doc extract-locals
   "Get the local bindings for a component.
 
@@ -149,6 +163,12 @@
   For internal use."
   [clazz app-state args]
   ((aget clazz "__computeLocals") app-state args))
+
+(defn ^:no-doc make-refs
+  "Make the refs
+  For internal use."
+  [clazz]
+  ((aget clazz "__makeRefs")))
 
 (declare return)
 
@@ -289,7 +309,8 @@
 (defprotocol ^:no-doc IReaclClass
   (-react-class [clazz])
   (-instantiate-toplevel-internal [clazz rst])
-  (-compute-locals [clazz app-state args]))
+  (-compute-locals [clazz app-state args])
+  (-make-refs [clazz]))
 
 (defn react-class
   "Extract the React class from a Reacl class."
@@ -384,6 +405,7 @@
                             #js {:reacl_initial_app_state app-state
                                  :reacl_initial_locals (-compute-locals clazz app-state args)
                                  :reacl_args (vec args)
+                                 :reacl_refs (-make-refs clazz)
                                  :reacl_reaction (or (:reaction opts) ; FIXME: what if we have both?
                                                      (if-let [embed-app-state (:embed-app-state opts)]
                                                        (reaction :parent ->EmbedAppState embed-app-state)
@@ -426,6 +448,7 @@
                             #js {:reacl_initial_app_state app-state
                                  :reacl_initial_locals (-compute-locals clazz app-state args)
                                  :reacl_args args
+                                 :reacl_refs (-make-refs clazz)
                                  :reacl_reaction (or (:reaction opts) ; FIXME: what if we have both?
                                                      (if-let [embed-app-state (:embed-app-state opts)]
                                                        (reaction :parent ->EmbedAppState embed-app-state)
@@ -683,7 +706,7 @@
 
 ;; FIXME: just pass all the lifecycle etc. as separate arguments
 
-(defn create-class [display-name compat-v1? mixins has-app-state? compute-locals fns]
+(defn create-class [display-name compat-v1? mixins has-app-state? compute-locals make-refs fns]
   ;; split special functions and miscs
   (let [{specials true misc false} (group-by is-special-fn? fns)
         {:keys [render
@@ -708,7 +731,7 @@
             (and f
                  (fn [& react-args]
                    (this-as this
-                     (apply f this (extract-app-state this) (extract-locals this) (extract-args this)
+                     (apply f this (extract-app-state this) (extract-locals this) (extract-args this) (extract-refs this)
                             react-args)))))
           ;; also with local-state (most reacl methods)
           std
@@ -717,7 +740,7 @@
                  (fn [& react-args]
                    (this-as this
                      (apply f this (extract-app-state this) (extract-local-state this)
-                            (extract-locals this) (extract-args this)
+                            (extract-locals this) (extract-args this) (extract-refs this)
                             react-args)))))
           std-current
           (fn [f]
@@ -725,7 +748,7 @@
                  (fn [& react-args]
                    (this-as this
                      (apply f this (extract-current-app-state this) (extract-local-state this)
-                            (extract-locals this) (extract-args this)
+                            (extract-locals this) (extract-args this) (extract-refs this)
                             react-args)))))
           std+state
           (fn [f]
@@ -735,21 +758,24 @@
                      (opt-handle-effects! this (apply f
                                                        this
                                                        (extract-app-state this) (extract-local-state this)
-                                                       (extract-locals this) (extract-args this)
+                                                       (extract-locals this) (extract-args this) (extract-refs this)
                                                        react-args))))))
           with-args
           (fn [f]
             (and f
                  (fn [other-props]
                    (this-as this
-                     (apply f this (extract-app-state this) (extract-local-state this) (extract-locals this) (extract-args this) (props-extract-args other-props))))))
+                     (apply f this
+                            (extract-app-state this) (extract-local-state this) (extract-locals this) (extract-args this) (extract-refs this)
+                            (props-extract-args other-props))))))
           ;; and one arg with next/prev-state
           with-state-and-args
           (fn [f]
             (and f
                  (fn [other-props other-state]
                    (this-as this
-                     (apply f this (extract-app-state this) (extract-local-state this) (extract-locals this) (extract-args this)
+                     (apply f this
+                            (extract-app-state this) (extract-local-state this) (extract-locals this) (extract-args this) (extract-refs this)
                             (data-extract-app-state other-props other-state)
                             (state-extract-local-state other-state)
                             (props-extract-args other-props))))))
@@ -834,9 +860,8 @@
             (std+state component-will-unmount)
 
             "statics"
-            #js {"__computeLocals"
-                 compute-locals ;; [app-state & args]}
-                 }
+            #js {"__computeLocals" compute-locals ;; [app-state & args]}
+                 "__makeRefs" make-refs}
             }
            )
 
@@ -896,6 +921,8 @@
             (instantiate-toplevel-internal this has-app-state? rst))
           (-compute-locals [this app-state args]
             (compute-locals app-state args))
+          (-make-refs [this]
+            (make-refs))
           (-react-class [this] react-class))
         (reify
           IFn
@@ -948,6 +975,8 @@
             (instantiate-toplevel-internal this has-app-state? rst))
           (-compute-locals [this app-state args]
             (compute-locals app-state args))
+          (-make-refs [this]
+            (make-refs))
           (-react-class [this] react-class))))))
 
 (def ^:private mixin-methods #{:component-will-mount :component-did-mount

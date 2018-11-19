@@ -70,6 +70,8 @@
       (let [input (test-util/descend-into-element t [:div :input])]
         (is (not (.-value (.-props input))))))))
 
+
+
 (reacl/defclass foo
   this bam [bar]
   local [baz (+ bam 15)
@@ -304,3 +306,24 @@
     (is (false? (reacl/extract-local-state item))))
   (let [item (test-util/instantiate&mount local-state-nil-value-class)]
     (is (nil? (reacl/extract-local-state item)))))
+
+(reacl/defclass text-refs
+  this content []
+  refs [text-input]
+  render
+  (dom/input {:ref text-input
+              :type "text"
+              :value content
+              :onchange (fn [e]
+                          (let [v (.-value (.-current text-input))]
+                            (reacl/send-message! this (str v v))))})
+  handle-message
+  (fn [new-content]
+    (reacl/return :app-state
+                  (apply str new-content (reverse (.-value (.-current text-input)))))))
+
+(deftest text-refs-message
+  (let [item (test-util/instantiate&mount text-refs "foo")
+        dom (dom-with-tag item "input")]
+    (js/ReactTestUtils.Simulate.change dom)
+    (is (= "foofoooof" (.-value dom)))))

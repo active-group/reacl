@@ -25,25 +25,44 @@
   The syntax is
 
       (reacl.core/class <name> [<this-name> [<app-state-name>]] [<param> ...]
-        render <renderer-exp>
-        [local-state [<name> <initial-state-exp>]
-        [local [<local-name> <local-expr>]]
-        [handle-message <messager-handler-exp>]
-        [<lifecycle-method-name> <lifecycle-method-exp> ...])
+        <clause> ...)
 
   `<name>` is a name for the class, for debugging purposes.
 
+  Each `<clause>` has the format `<clause-name> <clause-arg>`.  More specifically,
+  it can be one of the following:
+
+       render <renderer-exp>
+       local [<local-name> <local-expr>] ...]
+       local-state [<local-state-name> <initial-state-exp>]
+       refs [<ref-name> ...]
+       handle-message <messager-handler-exp>]
+       <lifecycle-method-name> <lifecycle-method-exp> ...])
+
+  Of these, the `render` clause is mandatory, the others ar eall optional.
+  
   A number of names are bound in the various expressions in the body
-  of reacl.core/class:
+  of `reacl.core/class`:
 
   - `<this-name>` is bound to the component object itself
   - `<app-state-name>` is bound to the global application state
-  - `<local-state-name>` is bound to the component-local state
   - the `<param>` ... names are the explicit arguments of instantiations
+  - the `<local-name>` names are bound to the values of the
+    `<local-expr>` expressions, which can refer to the variables above
+  - `<local-state-name>` is bound to the component-local state
+    if there is a `local-state` clause
 
   A `local` clause allows binding additional local variables upon
   instantiation.  The syntax is analogous to `let`.
 
+  A `local-state` clause allows specifying a variable for the
+  component's local state, along with an expression for the value of
+  its initial value.
+
+  A `refs` clause specifies names for references to sub-components,
+  which can be associated with components via `ref` attributes in the
+  `render` expression.
+  
   `<renderer-exp>` is an expression that renders the component, and
   hence must return a virtual dom node.
 
@@ -188,6 +207,8 @@
         ?locals-clauses (get ?clause-map 'local [])
         ?locals-ids (map first (partition 2 ?locals-clauses))
 
+        ?ref-ids (get ?clause-map 'refs [])
+        
         ;; locals are supposed to shadow parameters
         ?args-parameters (let [ls (set ?locals-ids)]
                            (map (fn [param]
@@ -205,7 +226,7 @@
         compat-v1? (get ?clause-map 'compat-v1?)
 
         ;; handle-message, lifecycle methods, and user-defined functions (v1 only)
-        ?other-fns-map (dissoc ?clause-map 'local 'render 'mixins 'local-state 'compat-v1?)
+        ?other-fns-map (dissoc ?clause-map 'local 'render 'mixins 'local-state 'compat-v1? 'refs)
         ;; user-defined functions
         ?misc-fns-map (apply dissoc ?other-fns-map special-tags)
 
@@ -217,7 +238,7 @@
         (fn [?f]
           (if ?f
             (let [?more `more#]
-              `(fn [~?component ~?app-state ~?local-state [~@?locals-ids] [~@?args-parameters] & ~?more]
+              `(fn [~?component ~?app-state ~?local-state [~@?locals-ids] [~@?args-parameters] [~@?ref-ids] & ~?more]
                  ;; every user misc fn is also visible; for v1 compat
                  (let [~@(mapcat (fn [[n f]] [n `(aget ~?component ~(str n))]) ?misc-fns-map)]
                    (apply ~?f ~?more))))
@@ -259,8 +280,14 @@
         `(fn [~?app-state [~@?args]]
            (let ~?locals-clauses
              [~@?locals-ids]))
+
+        ?make-refs
+        `(fn []
+          [~@(map (fn [_]
+                    `(js/React.createRef))
+                  ?ref-ids)])
         ]
-    `(reacl2.core/create-class ~?name ~compat-v1? ~(if ?mixins `[~@?mixins] `nil) ~has-app-state? ~?compute-locals ~?fns)))
+    `(reacl2.core/create-class ~?name ~compat-v1? ~(if ?mixins `[~@?mixins] `nil) ~has-app-state? ~?compute-locals ~?make-refs ~?fns)))
 
 (defmacro defclass
   "Define a Reacl class, see [[class]] for documentation.

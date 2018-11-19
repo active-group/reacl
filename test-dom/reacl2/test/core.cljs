@@ -315,12 +315,12 @@
               :type "text"
               :value content
               :onchange (fn [e]
-                          (let [v (.-value (.-current text-input))]
+                          (let [v (.-value (reacl/get-dom text-input))]
                             (reacl/send-message! this (str v v))))})
   handle-message
   (fn [new-content]
     (reacl/return :app-state
-                  (apply str new-content (reverse (.-value (.-current text-input)))))))
+                  (apply str new-content (reverse (.-value (reacl/get-dom text-input)))))))
 
 (deftest text-refs-message
   (let [item (test-util/instantiate&mount text-refs "foo")

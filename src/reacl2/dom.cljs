@@ -12,7 +12,8 @@
   reacl2.dom
   (:require-macros [reacl2.dom :refer [defdom]])
   (:require [cljsjs.react]
-            [clojure.string :as string])
+            [clojure.string :as string]
+            [reacl2.core :refer [IHasDom get-dom]])
   (:refer-clojure :exclude (meta map time use set symbol)))
 
 (defn camelize
@@ -370,13 +371,6 @@
              #js {}
              mp))
 
-(defprotocol HasDom
-  "General protocol for objects that contain or map to a virtual DOM object.
-
-  This is needed for [[letdom]], which wraps the DOM nodes on its
-  right-hand sides."  
-  (-get-dom [thing]))
-
 (defprotocol ^:no-doc IDomBinding
   (binding-get-dom [this])
   (binding-set-dom! [this v])
@@ -396,7 +390,7 @@
   (binding-get-ref [_] ref)
   (binding-set-ref! [this v] (set! ref v))
   (binding-get-literally? [_] literally?)
-  HasDom
+  IHasDom
   (-get-dom [_] dom))
 
 (defn make-dom-binding
@@ -431,13 +425,13 @@
 (defn- ^:no-doc normalize-arg
   "Normalize the argument to a DOM-constructing function.
 
-  In particular, each [[HasDom]] object is mapped to its DOM object.
+  In particular, each [[IHasDom]] object is mapped to its DOM object.
 
   Also, sequences of [[KeyeDom]] sub-elements are mapped to their
   respective DOM elements."
   [arg]
   (cond
-   (satisfies? HasDom arg) (-get-dom arg)
+   (satisfies? IHasDom arg) (get-dom arg)
 
    (seq? arg) (to-array (cljs.core/map normalize-arg arg))
 
@@ -448,7 +442,7 @@
 
 (defn- ^:no-doc attributes? [v]
   (and (map? v)
-       (not (satisfies? HasDom v))))
+       (not (satisfies? IHasDom v))))
 
 (defn ^:no-doc dom-function
   "Internal function for constructing wrappers for DOM-construction function."

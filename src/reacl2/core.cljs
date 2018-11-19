@@ -306,6 +306,21 @@
   ([this app-state]
    (set-app-state! this app-state (extract-args this))))
 
+(defprotocol IHasDom
+  "General protocol for objects that contain or map to a virtual DOM object."  
+  (-get-dom [thing]))
+
+(defn get-dom
+  "Get a (real) DOM node from an object that contains one, typically a reference."
+  [thing]
+  (-get-dom thing))
+
+;; wrapper for React refs
+;; the field has to be named "current" to pass for a React ref
+(defrecord Ref [current]
+  IHasDom
+  (-get-dom [_] current))
+
 (defprotocol ^:no-doc IReaclClass
   (-react-class [clazz])
   (-instantiate-toplevel-internal [clazz rst])

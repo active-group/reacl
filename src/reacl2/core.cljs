@@ -668,8 +668,12 @@
   ;; may batch or defer the update until later. This makes reading
   ;; this.state right after calling setState() a potential pitfall."
 
-  (let [[app-state actions]
-        (action-effect (action-reducer this) (get *app-state-map* this) action)]
+  (let [map-app-state (get *app-state-map* this ::not-found)
+        old-app-state (case map-app-state
+                        (::not-found) (extract-app-state this)
+                        map-app-state)
+        [app-state actions]
+        (action-effect (action-reducer this) old-app-state action)]
     (set-state! this app-state keep-state
                 #(handle-actions! this actions))))
 

@@ -835,17 +835,17 @@
 
             "UNSAFE_componentWillReceiveProps"
             (let [f (with-args component-will-receive-args)]
-              ;; this might also be called when the args have not
-              ;; changed (prevent that?)
               (fn [next-props]
-                ;; FIXME: only do this when props actually change
                 (this-as this
                   ;; embedded/toplevel has been
                   ;; 'reinstantiated', so take over new
                   ;; initial app-state
-                  (let [app-state (props-extract-initial-app-state next-props)]
-                    (set-app-state! this app-state (props-extract-args next-props))
-                    (when f
+                  (let [app-state (props-extract-initial-app-state next-props)
+                        new-app-state (not= app-state (extract-app-state this))
+                        new-args (not= (extract-args  this) (props-extract-args next-props))]
+                    (when new-app-state
+                    (set-app-state! this app-state (props-extract-args next-props)))
+                    (when (and f (or new-app-state new-args))
                       ;; must preserve 'this' here via .call!
                       (opt-handle-effects! this (.call f this next-props)))))))
 

@@ -734,7 +734,6 @@
                 component-will-mount
                 component-did-mount
                 component-will-receive-args
-                should-component-update?
                 component-will-update
                 component-did-update
                 component-will-unmount

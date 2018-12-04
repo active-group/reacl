@@ -722,6 +722,8 @@
 (defn- ^:no-doc is-special-fn? [[n f]]
   (not (nil? (specials n))))
 
+(defn- optional-ifn? [v]
+  (or (nil? v) (ifn? v)))
 
 ;; FIXME: just pass all the lifecycle etc. as separate arguments
 
@@ -734,7 +736,6 @@
                 component-will-mount
                 component-did-mount
                 component-will-receive-args
-                should-component-update?
                 component-will-update
                 component-did-update
                 component-will-unmount
@@ -743,6 +744,16 @@
          }
         (into {} specials)
         ]
+    (assert (ifn? render) "All classes must provide a `render` clause.")
+    (assert (optional-ifn? handle-message))
+    (assert (optional-ifn? component-will-mount))
+    (assert (optional-ifn? component-did-mount))
+    (assert (optional-ifn? component-will-receive-args))
+    (assert (optional-ifn? component-will-update))
+    (assert (optional-ifn? component-did-update))
+    (assert (optional-ifn? component-will-unmount))
+    (assert (optional-ifn? should-component-update?))
+    
     ;; Note that it's args is not & args down there
     (let [;; with locals, but without local-state
           nlocal

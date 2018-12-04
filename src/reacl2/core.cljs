@@ -131,17 +131,22 @@
   [this]
   (props-extract-refs (.-props this)))
 
+(defn ^:no-doc data-extract-locals
+  "Get the local bindings for a component.
+
+   For internal use."
+  [props state]
+  (if (and (not (nil? state))
+           (.hasOwnProperty state "reacl_locals"))
+    (aget state "reacl_locals")
+    (aget props "reacl_initial_locals")))
+
 (defn ^:no-doc extract-locals
   "Get the local bindings for a component.
 
    For internal use."
   [this]
-  (let [state (.-state this)
-        props (.-props this)]
-    (if (and (not (nil? state))
-             (.hasOwnProperty state "reacl_locals"))
-      (aget state "reacl_locals")
-      (aget props "reacl_initial_locals"))))
+  (data-extract-locals (.-props this) (.-state this)))
 
 (defn- ^:no-doc locals-state
   "Set Reacl locals in the given state object.
@@ -883,8 +888,12 @@
             (with-state-and-args component-will-update)
 
             "componentDidUpdate"
-            (std+state component-did-update) ;; here it's
-            ;; the previous state&args
+            (std+state
+             (and component-did-update
+                  (fn [prev-props prev-state snapshot]
+                    (apply component-did-update (data-extract-app-state prev-props prev-state)
+                           (state-extract-local-state prev-state)
+                           (props-extract-args prev-props)))))
 
             "componentWillUnmount"
             (std+state component-will-unmount)

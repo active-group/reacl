@@ -848,7 +848,7 @@
                         new-app-state (not= app-state (extract-app-state this))
                         new-args (not= (extract-args  this) (props-extract-args next-props))]
                     (when new-app-state
-                    (set-app-state! this app-state (props-extract-args next-props)))
+                      (.setState this (app-state+recompute-locals-state #js {} this app-state (props-extract-args next-props))))
                     (when (and f (or new-app-state new-args))
                       ;; must preserve 'this' here via .call!
                       (opt-handle-effects! this (.call f this next-props)))))))

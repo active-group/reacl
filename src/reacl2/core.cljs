@@ -888,12 +888,7 @@
             (with-state-and-args component-will-update)
 
             "componentDidUpdate"
-            (std+state
-             (and component-did-update
-                  (fn [prev-props prev-state snapshot]
-                    (apply component-did-update (data-extract-app-state prev-props prev-state)
-                           (state-extract-local-state prev-state)
-                           (props-extract-args prev-props)))))
+            (with-state-and-args component-did-update)
 
             "componentWillUnmount"
             (std+state component-will-unmount)

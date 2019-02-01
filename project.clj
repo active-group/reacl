@@ -13,6 +13,7 @@
                  [cljsjs/create-react-class "15.6.3-0" :exclusions [cljsjs/react]]
                  [cljsjs/prop-types "15.6.2-0" :exclusions [cljsjs/react]]
                  [cljsjs/react-test-renderer-shallow "16.4.1-0" :exclusions [cljsjs/react]]
+                 [cljsjs/react-test-renderer "16.4.1-0" :exclusions [cljsjs/react]]
                  ]
 
   :plugins [[lein-cljsbuild "1.1.7"]

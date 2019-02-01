@@ -13,25 +13,28 @@
 ;; So this is a dynamically bound map from component to local state to
 ;; track the local state in the current cycle.
 
+;; FIXME: We may be able to pass some or all of these as arguments
 (def ^:dynamic *local-state-map* {})
 
 ;; Ditto for the app state, but read access to this is much more focussed.
 (def ^:dynamic *app-state-map* {})
 
+;; Ditto for the locals
+(def ^:dynamic *locals-map* {})
+  
 (defn- ^:no-doc local-state-state
   "Set Reacl local state in the given state object.
 
    For internal use."
-  [st local-state]
-  (aset st "reacl_local_state" local-state)
-  st)
+  [local-state]
+  #js {:reacl_local_state local-state})
 
 (defn ^:no-doc set-local-state!
   "Set Reacl local state of a component.
 
    For internal use."
   [this local-state]
-  (.setState this (local-state-state #js {} local-state)))
+  (.setState this (local-state-state local-state)))
 
 (defn- ^:no-doc state-extract-local-state
   "Extract local state from the state of a Reacl component.
@@ -51,49 +54,26 @@
       (::not-found) (state-extract-local-state (.-state this))
       res)))
 
-(defn- ^:no-doc props-extract-initial-app-state
+(defn- ^:no-doc props-extract-app-state
   "Extract initial applications state from props of a Reacl 2toplevel component.
 
    For internal use."
   [props]
-  (aget props "reacl_initial_app_state"))
-
-(defn extract-initial-app-state
-  "Extract initial applications state from a Reacl component."
-  [this]
-  (props-extract-initial-app-state (.-props this)))
-
-(defn- ^:no-doc tl-state-extract-app-state
-  "Extract latest applications state from state of a toplevel Reacl component.
-
-   For internal use."
-  [state]
-  (aget state "reacl_app_state"))
+  (aget props "reacl_app_state"))
 
 (defn- ^:no-doc props-extract-reaction
   [props]
   (aget props "reacl_reaction"))
-
-(defn- ^:no-doc data-extract-app-state
-  "Extract the latest applications state from a Reacl component data.
-
-   For internal use."
-  [props state]
-  ;; before first render, it's the initial-app-state, afterwards
-  ;; it's in the state
-  (if (and (not (nil? state))
-           (.hasOwnProperty state "reacl_app_state"))
-    (tl-state-extract-app-state state)
-    (props-extract-initial-app-state props)))
 
 (defn- ^:no-doc extract-app-state
   "Extract the latest applications state from a Reacl component.
 
    For internal use."
   [this]
-  (data-extract-app-state (.-props this) (.-state this)))
-
-(def ^:private extract-current-app-state extract-app-state)
+  (let [res (get *app-state-map* this ::not-found)]
+    (case res
+      (::not-found) (props-extract-app-state (.-props this))
+      res)))
 
 (defn- ^:no-doc app-state-state
   "Set Reacl app state in the given state object.
@@ -136,17 +116,18 @@
 
    For internal use."
   [props state]
-  (if (and (not (nil? state))
-           (.hasOwnProperty state "reacl_locals"))
-    (aget state "reacl_locals")
-    (aget props "reacl_initial_locals")))
+  (aget props "reacl_locals"))
+
 
 (defn ^:no-doc extract-locals
   "Get the local bindings for a component.
 
    For internal use."
   [this]
-  (data-extract-locals (.-props this) (.-state this)))
+  (let [res (get *locals-map* this ::not-found)]
+    (case res
+      (::not-found) (data-extract-locals (.-props this) (.-state this))
+      res)))
 
 (defn- ^:no-doc locals-state
   "Set Reacl locals in the given state object.
@@ -156,13 +137,6 @@
   (aset st "reacl_locals" locals)
   st)
   
-(defn ^:no-doc set-locals!
-  "Set the local bindings for a component.
-
-  For internal use."
-  [this locals]
-  (.setState this (locals-state #js {} locals)))
-
 (defn ^:no-doc compute-locals
   "Compute the locals.
   For internal use."
@@ -183,6 +157,8 @@
   For internal use."
   [cl app-state args]
   #js {:reacl_args (vec args)
+       :reacl_app_state app-state
+       :reacl_locals (compute-locals cl app-state args)
        :reacl_reduce_action (fn [app-state action]
                               (return :action action))})
 
@@ -193,10 +169,7 @@
 
   For internal use."
   [cl app-state local-state args]
-  (-> #js {}
-      (locals-state (compute-locals (react-class cl) app-state args))
-      (app-state-state app-state)
-      (local-state-state local-state)))
+  (local-state-state local-state))
 
 (declare invoke-reaction)
 
@@ -236,7 +209,9 @@
 (declare send-message! component-parent)
 
 (defn invoke-reaction
-  "Invokes the given reaction with the given message value (usually an app-state)."
+  "Invokes the given reaction with the given message value (usually an app-state).
+
+  DEPRECATED."
   [this reaction value]
   (let [target (:component reaction)
         real-target
@@ -245,35 +220,6 @@
           (component-parent this)
           target)]
     (send-message! real-target (apply (:make-message reaction) value (:args reaction)))))
-
-; On app state:
-;
-; It starts with the argument to the instantiation of toplevel or
-; embedded components. We put that app-state into
-;
-;   props.reacl_initial_app_state
-;
-; In getInitialState of those top components, we take that over into
-; their state, into
-;
-;  state.reacl_app_state
-
-(defn- ^:no-doc app-state+recompute-locals-state
-  "Compute Reacl state modification for app state modification and recomputed locals (for the given component) in the given state object.
-
-  For internal use."
-  [st this app-state args]
-  (-> st
-      (locals-state (compute-locals (.-constructor this) app-state args))
-      (app-state-state app-state)))
-
-(defn ^:no-doc locals-state-update
-  "Compute locals state update when app-state and args have been updated, but not the locals.
-
-   For internal use."
-  [computeLocals props state]
-  (locals-state #js {}
-                (computeLocals (data-extract-app-state props state) (props-extract-args props))))
 
 (defn ^:no-doc component-parent
   [comp]
@@ -289,27 +235,6 @@
   IFn
   (-invoke [this outer inner]
     (assoc outer keyword inner)))
-
-(defn- ^:no-doc app-state-changed!
-  "Invoke the app-state change reaction for the given component.
-
-  For internal use."
-  [this app-state]
-  (when-let [reaction (props-extract-reaction (.-props this))]
-    (assert (instance? Reaction reaction))
-    (invoke-reaction this reaction app-state)))
-
-(defn ^:no-doc set-app-state!
-  "Set the application state associated with a Reacl component.
-   May not be called before the first render.
-
-   For internal use."
-  ([this app-state args]
-   (assert (.hasOwnProperty (.-state this) "reacl_app_state"))
-   (.setState this (app-state+recompute-locals-state #js {} this app-state args))
-   (app-state-changed! this app-state))
-  ([this app-state]
-   (set-app-state! this app-state (extract-args this))))
 
 (defprotocol IHasDom
   "General protocol for objects that contain or map to a virtual DOM object."  
@@ -331,6 +256,11 @@
   (-instantiate-toplevel-internal [clazz rst])
   (-compute-locals [clazz app-state args])
   (-make-refs [clazz]))
+
+(defn reacl-class?
+  "Is an object a Reacl class?"
+  [x]
+  (satisfies? IReaclClass x))
 
 (defn react-class
   "Extract the React class from a Reacl class."
@@ -407,6 +337,62 @@
                            [nil rst])]
     [opts app-state args]))
 
+(declare keep-state?)
+
+(def uber-class
+  (let [cl
+        (js/createReactClass
+         #js {:getInitialState (fn []
+                                 (this-as this
+                                   (aset this "reacl_toplevel_ref" (js/React.createRef))
+                                   #js {:reacl_uber_app_state
+                                        (aget (.-props this)
+                                              "reacl_app_state")}))
+
+              :render
+              (fn []
+                (this-as this
+                  (let [props (.-props this)
+                        clazz (aget props "reacl_toplevel_class")
+                        opts (aget props "reacl_toplevel_opts")
+                        args (aget props "reacl_toplevel_args")
+                        state (.-state this)
+                        app-state (aget state "reacl_uber_app_state")]
+                    (js/React.createElement (react-class clazz)
+                                            #js {:ref (aget this "reacl_toplevel_ref")
+                                                 :reacl_app_state app-state
+                                                 :reacl_locals (-compute-locals clazz app-state args)
+                                                 :reacl_args (vec args)
+                                                 :reacl_refs (-make-refs clazz)
+                                                 :reacl_reaction (or (:reaction opts) ; FIXME: what if we have both?
+                                                                     (if-let [embed-app-state (:embed-app-state opts)]
+                                                                       (reaction :parent ->EmbedAppState embed-app-state)
+                                                                       no-reaction))
+                                                 :reacl_reduce_action (or (:reduce-action opts)
+                                                                          (fn [app-state action] ; FIXME: can probably greatly optimize this case
+                                                                            (return :action action)))}))))
+
+              :displayName "reacl_toplevel"
+
+              :getChildContext (fn []
+                                 (this-as this 
+                                   #js {:reacl_uber this}))})]
+         (aset cl "childContextTypes" #js {:reacl_uber js/PropTypes.object})
+         (aset cl "contextTypes" #js {:reacl_uber js/PropTypes.object})
+         cl))
+
+(defn- ^:no-doc resolve-uber
+  [comp]
+  (aget (.-context comp) "reacl_uber"))
+
+(defn make-uber-component
+  [clazz opts args app-state]
+  (js/React.createElement uber-class
+                          #js {:reacl_toplevel_class clazz
+                               :reacl_toplevel_opts opts
+                               :reacl_toplevel_args args
+                               :reacl_app_state app-state}))
+
 (defn ^:no-doc instantiate-toplevel-internal
   "Internal function to instantiate a Reacl component.
 
@@ -421,19 +407,7 @@
   [clazz has-app-state? rst]
   (let [[opts app-state args] (deconstruct-opt+app-state has-app-state? rst)]
     (assert (not (and (:reaction opts) (:embed-app-state opts)))) ; FIXME: assertion to catch FIXME below
-    (js/React.createElement (react-class clazz)
-                            #js {:reacl_initial_app_state app-state
-                                 :reacl_initial_locals (-compute-locals clazz app-state args)
-                                 :reacl_args (vec args)
-                                 :reacl_refs (-make-refs clazz)
-                                 :reacl_reaction (or (:reaction opts) ; FIXME: what if we have both?
-                                                     (if-let [embed-app-state (:embed-app-state opts)]
-                                                       (reaction :parent ->EmbedAppState embed-app-state)
-                                                       no-reaction))
-                                 :reacl_reduce_action (or (:reduce-action opts)
-                                                          (fn [app-state action] ; FIXME: can probably greatly optimize this case
-                                                            (return :action action)))
-                                 :reacl_handle_action (fn [this action] nil)}))) ; we're done
+    (make-uber-component clazz opts args app-state)))
 
 (defn instantiate-toplevel
   "For testing purposes mostly."
@@ -447,8 +421,6 @@
 (defn- ^:no-doc action-reducer
   [this]
   (aget (.-props this) "reacl_reduce_action"))
-
-(declare reduce-and-handle-action!)
 
 (defn ^:no-doc instantiate-embedded-internal
   "Internal function to instantiate an embedded Reacl component.
@@ -465,8 +437,8 @@
   (let [[opts app-state args] (deconstruct-opt+app-state has-app-state? rst)]
     (assert (not (and (:reaction opts) (:embed-app-state opts)))) ; FIXME: assertion to catch FIXME below
     (js/React.createElement (react-class clazz)
-                            #js {:reacl_initial_app_state app-state
-                                 :reacl_initial_locals (-compute-locals clazz app-state args)
+                            #js {:reacl_app_state app-state
+                                 :reacl_locals (-compute-locals clazz app-state args)
                                  :reacl_args args
                                  :reacl_refs (-make-refs clazz)
                                  :reacl_reaction (or (:reaction opts) ; FIXME: what if we have both?
@@ -475,24 +447,17 @@
                                                        no-reaction))
                                  :reacl_reduce_action (or (:reduce-action opts)
                                                           (fn [app-state action] ; FIXME: can probably greatly optimize this case
-                                                            (return :action action)))
-                                 ;; propagate the action upwards
-                                 :reacl_handle_action (fn [this action] ; this is an action already reduced by this component
-                                                        (reduce-and-handle-action! (component-parent this) action))})))
+                                                            (return :action action)))})))
 
 (defn ^:no-doc instantiate-embedded-internal-v1
   [clazz app-state reaction args]
   (js/React.createElement (react-class clazz)
-                          #js {:reacl_initial_app_state app-state
-                               :reacl_initial_locals (-compute-locals clazz app-state args)
+                          #js {:reacl_app_state app-state
+                               :reacl_locals (-compute-locals clazz app-state args)
                                :reacl_args args
                                :reacl_reaction reaction
                                :reacl_reduce_action (fn [app-state action]
-                                                      (return :action action))
-                               :reacl_handle_action (fn [this action]
-                                                      (let [parent (aget (.-context this) "reacl_parent")
-                                                            parent-handle (aget (.-props parent) "reacl_handle_action")]
-                                                        (parent-handle parent action)))}))
+                                                      (return :action action))}))
 
 (defn render-component
   "Instantiate and render a component into the DOM.
@@ -512,7 +477,7 @@
    element))
 
 (defrecord ^{:doc "Type of a unique value to distinguish nil from no change of state.
-            For internal use in [[reacl.core/return]] and [[reacl.core/set-state!]]."
+            For internal use in [[reacl.core/return]]."
              :private true
              :no-doc true} 
     KeepState
@@ -535,6 +500,26 @@
              :no-doc true}
     Returned
     [app-state local-state actions])
+
+(def returned-nil (Returned. keep-state keep-state []))
+
+(defn actions->returned
+  [actions]
+  (Returned. keep-state keep-state actions))
+
+(defn returned?
+  [x]
+  (instance? Returned x))
+
+(defn add-to-returned
+  [^Returned ret app-state local-state actions]
+  (Returned. (if (keep-state? app-state)
+               (:app-state ret)
+               app-state)
+             (if (keep-state? local-state)
+               (:local-state ret)
+               local-state)
+             (concat (:actions ret) actions)))
 
 (defrecord ^{:doc "This marks effects returned by an invocation.
 
@@ -583,16 +568,23 @@
     [keep-state [action]]))
 
 (defn ^:no-doc effects->returned
-  "Reduce the effects of a [[return]] invocation, returning a `Returned` object.
+  "Reduce the effects of a [[return]] invocation, returning a `Returned` object,
+   accumulating onto a previous one if present.
 
   For internal use only."
-  [this ^Effects efs]
+  [this ^Effects efs & [^Returned returned]]
   (let [reduce-action (action-reducer this)
         actual-app-state (extract-app-state this)]
     (loop [args (seq (:args efs))
-           app-state keep-state
-           local-state keep-state
-           actions (transient [])]
+           app-state (if (returned? returned)
+                       (:app-state returned)
+                       keep-state)
+           local-state (if (returned? returned)
+                         (:local-state returned)
+                         keep-state)
+           actions (transient (if (returned? returned)
+                                (:actions returned)
+                                []))]
       (if (empty? args)
         (Returned. app-state local-state (persistent! actions))
         (let [arg (second args)
@@ -600,54 +592,76 @@
           (case (first args)
             (:app-state) (recur nxt arg local-state actions)
             (:local-state) (recur nxt app-state arg actions)
-            (:action) (let [[action-app-state new-actions] (action-effect reduce-action
-                                                                   (if (keep-state? app-state)
-                                                                     actual-app-state
-                                                                     app-state)
-                                                                   arg)]
-                        (recur nxt
-                               (if (instance? KeepState action-app-state)
-                                 app-state
-                                 action-app-state)
-                               local-state
-                               (reduce conj! actions new-actions)))
+            (:action) (recur nxt app-state local-state (conj! actions arg))
             (throw (str "invalid argument " (first args) " to reacl/return"))))))))
 
-(defn- ^:no-doc set-state!
-  "Set the app state and component state according to what return returned.
+(defn ^:no-doc reduce-returned-actions
+  "Returns app-state, local-state for this, actions reduced here, to be sent to parent."
+  [comp ^Returned ret]
+  (let [reduce-action (action-reducer comp)
+        actual-app-state (extract-app-state comp)]
+    (loop [actions (:actions ret)
+           app-state (:app-state ret)
+           local-state (:local-state ret)
+           reduced-actions (transient [])]
+      (if (empty? actions)
+        [app-state local-state (persistent! reduced-actions)]
+        (let [action (first actions)
+              [action-app-state new-actions] (action-effect reduce-action
+                                                            (if (keep-state? app-state)
+                                                              actual-app-state
+                                                              app-state)
+                                                            action)]
+          (recur (rest actions)
+                 (if (instance? KeepState action-app-state)
+                   app-state
+                   action-app-state)
+                 local-state
+                 (reduce conj! reduced-actions new-actions)))))))
 
-  Note that the actual update of `(.-state component)` might be deferred and thus not
-  visible immediately."
-  [component as ls cont]
-  (when-not (and (= keep-state ls)
-                 (= keep-state as))
-    ;; avoid unnecessary re-rendering
-    (.setState component
-               (cond-> #js {}
-                 (not= keep-state ls) (local-state-state ls)
-                 (not= keep-state as) (app-state+recompute-locals-state component as (extract-args component)))))
-  (when (not= keep-state as)
-    (app-state-changed! component as))
-  (binding [*app-state-map* (assoc *app-state-map* component as)
-            *local-state-map* (assoc *local-state-map* component
-                                                       (if (= keep-state ls)
-                                                         (extract-local-state component)
-                                                         ls))]
-    (cont)))
+(defn- ^:no-doc call-with-state
+  [component as ls thunk]
+  (binding [*app-state-map* (if (keep-state? as)
+                              *app-state-map*
+                              (assoc *app-state-map* component as))
+            *local-state-map* (if (keep-state? ls)
+                                *local-state-map*
+                                (assoc *local-state-map* component ls))
+            *locals-map* (if (keep-state? as)
+                           *locals-map*
+                           (let [locals (compute-locals (.-constructor component) as (extract-args component))]
+                             (assoc *locals-map* component
+                                    locals)))]
+    (thunk)))
 
+(defn- ^:no-doc reaction->pending-message
+  [component as ^Reaction reaction]
+  (let [target (:component reaction)
+        real-target (case target
+                      :parent
+                      (component-parent component)
+                      target)
+        msg (apply (:make-message reaction) as (:args reaction))]
+    [real-target msg]))
+  
 (defn- ^:no-doc handle-message
   "Handle a message for a Reacl component.
 
   For internal use.
 
   This returns a `Returned` object."
-  [comp msg]
+  [comp msg & [^Returned returned]]
   (if (instance? EmbedAppState msg)
-    (Returned. ((:embed msg) (extract-current-app-state comp) (:app-state msg))
-               keep-state
-               [])
+    (if (returned? returned)
+      (add-to-returned returned
+                       ((:embed msg) (extract-app-state comp) (:app-state msg))
+                       keep-state
+                       [])
+      (Returned. ((:embed msg) (extract-app-state comp) (:app-state msg))
+                 keep-state
+                 []))
     (let [^Effects efs ((aget comp "__handleMessage") msg)]
-      (effects->returned comp efs))))
+      (effects->returned comp efs returned))))
 
 (defn ^:no-doc handle-message->state
   "Handle a message for a Reacl component.
@@ -656,59 +670,77 @@
 
   This returns application state and local state."
   [comp msg]
-  (let [ret (handle-message comp msg)]
-    [(if (not= keep-state (:app-state ret)) (:app-state ret) (extract-app-state comp))
-     (if (not= keep-state (:local-state ret)) (:local-state ret) (extract-local-state comp))]))
+  (let [ret (handle-message comp msg)
+        [app-state local-state _actions-for-parent] (reduce-returned-actions comp ret)]
+    [(if (not (keep-state? app-state)) app-state (extract-app-state comp))
+     (if (not (keep-state? local-state)) local-state (extract-local-state comp))]))
 
-(defn ^:no-doc handle-actions!
-  "Handle actions returned by message handler."
-  [comp actions]
-  (let [handle (aget (.-props comp) "reacl_handle_action")]
-    (doseq [a actions]
-      (handle comp a))))
+(defn process-reactions
+  "Process all reactions that apply to a certain component and propagate upwards."
+  [this actions pending-messages]
+  (loop [msgs pending-messages
+         remaining (transient [])
+         returned (actions->returned actions)]
+    (if (empty? msgs)
 
-(defn- ^:no-doc reduce-and-handle-action!
-  [this action]
-  ;; "setState() does not always immediately update the component. It
-  ;; may batch or defer the update until later. This makes reading
-  ;; this.state right after calling setState() a potential pitfall."
+      [(persistent! remaining) returned]
 
-  (let [map-app-state (get *app-state-map* this ::not-found)
-        old-app-state (case map-app-state
-                        (::not-found) (extract-app-state this)
-                        map-app-state)
-        [app-state actions]
-        (action-effect (action-reducer this) old-app-state action)]
-    (set-state! this app-state keep-state
-                #(handle-actions! this actions))))
+      (let [[target msg] (first msgs)]
+        (if (identical? target this)
+          (recur (rest msgs)
+                 remaining
+                 (handle-message this msg returned))
+          (recur (rest msgs)
+                 (conj! remaining (first msgs))
+                 returned))))))
 
 (defn handle-returned!
-  "Handle all effects described in a [[Returned]] object."
-  [comp ^Returned ret]
-  (set-state! comp (:app-state ret) (:local-state ret)
-              #(handle-actions! comp (:actions ret))))
+  "Handle all effects described in a [[Returned]] object.
+
+  Assumes the actions in `ret` are for comp."
+  [comp ^Returned ret & [pending-messages]]
+  (let [[app-state local-state actions-for-parent] (reduce-returned-actions comp ret)]
+    (call-with-state
+     comp app-state local-state
+     (fn []
+       (when-not (keep-state? local-state)
+         (set-local-state! comp local-state))
+       (let [pending-messages
+             (if-let [reaction (and (not (keep-state? app-state))
+                                    (props-extract-reaction (.-props comp)))]
+               (cons (reaction->pending-message comp app-state reaction) pending-messages)
+               pending-messages)]
+         (if-let [parent (component-parent comp)]
+           (let [[pending-messages returned] (process-reactions parent actions-for-parent pending-messages)]
+             (handle-returned! parent returned pending-messages))
+           (let [uber (resolve-uber comp)]
+             (when-not (keep-state? app-state)
+               (.setState uber #js {:reacl_uber_app_state app-state})))))))))
 
 (defn ^:no-doc handle-effects!
   "Handle all effects described in a [[Effects]] object."
   [comp ^Effects efs]
-  (handle-returned! comp (effects->returned comp efs)))
+  (let [^Returned ret (effects->returned comp efs)]
+    (handle-returned! comp ret)))
 
- 
+(defn resolve-component
+  "Resolves a component to its \"true\" Reacl component.
+
+  You need to use this when trying to do things directly to a top-level component."
+  [comp]
+  (if (aget (.-props comp) "reacl_toplevel_class")
+    (.-current (aget comp "reacl_toplevel_ref"))
+    comp))
+  
 (defn send-message!
   "Send a message to a Reacl component.
 
   Returns the `Returned` object returned by the message handler."
   [comp msg]
+  ;; this is mainly for automated tests that send a message to the top-level component directly
   (let [^Returned ret (handle-message comp msg)]
     (handle-returned! comp ret)
     ret))
-
-(defn dispatch-action!
-  "Dispatch an action from a Reacl component.
-
-  You can call this from a regular event handler."
-  [comp action]
-  (reduce-and-handle-action! comp action))
 
 (defn opt-handle-effects! [component v]
   (when v
@@ -761,14 +793,6 @@
     
     ;; Note that it's args is not & args down there
     (let [;; with locals, but without local-state
-          nlocal
-          (fn [f]
-            (and f
-                 (fn [& react-args]
-                   (this-as this
-                     (apply f this (extract-app-state this) (extract-locals this) (extract-args this) (extract-refs this)
-                            react-args)))))
-          ;; also with local-state (most reacl methods)
           std
           (fn [f]
             (and f
@@ -777,14 +801,7 @@
                      (apply f this (extract-app-state this) (extract-local-state this)
                             (extract-locals this) (extract-args this) (extract-refs this)
                             react-args)))))
-          std-current
-          (fn [f]
-            (and f
-                 (fn [& react-args]
-                   (this-as this
-                     (apply f this (extract-current-app-state this) (extract-local-state this)
-                            (extract-locals this) (extract-args this) (extract-refs this)
-                            react-args)))))
+
           std+state
           (fn [f]
             (and f
@@ -795,14 +812,7 @@
                                                        (extract-app-state this) (extract-local-state this)
                                                        (extract-locals this) (extract-args this) (extract-refs this)
                                                        react-args))))))
-          with-args
-          (fn [f]
-            (and f
-                 (fn [other-props]
-                   (this-as this
-                     (apply f this
-                            (extract-app-state this) (extract-local-state this) (extract-locals this) (extract-args this) (extract-refs this)
-                            (props-extract-args other-props))))))
+
           ;; and one arg with next/prev-state
           with-state-and-args
           (fn [f]
@@ -811,7 +821,7 @@
                    (this-as this
                      (apply f this
                             (extract-app-state this) (extract-local-state this) (extract-locals this) (extract-args this) (extract-refs this)
-                            (data-extract-app-state other-props other-state)
+                            (props-extract-app-state other-props)
                             (state-extract-local-state other-state)
                             (props-extract-args other-props))))))
 
@@ -822,13 +832,14 @@
             display-name
 
             "getInitialState"
-            (nlocal (fn [this app-state locals args]
-                      (let [local-state (when initial-state
-                                          (initial-state this app-state locals args))
-                            state (make-local-state this local-state)]
-                        ;; app-state will be the initial_app_state here
-                        (aset state "reacl_app_state" app-state)
-                        state)))
+            (fn []
+              (this-as this
+                (let [app-state (extract-app-state this)
+                      locals (extract-locals this)
+                      args (extract-args this)]
+                  (make-local-state this (if initial-state
+                                           (initial-state this app-state locals args)
+                                           nil)))))
 
             "mixins"
             (when mixins
@@ -839,9 +850,16 @@
 
             ;; Note handle-message must always see the most recent
             ;; app-state, even if the component was not updated after
+            
             ;; a change to it.
             "__handleMessage"
-            (std-current handle-message)
+            (and handle-message
+                 (fn [msg]
+                   (this-as this
+                     (handle-message
+                      this (extract-app-state this) (extract-local-state this)
+                      (extract-locals this) (extract-args this) (extract-refs this)
+                      msg))))
 
             "UNSAFE_componentWillMount"
             (std+state component-will-mount)
@@ -854,20 +872,21 @@
             (std+state component-did-mount)
 
             "UNSAFE_componentWillReceiveProps"
-            (let [f (with-args component-will-receive-args)]
-              (fn [next-props]
-                (this-as this
-                  ;; embedded/toplevel has been
-                  ;; 'reinstantiated', so take over new
-                  ;; initial app-state
-                  (let [app-state (props-extract-initial-app-state next-props)
-                        new-app-state (not= app-state (extract-app-state this))
-                        new-args (not= (extract-args  this) (props-extract-args next-props))]
-                    (when new-app-state
-                      (.setState this (app-state+recompute-locals-state #js {} this app-state (props-extract-args next-props))))
-                    (when (and f (or new-app-state new-args))
-                      ;; must preserve 'this' here via .call!
-                      (opt-handle-effects! this (.call f this next-props)))))))
+            (fn [next-props]
+              (this-as this
+                ;; embedded/toplevel has been
+                ;; 'reinstantiated', so take over new
+                ;; initial app-state
+                (let [app-state (props-extract-app-state next-props)
+                      new-app-state? (not= app-state (extract-app-state this))
+                      new-args? (not= (extract-args  this) (props-extract-args next-props))]
+                  (when (and component-will-receive-args (or new-app-state? new-args?))
+                    (let [efs
+                          (apply component-will-receive-args this
+                                 ;; FIXME questionable: shouldn't these be the new values?
+                                 (extract-app-state this) (extract-local-state this) (extract-locals this) (extract-args this) (extract-refs this)
+                                 (props-extract-args next-props))]
+                      (opt-handle-effects! this efs))))))
 
             "shouldComponentUpdate"
             (let [f (with-state-and-args should-component-update?)]
@@ -904,8 +923,10 @@
                                             (filter #(not (nil? (second %)))
                                                     react-method-map))))
           ]
-      (aset react-class "childContextTypes" #js {:reacl_parent js/PropTypes.object})
-      (aset react-class "contextTypes" #js {:reacl_parent js/PropTypes.object})
+      (aset react-class "childContextTypes" #js {:reacl_parent js/PropTypes.object
+                                                 :reacl_uber js/PropTypes.object})
+      (aset react-class "contextTypes" #js {:reacl_parent js/PropTypes.object
+                                            :reacl_uber js/PropTypes.object})
       (if compat-v1?
         (reify
           IFn ; only this is different between v1 and v2
@@ -1039,7 +1060,7 @@
                                  (this-as this
                                           (f this (extract-app-state this) (extract-local-state this)
                                              (map (fn [arg-fn] (arg-fn this)) arg-fns)
-                                             (data-extract-app-state other-props other-state)
+                                             (props-extract-app-state other-props)
                                              (state-extract-local-state other-state)))))]
                             nil))
         pass-through (fn [this res] res)

@@ -19,8 +19,8 @@
                           (reacl/send-message! this (.. e -target -value)))}))
  
  handle-message
- (fn [data]
-   (reacl/return :app-state data)))
+  (fn [data]
+    (reacl/return :app-state data)))
 
 (reacl/defclass filter-parent this state []
   local-state [local-state ""]
@@ -48,8 +48,9 @@
 (reacl/defclass root this state []
   render
   (do
-    (dom/div 
-     (filter-parent state))))
+    (dom/div
+     (filter-parent (reacl/opt :embed-app-state (fn [_ new] new))
+                    state))))
 
 (reacl/render-component
  (.getElementById js/document "content")

@@ -5,7 +5,20 @@
             [cljsjs.react]
             [cljsjs.react.dom.server]
             [cljsjs.react.dom.test-utils]
+            [cljsjs.react.test-renderer]
             [cljsjs.react.test-renderer.shallow]))
+
+(defn send-message!
+  [comp msg]
+  (reacl/send-message! (reacl/resolve-component comp) msg))
+
+(defn extract-app-state
+  [comp]
+  (reacl/extract-app-state (reacl/resolve-component comp)))
+
+(defn extract-local-state
+  [comp]
+  (reacl/extract-local-state (reacl/resolve-component comp)))
 
 (defn render-to-text
   [dom]
@@ -22,7 +35,7 @@
         ;;_ (.appendChild (.-body js/document) root)
         comp (apply reacl/render-component root clazz args)]
     {:send-message! #(reacl/send-message! comp %)
-     :get-app-state! #(reacl/extract-current-app-state comp)
+     :get-app-state! #(reacl/extract-app-state comp)
      :get-local-state! #(reacl/extract-local-state comp)
      :get-dom! #(.-firstChild root)}))
 
@@ -120,21 +133,33 @@
      (array? c) (vec c)
      :else (vector c))))
 
+(declare resolve-toplevel element-children)
+
 (defn render->hiccup
   [element]
-  (if-let [t (aget element "type")]
-    (if (string? t)
-      (let [props (.-props element)
-            attrs (dissoc (into {} (for [k (js-keys props)]
-                                     [(keyword k) (aget props k)]))
-                          :children)]
-        `[~(keyword t)
-          ~@(if (empty? attrs)
-              '()
-              [attrs])
-          ~@(map render->hiccup (rendered-children element))])
-      (render->hiccup (render-shallowly element)))
-    element))
+  (letfn [(recurse
+            [element]
+            (if (string? element)
+              element
+              (let [ttype (.-type element)]
+                (if (string? ttype) ; DOM
+                  (let [props (dissoc
+                               (into {}
+                                     (map (fn [[k v]]
+                                            (let [k (keyword k)]
+                                              (case k
+                                                (:className) [:class v]
+                                                [k v])))
+                                          (js->clj (.-props element))))
+                               :children)
+                        ch (map recurse (element-children element))]
+                    ;;(println "YO" ttype ch (element-children element) (.findAll element (fn [el] true)))
+                    (if (empty? props)
+                      (vec (cons (keyword ttype) ch))
+                      (vec (list* (keyword ttype) props ch))))
+                  (recur (.find element (fn [ti]
+                                          (string? (.-type ti)))))))))]
+    (recurse (.-root (js/ReactTestRenderer.create element)))))
 
 (defn hiccup-matches?
   [pattern data]
@@ -170,8 +195,9 @@
 (defn ->path-element-type
   [x]
   (cond
-   (keyword x) (name x)
-   :else x))
+    (keyword x) (name x)
+    (reacl/reacl-class? x) (reacl/react-class x)
+    :else x))
 
 (defn ->path-element
   [x]
@@ -186,49 +212,51 @@
        (= (.-type path-element) (.-type element))
        ((.-props-predicate path-element) (.-props element))))
 
+(defn resolve-toplevel
+  [element]
+  (.find element
+         (fn [ti]
+           (not (identical? (.-type ti) reacl/uber-class)))))
+
 (defn descend-into-element
   [element path]
-  (let [path (map ->path-element path)]
-    (when-not (path-element-matches? (first path) element)
-      (throw (str "path element " (first path) " does not match " element)))
+  (let [toplevel (resolve-toplevel element)
+        path (map ->path-element path)]
     (letfn [(descend
               [e path]
               (if (empty? path)
                 e
                 (let [pe (first path)]
-                  (if-let [all-children (.-children (.-props e))]
-                    (loop [children (seq all-children)]
-                      (cond
-                       (empty? children)
-                       (throw (str "trying to follow path element " pe ", but no child matched of " e))
-
-                       (path-element-matches? pe (first children))
-                       (descend (first children) (rest path))
-
-                       :else (recur (rest children))))
-
-                    (throw (str "trying to follow path " path ", but no children in " e))))))]
-      (descend element (rest path)))))
+                  (if-let [child (.find e
+                                        (fn [ti]
+                                          (identical? (:type pe) (.-type ti))))]
+                    (descend child (rest path))
+                    (throw (str "failed finding path element" pe))))))]
+      (descend toplevel path))))
 
 (defn create-renderer
-  "Create a shallow renderer for testing"
-  []
-  (js/ReactShallowRenderer.))
+  "Create a renderer for testing"
+  [& [el]]
+  (js/ReactTestRenderer.create el))
 
 (defn render!
   "Render an element into a renderer."
   [renderer el]
-  (.render renderer el))
+  (.update renderer el))
 
 (defn render-output
   "Get the output of rendering."
   [renderer]
-  (.getRenderOutput renderer))
+  (.-root renderer))
 
 (defn element-children
   "Get the children of a rendered element as a vector."
   [element]
-  (let [ch (.. element -props -children)]
+  (vec (.-children element)))
+
+(defn dom-children
+  [dom]
+  (let [ch (.-children (.-props dom))]
     (if (array? ch)
       (vec ch)
       [ch])))
@@ -239,7 +267,8 @@
   `tag` may be a keyword or string with the name of a DOM element,
   or React or a Reacl class."
   [element tag]
-  (let [ty (.-type element)]
+  (let [element (resolve-toplevel element)
+        ty (.-type element)]
     (cond
      (keyword? tag)
      (= (name tag) ty)
@@ -247,17 +276,36 @@
      (string? tag)
      (= tag ty)
 
-     (satisfies? reacl/IReaclClass tag)
-     (js/ReactTestUtils.isElementOfType element (reacl/react-class tag))
+     (reacl/reacl-class? tag)
+     (identical? ty (reacl/react-class tag))
 
      :else
-     (js/ReactTestUtils.isElementOfType element tag))))
+     (identical? ty tag))))
 
-(defn dom=?
+(defn render-output=dom?
   "Compare two React DOM elements for equality."
-  [el1 el2]
-  (= (js->clj el1) (js->clj el2)))
+  [tree dom]
+  (letfn [(recurse
+            [tree dom]
+            (if (string? tree)
+              (= tree dom)
+              (let [ttype (.-type tree)]
+                (if (string? ttype) ; DOM
+                  (and (= ttype (.-type dom))
+                       (let [tree-ch (element-children tree)
+                             dom-ch (dom-children dom)]
+                         (every? (fn [[t d]]
+                                   (recurse t d))
+                                 (map vector tree-ch dom-ch))))
+                  (let [ch (element-children tree)]
+                    (when-not (empty? (rest ch))
+                      (throw "component has >1 child")) ; unsatisfactory
+                    (recur (first ch) dom))))))]
+    (recurse (resolve-toplevel tree) dom)))
+          
+              
 
+    
 (defn invoke-callback
   "Invoke a callback of an element.
 
@@ -265,7 +313,8 @@
 
   `event` must be a React event - don't forget the ´#js {...}`"
   [element callback event]
-  (let [n (aget dom/reacl->react-attribute-names (name callback))]
+  (let [element (reacl/resolve-component element)
+        n (aget dom/reacl->react-attribute-names (name callback)) ]
     ((aget (.-props element) n) event)))
 
 (defn handle-message
@@ -282,10 +331,15 @@
   - `ret` is  a ``Returned`` record with `app-state`, `local-state`, and `actions` fields."
   [cl app-state args local-state msg]
   (let [rcl (reacl/react-class cl)
-        cmp #js {:props (reacl/make-props cl app-state args)
-                 :state (reacl/make-state cl app-state local-state args)}
+        cmp #js {:props (reacl/make-props rcl app-state args)
+                 :state (reacl/make-state rcl app-state local-state args)}
         handle-message-internal (.bind (aget (.-prototype rcl) "__handleMessage")
                                        cmp)]
     ;; FIXME: move Reacl guts exposed here back into the core
     [cmp (reacl/effects->returned cmp (handle-message-internal msg))]))
 
+
+(defn handle-message->state
+  "Handle a message for a Reacl component."
+  [comp msg]
+  (reacl/handle-message->state (reacl/resolve-component comp) msg))

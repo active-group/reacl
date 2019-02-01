@@ -129,21 +129,29 @@
 
 (deftest string-display-test
   (let [e (string-display "Hello, Mike")
-        renderer (reacl-test/create-renderer)]
-    (reacl-test/render! renderer e)
+        renderer (reacl-test/create-renderer e)]
     (let [t (reacl-test/render-output renderer)]
-      (is (reacl-test/dom=? (dom/h1 "Hello, Mike") t))
-      (is (reacl-test/element-has-type? t :h1))
-      (is (= ["Hello, Mike"] (reacl-test/element-children t))))))
+      (is (reacl-test/render-output=dom? t (dom/h1 "Hello, Mike")))
+      (is (reacl-test/element-has-type? t string-display))
+      (is (reacl-test/element-has-type? (first (reacl-test/element-children t)) :h1))
+      (is (= ["Hello, Mike"] (reacl-test/element-children (first (reacl-test/element-children t))))))))
 
 (deftest list-display-test
   (let [e (list-display ["Lion" "Zebra" "Buffalo" "Antelope"])
         renderer (reacl-test/create-renderer)]
     (reacl-test/render! renderer e)
     (let [t (reacl-test/render-output renderer)]
-      (is (reacl-test/element-has-type? t :ul))
-      (doseq [c (reacl-test/element-children t)]
-        (is (reacl-test/element-has-type? c :li))))))
+      (is (reacl-test/element-has-type? t list-display))
+      (let [ul (first (reacl-test/element-children t))]
+        (is (reacl-test/element-has-type? ul :ul))
+        ;; FIXME: the children are empty - Mike doesn't know why
+        (doseq [c (reacl-test/element-children ul)]
+          (is (reacl-test/element-has-type? c :li)))))))
+
+(deftest hiccup-test
+  (let [e (string-display "Hello, Mike")]
+    (is (= [:h1 "Hello, Mike"]
+           (reacl-test/render->hiccup e)))))
 
 (deftest contacts-display-handle-message-test
   (let [[_ st] (reacl-test/handle-message contacts-display [{:first "David" :last "Frese"}] [] "Foo"
@@ -156,7 +164,7 @@
            (:local-state st)))))
 
 (deftest contacts-display-test
-  (let [e (contacts-display contacts)
+  (let [e (reacl/instantiate-toplevel contacts-display contacts)
         renderer (reacl-test/create-renderer)]
     (reacl-test/render! renderer e)
     (let [t (reacl-test/render-output renderer)
@@ -169,7 +177,8 @@
       (is (= (conj contacts {:first "Mike", :last "Sperber"})
              (:app-state st))))
     (let [t (reacl-test/render-output renderer)]
-      (is (reacl-test/element-has-type? t :div)))))
+      (is (reacl-test/element-has-type? t contacts-display))
+      (is (reacl-test/element-has-type? (first (reacl-test/element-children (first (reacl-test/element-children t)))) :div)))))
 
 (deftest dom-f-perf-test
   (let [mp {:style {:background-color "white"

@@ -4,7 +4,7 @@
             [reacl2.test-util :as test-util]
             [active.clojure.lens :as lens]
             [cljsjs.react]
-            [cljsjs.react.test-renderer.shallow]
+            [cljsjs.react.test-renderer]
             [cljsjs.react.dom.test-utils]
             [cljs.test :as t])
   (:require-macros [cljs.test
@@ -34,7 +34,7 @@
               {:type "checkbox"
                :value (:done? todo)
                :onchange (fn [e]
-                           (reacl/send-message! this (.-checked e)))})]
+                           (test-util/send-message! this (.-checked e)))})]
    (dom/div checkbox
             (:text todo)))
   handle-message
@@ -51,7 +51,7 @@
 
 (deftest handle-message-simple
   (let [item (test-util/instantiate&mount to-do-item (Todo. 42 "foo" false))]
-    (let [[app-state _] (reacl/handle-message->state item true)]
+    (let [[app-state _] (test-util/handle-message->state item true)]
       (is (= app-state (Todo. 42 "foo" true))))))
 
 (deftest to-do-elements
@@ -60,17 +60,14 @@
                                    (test-util/render->hiccup e)))))
 
 (deftest to-do-message
-  (let [e (to-do-item (Todo. 42 "foo" true))
-        renderer (js/ReactShallowRenderer.)]
-    (.render renderer e)
-    (let [t (.getRenderOutput renderer)]
+  (let [e (reacl/instantiate-toplevel to-do-item (Todo. 42 "foo" true))
+        renderer (js/ReactTestRenderer.create e)]
+    (let [t (.-root renderer)]
       (let [input (test-util/descend-into-element t [:div :input])]
         (.onChange (.-props input) #js {:checked false})))
-    (let [t (.getRenderOutput renderer)]
+    (let [t (.-root renderer)]
       (let [input (test-util/descend-into-element t [:div :input])]
         (is (not (.-value (.-props input))))))))
-
-
 
 (reacl/defclass foo
   this bam [bar]
@@ -124,7 +121,7 @@
   (let [e (foo 42 12)]
     (is (reacl/has-class? foo e))
     (is (= [12] (reacl/extract-args e)))
-    (is (= 42 (reacl/extract-initial-app-state e)))))
+    (is (= 42 (reacl/extract-app-state e)))))
 
 (deftest foo-render
   (let [e (foo 42 12)]
@@ -141,7 +138,7 @@
 
 (deftest local-change
   (let [item (test-util/instantiate&mount bar 5)]
-    (reacl/send-message! item 2)
+    (test-util/send-message! item 2)
     (is (= ["20" "29"]
            (map dom-content (doms-with-tag item "div"))))))
 
@@ -156,19 +153,19 @@
 
 (deftest local-app-state-change
   (let [item (test-util/instantiate&mount blam 5)]
-    (reacl/send-message! item 6)
+    (test-util/send-message! item 6)
     (is (= ["13"]
            (map dom-content (doms-with-tag item "div"))))))
 
 (reacl/defclass blaz
   this app-state []
   render
-  (dom/span (blam 5)))
-  
+  (dom/span (blam (reacl/opt :embed-app-state (fn [old new] new)) app-state)))
+
 (deftest local-app-state-change-embed
   (let [item (test-util/instantiate&mount blaz 5)
         embedded (dom-with-class item blam)]
-    (reacl/send-message! embedded 6)
+    (test-util/send-message! embedded 6)
     (is (= ["13"]
            (map dom-content (doms-with-tag item "div"))))))
 
@@ -183,7 +180,7 @@
 (deftest embedded-app-state-change
   (let [item (test-util/instantiate&mount blaz2 5)
         embedded (dom-with-class item blam)]
-    (reacl/send-message! item 6)
+    (test-util/send-message! item 6)
     (is (= ["19"] ;; 2*6+7
            (map dom-content (doms-with-tag item "div"))))))
 
@@ -234,7 +231,7 @@
 
                      component-did-mount
                      (fn []
-                       (reacl/send-message! this nil)
+                       (test-util/send-message! this nil)
                        nil)
 
                      handle-message
@@ -287,7 +284,7 @@
   (let [item (test-util/instantiate&mount app-state-change-with-reaction-class 1)]
     (is (= ["1"]
            (map dom-content (doms-with-tag item "div"))))
-    (reacl/send-message! item 2)
+    (test-util/send-message! item 2)
     (is (= ["2"]
            (map dom-content (doms-with-tag item "div"))))))
 
@@ -304,9 +301,9 @@
 
 (deftest local-state-boolean-value-test
   (let [item (test-util/instantiate&mount local-state-boolean-value-class)]
-    (is (false? (reacl/extract-local-state item))))
+    (is (false? (test-util/extract-local-state item))))
   (let [item (test-util/instantiate&mount local-state-nil-value-class)]
-    (is (nil? (reacl/extract-local-state item)))))
+    (is (nil? (test-util/extract-local-state item)))))
 
 (reacl/defclass text-refs
   this content []
@@ -317,7 +314,7 @@
               :value content
               :onchange (fn [e]
                           (let [v (.-value (reacl/get-dom text-input))]
-                            (reacl/send-message! this (str v v))))})
+                            (test-util/send-message! this (str v v))))})
   handle-message
   (fn [new-content]
     (reacl/return :app-state

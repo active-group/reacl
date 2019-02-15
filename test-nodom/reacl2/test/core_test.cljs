@@ -1,7 +1,7 @@
 (ns reacl2.test.core-test
   (:require [reacl2.core :as reacl :include-macros true]
             [reacl2.dom :as dom :include-macros true]
-            [reacl2.test-util :as reacl-test]
+            [reacl2.test-util.alpha :as reacl-test]
             [cljs.test :as t]
             [clojure.string :as string])
   (:require-macros [cljs.test :refer (is deftest testing)]))

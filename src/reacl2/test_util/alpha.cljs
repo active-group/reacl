@@ -1,5 +1,5 @@
 (ns ^{:doc "Various testing utilities for Reacl."}
-  reacl2.test-util
+  reacl2.test-util.alpha
   (:require [reacl2.core :as reacl :include-macros true]
             [reacl2.dom :as dom :include-macros true]
             [cljsjs.react]

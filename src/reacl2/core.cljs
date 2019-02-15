@@ -5,23 +5,6 @@
             [cljsjs.create-react-class]
             [cljsjs.prop-types]))
 
-;; This is needed to keep track of the current local state of the
-;; components as we process an action.  Actions can observe changes to
-;; the local state.  However, React processes changes to its
-;; state (which contains the local state) in a delayed fashion.
-
-;; So this is a dynamically bound map from component to local state to
-;; track the local state in the current cycle.
-
-;; FIXME: We may be able to pass some or all of these as arguments
-(def ^:dynamic *local-state-map* {})
-
-;; Ditto for the app state, but read access to this is much more focussed.
-(def ^:dynamic *app-state-map* {})
-
-;; Ditto for the locals
-(def ^:dynamic *locals-map* {})
-  
 (defn- ^:no-doc local-state-state
   "Set Reacl local state in the given state object.
 
@@ -49,10 +32,7 @@
 
    For internal use."
   [this]
-  (let [res (get *local-state-map* this ::not-found)]
-    (case res
-      (::not-found) (state-extract-local-state (.-state this))
-      res)))
+  (state-extract-local-state (.-state this)))
 
 (defn- ^:no-doc props-extract-app-state
   "Extract initial applications state from props of a Reacl 2toplevel component.
@@ -70,10 +50,7 @@
 
    For internal use."
   [this]
-  (let [res (get *app-state-map* this ::not-found)]
-    (case res
-      (::not-found) (props-extract-app-state (.-props this))
-      res)))
+  (props-extract-app-state (.-props this)))
 
 (defn- ^:no-doc app-state-state
   "Set Reacl app state in the given state object.
@@ -111,11 +88,11 @@
   [this]
   (props-extract-refs (.-props this)))
 
-(defn ^:no-doc data-extract-locals
+(defn ^:no-doc props-extract-locals
   "Get the local bindings for a component.
 
    For internal use."
-  [props state]
+  [props]
   (aget props "reacl_locals"))
 
 
@@ -124,10 +101,7 @@
 
    For internal use."
   [this]
-  (let [res (get *locals-map* this ::not-found)]
-    (case res
-      (::not-found) (data-extract-locals (.-props this) (.-state this))
-      res)))
+  (props-extract-locals (.-props this)))
 
 (defn- ^:no-doc locals-state
   "Set Reacl locals in the given state object.
@@ -494,6 +468,13 @@
   [x]
   (instance? KeepState x))
 
+(defn right-state
+  "Of two state objects, keep the one on the right, unless it's keep-state."
+  [ls rs]
+  (if (keep-state? rs)
+    ls
+    rs))
+
 (defrecord ^{:doc "Composite object for the effects caused by [[return]].
   For internal use."
              :private true
@@ -572,7 +553,8 @@
    accumulating onto a previous one if present.
 
   For internal use only."
-  [actual-app-state ^Effects efs & [^Returned returned]]
+  [^Effects efs & [^Returned returned]]
+  ;; FIXME: returned is dodgy, zap it
   (loop [args (seq (:args efs))
          app-state (if (returned? returned)
                      (:app-state returned)
@@ -668,7 +650,7 @@
                          (compute-locals (.-constructor comp) app-state args)
                          args (extract-refs comp)
                          msg)]
-       (effects->returned app-state efs returned)))))
+       (effects->returned efs returned)))))
 
 (defn ^:no-doc handle-message->state
   "Handle a message for a Reacl component.
@@ -682,24 +664,51 @@
     [(if (not (keep-state? app-state)) app-state (extract-app-state comp))
      (if (not (keep-state? local-state)) local-state (extract-local-state comp))]))
 
+(defn- ^:no-doc process-message
+  "Process a message for a Reacl component."
+  [comp app-state local-state msg]
+  (if (instance? EmbedAppState msg)
+    (Returned. ((:embed msg) app-state (:app-state msg))
+               keep-state
+               [])
+    (let [args (extract-args comp)
+          ^Effects efs ((aget comp "__handleMessage")
+                        comp
+                        app-state local-state
+                        (compute-locals (.-constructor comp) app-state args)
+                        args (extract-refs comp)
+                        msg)]
+      (effects->returned efs))))
+
+;; FIXME: thread all the things properly
+
 (defn process-reactions
   "Process all reactions that apply to a certain component and propagate upwards."
-  [this actions pending-messages]
+  [this app-state0 local-state0 actions pending-messages]
   (loop [msgs pending-messages
          remaining (transient [])
-         returned (actions->returned actions)]
+         app-state keep-state
+         local-state keep-state
+         actions (transient actions)]
     (if (empty? msgs)
-
-      [(persistent! remaining) returned]
-
+      
+      [(persistent! remaining)
+       (Returned. app-state local-state (persistent! actions))]
+      
       (let [[target msg] (first msgs)]
         (if (identical? target this)
-          (recur (rest msgs)
-                 remaining
-                 (handle-message this msg returned))
+          (let [ret (process-message this
+                                     (right-state app-state0 app-state)
+                                     (right-state local-state0 local-state)
+                                     msg)]
+            (recur (rest msgs)
+                   remaining
+                   (:app-state ret)
+                   (:local-state ret)
+                   (reduce conj! actions (:actions ret))))
           (recur (rest msgs)
                  (conj! remaining (first msgs))
-                 returned))))))
+                 app-state local-state actions))))))
 
 (defn handle-returned!
   "Handle all effects described in a [[Returned]] object.
@@ -708,28 +717,30 @@
   ([comp ^Returned ret]
    (handle-returned! comp ret nil))
   ([comp ^Returned ret pending-messages]
+   ;; FIXME: here also accept explicit app-state etc.
+   ;; FIXME: we'll still need the maps, to propagate for async message pass, but only touch them here!
   (let [[app-state local-state actions-for-parent] (reduce-returned-actions comp ret)]
-    (call-with-state
-     comp app-state local-state
-     (fn []
-       (when-not (keep-state? local-state)
-         (set-local-state! comp local-state))
-       (let [pending-messages
-             (if-let [reaction (and (not (keep-state? app-state))
-                                    (props-extract-reaction (.-props comp)))]
-               (cons (reaction->pending-message comp app-state reaction) pending-messages)
-               pending-messages)]
-         (if-let [parent (component-parent comp)]
-           (let [[pending-messages returned] (process-reactions parent actions-for-parent pending-messages)]
-             (handle-returned! parent returned pending-messages))
-           (let [uber (resolve-uber comp)]
-             (when-not (keep-state? app-state)
-               (.setState uber #js {:reacl_uber_app_state app-state}))))))))))
+    (when-not (keep-state? local-state)
+      (set-local-state! comp local-state))
+    (let [pending-messages
+          (if-let [reaction (and (not (keep-state? app-state))
+                                 (props-extract-reaction (.-props comp)))]
+            (cons (reaction->pending-message comp app-state reaction) pending-messages)
+            pending-messages)]
+      (if-let [parent (component-parent comp)]
+        (let [[pending-messages returned] (process-reactions parent
+                                                             (extract-app-state parent)
+                                                             (extract-local-state parent)
+                                                             actions-for-parent pending-messages)]
+          (recur parent returned pending-messages))
+        (let [uber (resolve-uber comp)]
+          (when-not (keep-state? app-state)
+            (.setState uber #js {:reacl_uber_app_state app-state}))))))))
 
 (defn ^:no-doc handle-effects!
   "Handle all effects described in a [[Effects]] object."
   [comp ^Effects efs]
-  (let [^Returned ret (effects->returned (extract-app-state comp) efs)]
+  (let [^Returned ret (effects->returned efs)]
     (handle-returned! comp ret)))
 
 (defn resolve-component

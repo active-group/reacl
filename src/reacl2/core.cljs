@@ -572,28 +572,26 @@
    accumulating onto a previous one if present.
 
   For internal use only."
-  [this ^Effects efs & [^Returned returned]]
-  (let [reduce-action (action-reducer this)
-        actual-app-state (extract-app-state this)]
-    (loop [args (seq (:args efs))
-           app-state (if (returned? returned)
-                       (:app-state returned)
+  [actual-app-state ^Effects efs & [^Returned returned]]
+  (loop [args (seq (:args efs))
+         app-state (if (returned? returned)
+                     (:app-state returned)
+                     keep-state)
+         local-state (if (returned? returned)
+                       (:local-state returned)
                        keep-state)
-           local-state (if (returned? returned)
-                         (:local-state returned)
-                         keep-state)
-           actions (transient (if (returned? returned)
-                                (:actions returned)
-                                []))]
-      (if (empty? args)
-        (Returned. app-state local-state (persistent! actions))
-        (let [arg (second args)
-              nxt (nnext args)]
-          (case (first args)
-            (:app-state) (recur nxt arg local-state actions)
-            (:local-state) (recur nxt app-state arg actions)
-            (:action) (recur nxt app-state local-state (conj! actions arg))
-            (throw (str "invalid argument " (first args) " to reacl/return"))))))))
+         actions (transient (if (returned? returned)
+                              (:actions returned)
+                              []))]
+    (if (empty? args)
+      (Returned. app-state local-state (persistent! actions))
+      (let [arg (second args)
+            nxt (nnext args)]
+        (case (first args)
+          (:app-state) (recur nxt arg local-state actions)
+          (:local-state) (recur nxt app-state arg actions)
+          (:action) (recur nxt app-state local-state (conj! actions arg))
+          (throw (str "invalid argument " (first args) " to reacl/return")))))))
 
 (defn ^:no-doc reduce-returned-actions
   "Returns app-state, local-state for this, actions reduced here, to be sent to parent."
@@ -660,8 +658,15 @@
       (Returned. ((:embed msg) (extract-app-state comp) (:app-state msg))
                  keep-state
                  []))
-    (let [^Effects efs ((aget comp "__handleMessage") msg)]
-      (effects->returned comp efs returned))))
+    (let [app-state (extract-app-state comp)
+          args (extract-args comp)
+          ^Effects efs ((aget comp "__handleMessage")
+                        comp
+                        app-state (extract-local-state comp)
+                        (compute-locals (.-constructor comp) app-state args)
+                        args (extract-refs comp)
+                        msg)]
+      (effects->returned app-state efs returned))))
 
 (defn ^:no-doc handle-message->state
   "Handle a message for a Reacl component.
@@ -720,7 +725,7 @@
 (defn ^:no-doc handle-effects!
   "Handle all effects described in a [[Effects]] object."
   [comp ^Effects efs]
-  (let [^Returned ret (effects->returned comp efs)]
+  (let [^Returned ret (effects->returned (extract-app-state comp) efs)]
     (handle-returned! comp ret)))
 
 (defn resolve-component
@@ -852,14 +857,7 @@
             ;; app-state, even if the component was not updated after
             
             ;; a change to it.
-            "__handleMessage"
-            (and handle-message
-                 (fn [msg]
-                   (this-as this
-                     (handle-message
-                      this (extract-app-state this) (extract-local-state this)
-                      (extract-locals this) (extract-args this) (extract-refs this)
-                      msg))))
+            "__handleMessage" handle-message
 
             "UNSAFE_componentWillMount"
             (std+state component-will-mount)

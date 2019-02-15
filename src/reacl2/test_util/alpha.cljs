@@ -327,16 +327,18 @@
 
   This returns a pair `[cmp ret]` where:
 
-  - `cmp` is the mock component used in the test
   - `ret` is  a ``Returned`` record with `app-state`, `local-state`, and `actions` fields."
   [cl app-state args local-state msg]
   (let [rcl (reacl/react-class cl)
-        cmp #js {:props (reacl/make-props rcl app-state args)
-                 :state (reacl/make-state rcl app-state local-state args)}
-        handle-message-internal (.bind (aget (.-prototype rcl) "__handleMessage")
-                                       cmp)]
+        cmp #js {}
+        handle-message-internal (aget (.-prototype rcl) "__handleMessage")]
     ;; FIXME: move Reacl guts exposed here back into the core
-    [cmp (reacl/effects->returned cmp (handle-message-internal msg))]))
+    (reacl/effects->returned
+     app-state
+     (handle-message-internal nil
+                              app-state local-state
+                              (reacl/compute-locals rcl app-state args)
+                              args [] msg))))
 
 
 (defn handle-message->state

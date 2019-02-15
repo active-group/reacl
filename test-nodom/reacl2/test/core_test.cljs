@@ -154,12 +154,12 @@
            (reacl-test/render->hiccup e)))))
 
 (deftest contacts-display-handle-message-test
-  (let [[_ st] (reacl-test/handle-message contacts-display [{:first "David" :last "Frese"}] [] "Foo"
-                                          (->Add {:first "Mike" :last "Sperber"}))]
+  (let [st (reacl-test/handle-message contacts-display [{:first "David" :last "Frese"}] [] "Foo"
+                                      (->Add {:first "Mike" :last "Sperber"}))]
     (is (= [{:first "David", :last "Frese"} {:first "Mike", :last "Sperber"}]
            (:app-state st))))
-  (let [[_ st] (reacl-test/handle-message contacts-display [{:first "David" :last "Frese"}] [] "Foo"
-                                          (->NewText "David Frese"))]
+  (let [st (reacl-test/handle-message contacts-display [{:first "David" :last "Frese"}] [] "Foo"
+                                      (->NewText "David Frese"))]
     (is (= "David Frese"
            (:local-state st)))))
 
@@ -192,6 +192,6 @@
     (assert true)))
 
 (deftest comments-action-test
-  (let [[cmp st] (reacl-test/handle-message comment-box ["foo" "bar" "baz"] [] nil (Refresh.))]
-    (is (= [(EdnXhr. cmp "comments.edn" ->NewComments)]
+  (let [st (reacl-test/handle-message comment-box ["foo" "bar" "baz"] [] nil (Refresh.))]
+    (is (= [(EdnXhr. nil "comments.edn" ->NewComments)]
            (:actions st)))))

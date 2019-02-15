@@ -648,25 +648,27 @@
   For internal use.
 
   This returns a `Returned` object."
-  [comp msg & [^Returned returned]]
-  (if (instance? EmbedAppState msg)
-    (if (returned? returned)
-      (add-to-returned returned
-                       ((:embed msg) (extract-app-state comp) (:app-state msg))
-                       keep-state
-                       [])
-      (Returned. ((:embed msg) (extract-app-state comp) (:app-state msg))
-                 keep-state
-                 []))
-    (let [app-state (extract-app-state comp)
-          args (extract-args comp)
-          ^Effects efs ((aget comp "__handleMessage")
-                        comp
-                        app-state (extract-local-state comp)
-                        (compute-locals (.-constructor comp) app-state args)
-                        args (extract-refs comp)
-                        msg)]
-      (effects->returned app-state efs returned))))
+  ([comp msg]
+   (handle-message comp msg nil))
+  ([comp msg ^Returned returned]
+   (if (instance? EmbedAppState msg)
+     (if (returned? returned)
+       (add-to-returned returned
+                        ((:embed msg) (extract-app-state comp) (:app-state msg))
+                        keep-state
+                        [])
+       (Returned. ((:embed msg) (extract-app-state comp) (:app-state msg))
+                  keep-state
+                  []))
+     (let [app-state (extract-app-state comp)
+           args (extract-args comp)
+           ^Effects efs ((aget comp "__handleMessage")
+                         comp
+                         app-state (extract-local-state comp)
+                         (compute-locals (.-constructor comp) app-state args)
+                         args (extract-refs comp)
+                         msg)]
+       (effects->returned app-state efs returned)))))
 
 (defn ^:no-doc handle-message->state
   "Handle a message for a Reacl component.
@@ -703,7 +705,9 @@
   "Handle all effects described in a [[Returned]] object.
 
   Assumes the actions in `ret` are for comp."
-  [comp ^Returned ret & [pending-messages]]
+  ([comp ^Returned ret]
+   (handle-returned! comp ret nil))
+  ([comp ^Returned ret pending-messages]
   (let [[app-state local-state actions-for-parent] (reduce-returned-actions comp ret)]
     (call-with-state
      comp app-state local-state
@@ -720,7 +724,7 @@
              (handle-returned! parent returned pending-messages))
            (let [uber (resolve-uber comp)]
              (when-not (keep-state? app-state)
-               (.setState uber #js {:reacl_uber_app_state app-state})))))))))
+               (.setState uber #js {:reacl_uber_app_state app-state}))))))))))
 
 (defn ^:no-doc handle-effects!
   "Handle all effects described in a [[Effects]] object."

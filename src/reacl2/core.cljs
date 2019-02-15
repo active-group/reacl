@@ -869,23 +869,6 @@
             "componentDidMount"
             (std+state component-did-mount)
 
-            "UNSAFE_componentWillReceiveProps"
-            (fn [next-props]
-              (this-as this
-                ;; embedded/toplevel has been
-                ;; 'reinstantiated', so take over new
-                ;; initial app-state
-                (let [app-state (props-extract-app-state next-props)
-                      new-app-state? (not= app-state (extract-app-state this))
-                      new-args? (not= (extract-args  this) (props-extract-args next-props))]
-                  (when (and component-will-receive-args (or new-app-state? new-args?))
-                    (let [efs
-                          (apply component-will-receive-args this
-                                 ;; FIXME questionable: shouldn't these be the new values?
-                                 (extract-app-state this) (extract-local-state this) (extract-locals this) (extract-args this) (extract-refs this)
-                                 (props-extract-args next-props))]
-                      (opt-handle-effects! this efs))))))
-
             "shouldComponentUpdate"
             (let [f (with-state-and-args should-component-update?)]
               (fn [next-props next-state]

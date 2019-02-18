@@ -599,21 +599,6 @@
                  local-state
                  (reduce conj! reduced-actions new-actions)))))))
 
-(defn- ^:no-doc call-with-state
-  [component as ls thunk]
-  (binding [*app-state-map* (if (keep-state? as)
-                              *app-state-map*
-                              (assoc *app-state-map* component as))
-            *local-state-map* (if (keep-state? ls)
-                                *local-state-map*
-                                (assoc *local-state-map* component ls))
-            *locals-map* (if (keep-state? as)
-                           *locals-map*
-                           (let [locals (compute-locals (.-constructor component) as (extract-args component))]
-                             (assoc *locals-map* component
-                                    locals)))]
-    (thunk)))
-
 (defn- ^:no-doc reaction->pending-message
   [component as ^Reaction reaction]
   (let [target (:component reaction)

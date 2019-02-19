@@ -524,30 +524,6 @@
   [& args]
   (Effects. args))
 
-(defn ^:no-doc action-effects->returned
-  [^Effects efs]
-  (loop [args (seq (:args efs))
-         app-state keep-state
-         local-state keep-state
-         actions (transient [])]
-    (if (empty? args)
-      (Returned. app-state local-state (persistent! actions))
-      (let [arg (second args)
-            nxt (nnext args)]
-        (case (first args)
-          (:app-state) (recur nxt arg local-state actions)
-          (:local-state) (recur nxt app-state local-state actions)
-          (:action) (recur nxt app-state local-state (conj! actions arg))
-          (throw (str "invalid argument " (first args) " to reacl/return")))))))
-
-(defn- ^:no-doc action-effect
-  [reduce-action app-state action]
-  (if-let [^Effects efs (reduce-action app-state action)]
-    (let [ret (action-effects->returned efs)
-          app-state-2 (:app-state ret)]
-      [(:app-state ret) (:actions ret)])
-    [keep-state [action]]))
-
 (defn ^:no-doc effects->returned
   "Reduce the effects of a [[return]] invocation, returning a `Returned` object,
    accumulating onto a previous one if present.
@@ -574,6 +550,14 @@
           (:local-state) (recur nxt app-state arg actions)
           (:action) (recur nxt app-state local-state (conj! actions arg))
           (throw (str "invalid argument " (first args) " to reacl/return")))))))
+
+(defn- ^:no-doc action-effect
+  [reduce-action app-state action]
+  (if-let [^Effects efs (reduce-action app-state action)]
+    (let [ret (effects->returned efs)
+          app-state-2 (:app-state ret)]
+      [(:app-state ret) (:actions ret)])
+    [keep-state [action]]))
 
 (defn ^:no-doc reduce-returned-actions
   "Returns app-state, local-state for this, actions reduced here, to be sent to parent."

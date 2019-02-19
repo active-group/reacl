@@ -334,7 +334,6 @@
         handle-message-internal (aget (.-prototype rcl) "__handleMessage")]
     ;; FIXME: move Reacl guts exposed here back into the core
     (reacl/effects->returned
-     app-state
      (handle-message-internal nil
                               app-state local-state
                               (reacl/compute-locals rcl app-state args)

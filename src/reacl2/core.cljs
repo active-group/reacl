@@ -577,7 +577,7 @@
 
 (defn ^:no-doc reduce-returned-actions
   "Returns app-state, local-state for this, actions reduced here, to be sent to parent."
-  [comp ^Returned ret]
+  [comp app-state ^Returned ret]
   (let [reduce-action (action-reducer comp)
         actual-app-state (extract-app-state comp)]
     (loop [actions (:actions ret)
@@ -645,7 +645,7 @@
   This returns application state and local state."
   [comp msg]
   (let [ret (handle-message comp msg)
-        [app-state local-state _actions-for-parent] (reduce-returned-actions comp ret)]
+        [app-state local-state _actions-for-parent] (reduce-returned-actions comp (extract-app-state comp) ret)]
     [(if (not (keep-state? app-state)) app-state (extract-app-state comp))
      (if (not (keep-state? local-state)) local-state (extract-local-state comp))]))
 
@@ -660,6 +660,7 @@
           ^Effects efs ((aget comp "__handleMessage")
                         comp
                         app-state local-state
+                        ;; FIXME: can we avoid recomputing when nothing has changed?
                         (compute-locals (.-constructor comp) app-state args)
                         args (extract-refs comp)
                         msg)]
@@ -695,18 +696,37 @@
                  (conj! remaining (first msgs))
                  app-state local-state actions))))))
 
-(defn handle-returned!
+(defrecord UpdateInfo [toplevel-component toplevel-app-state app-state-map local-state-map])
+
+(defn- ^:no-doc update-state-map
+  [state-map comp state]
+  (if (keep-state? state)
+    state-map
+    (assoc state-map comp state)))
+
+(defn- ^:no-doc get-local-state
+  [comp local-state-map]
+  (let [res (get local-state-map comp ::no-state)]
+    (case res
+      (::no-state) (extract-local-state comp)
+      res)))
+
+(defn- ^:no-doc get-app-state
+  [comp app-state-map]
+  (let [res (get app-state-map comp ::no-state)]
+    (case res
+      (::no-state) (extract-app-state comp)
+      res)))
+
+(defn handle-returned
   "Handle all effects described in a [[Returned]] object.
 
-  Assumes the actions in `ret` are for comp."
-  ([comp ^Returned ret]
-   (handle-returned! comp ret nil))
-  ([comp ^Returned ret pending-messages]
-   ;; FIXME: here also accept explicit app-state etc.
-   ;; FIXME: we'll still need the maps, to propagate for async message pass, but only touch them here!
-  (let [[app-state local-state actions-for-parent] (reduce-returned-actions comp ret)]
-    (when-not (keep-state? local-state)
-      (set-local-state! comp local-state))
+  Assumes the actions in `ret` are for comp.
+
+  Returns `UpdateInfo` value."
+  [comp ^Returned ret pending-messages app-state-map local-state-map]
+   (let [app-state (get-app-state comp app-state-map)
+         [app-state local-state actions-for-parent] (reduce-returned-actions comp app-state ret)]
     (let [pending-messages
           (if-let [reaction (and (not (keep-state? app-state))
                                  (props-extract-reaction (.-props comp)))]
@@ -714,13 +734,32 @@
             pending-messages)]
       (if-let [parent (component-parent comp)]
         (let [[pending-messages returned] (process-reactions parent
-                                                             (extract-app-state parent)
-                                                             (extract-local-state parent)
+                                                             (get-app-state parent app-state-map)
+                                                             (get-local-state parent local-state-map)
                                                              actions-for-parent pending-messages)]
-          (recur parent returned pending-messages))
-        (let [uber (resolve-uber comp)]
-          (when-not (keep-state? app-state)
-            (.setState uber #js {:reacl_uber_app_state app-state}))))))))
+
+          (recur parent returned pending-messages
+                 (update-state-map app-state-map comp (right-state app-state (:app-state returned)))
+                 (update-state-map local-state-map comp (right-state local-state (:local-state returned)))))
+        (UpdateInfo. comp
+                     app-state
+                     (update-state-map app-state-map comp app-state)
+                     (update-state-map local-state-map comp local-state))))))
+
+(defn handle-returned!
+  "Handle all effects described in a [[Returned]] object.
+
+  Assumes the actions in `ret` are for comp."
+  [comp ^Returned ret]
+  (let [ui (handle-returned comp ret nil {} {})
+        comp (:toplevel-component ui)
+        app-state (:toplevel-app-state ui)
+        uber (resolve-uber comp)]
+    (doseq [[comp local-state] (:local-state-map ui)]
+      (set-local-state! comp local-state))
+    (when-not (keep-state? app-state)
+      (.setState uber #js {:reacl_uber_app_state app-state}))))
+
 
 (defn ^:no-doc handle-effects!
   "Handle all effects described in a [[Effects]] object."

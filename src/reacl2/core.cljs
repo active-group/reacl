@@ -556,7 +556,7 @@
   (if-let [^Effects efs (reduce-action app-state action)]
     (let [ret (effects->returned efs)
           app-state-2 (:app-state ret)]
-      [(:app-state ret) (:actions ret)])
+      [app-state-2 (:actions ret)])
     [keep-state [action]]))
 
 (defn ^:no-doc reduce-returned-actions

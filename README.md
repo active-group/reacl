@@ -2,10 +2,8 @@
 
 A ClojureScript library for programming with Facebook's React framework.
 
-```
 [![Clojars Project](https://img.shields.io/clojars/v/reacl.svg)](https://clojars.org/reacl)
-[![cljdoc reacl badge](https://cljdoc.xyz/badge/reacl)]
-```
+[![cljdoc reacl badge](https://cljdoc.xyz/badge/reacl)](https://cljdoc.xyz/d/reacl/reacl/CURRENT)
 
 ## Using it
 

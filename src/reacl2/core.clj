@@ -305,7 +305,7 @@
   This expands to this:
 
       (def <name>
-        (reacl.core/class <name> [<this-name> [<app-state-name> [<local-state-name>]]] [<param> ...]
+        (reacl.core/class <name with namespace> [<this-name> [<app-state-name> [<local-state-name>]]] [<param> ...]
           render <renderer-exp>
           [initial-state <initial-state-exp>]
           [<lifecycle-method-name> <lifecycle-method-exp> ...]
@@ -313,7 +313,7 @@
 
           <event-handler-name> <event-handler-exp> ...))"
   [?name & ?stuff]
-  `(def ~?name (reacl2.core/class ~(str ?name) ~@?stuff)))
+  `(def ~?name (reacl2.core/class ~(str *ns* "/" ?name) ~@?stuff)))
 
 ;; (mixin [<this-name> [<app-state-name> [<local-state-name>]]] [<param> ...])
 

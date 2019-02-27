@@ -361,6 +361,55 @@
       (is (= ["new"]
              (map dom-content (doms-with-dom-class item "app-state")))))))
 
+(deftest container-class-action-reaction-test
+  (let [mount-called (atom false)
+        inner-class (reacl/class "inner" inner app-state []
+                                 component-did-mount
+                                 (fn []
+                                   (reset! mount-called true)
+                                   (reacl/return :action :start))
+                                 render (dom/div))
+
+        container-class (reacl/class "container" container [& elements]
+                                     render (apply dom/div elements))
+
+        inner-reduce-called (atom false)
+        inner-state-change-called (atom false)
+        container-state-change-called (atom false)
+
+        outer-class (reacl/class "outer" outer []
+                                 local-state [outer-state :initial-outer-state]
+                                 render (container-class (inner-class (reacl/opt :reduce-action (fn [inner-app-state action]
+                                                                                                  (reset! inner-reduce-called true)
+                                                                                                  (reacl/return :app-state [:inner-action action]))
+                                                                                 :reaction (reacl/reaction outer
+                                                                                                           (fn [v]
+                                                                                                             (reset! inner-state-change-called true)
+                                                                                                             (vector :inner-state v))))
+                                                                      :the-inner-state))
+                                 handle-message
+                                 (fn [v]
+                                   (reacl/return :local-state v)))
+        ]
+    (testing "container classes swallow actions per default"
+      ;; Note: questionable what this feature is good for; we might as
+      ;; well prohibit reacl/return :app-state (and :local-state) inside
+      ;; a :reduce-action (and allow only :action and :message)
+      ;; This merely covers the current behaviour.
+    
+      (let [it (test-util/instantiate&mount outer-class)
+            outer-state (test-util/extract-local-state it)]
+        (is @mount-called)
+        (is @inner-reduce-called)
+        
+        ;; the action/app-state change does not bubble:
+        (is (not= [:inner-action :start] outer-state))
+
+        ;; but handled as a message to outer via the reaction of inner:
+        (is @inner-state-change-called)
+        (is (= [:inner-state [:inner-action :start]] outer-state))))
+    ))
+
 (deftest return-in-did-update-test
   ;; testing that all 'returned' values from component-did-update work (issue #23)
   (let [did-update-called (atom false)

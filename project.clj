@@ -18,12 +18,17 @@
 
   :plugins [[lein-cljsbuild "1.1.7"]
             [lein-doo "0.1.10"]
-            [lein-codox "0.9.3"]]
+            [lein-codox "0.9.3"]
+            [lein-auto "0.1.3"]]
 
   :profiles {:dev {:dependencies [[active-clojure "0.11.0" :exclusions [org.clojure/clojure]]
                                   [lein-doo "0.1.7"]]}}
 
   :clean-targets [:target-path "out" "target"]
+
+  ;; for test driven development use
+  ;; > lein auto do clean, doo chrome-headless test-nodom once, doo chrome-headless test-dom once
+  :auto {:default {:paths ["src" "test-dom" "test-nodom" "examples"]}}
   
   :cljsbuild
   

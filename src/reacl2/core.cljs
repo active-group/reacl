@@ -480,13 +480,26 @@
              :private true
              :no-doc true}
     Returned
-    [app-state local-state actions])
+    [app-state local-state actions
+     ;; queue
+     messages])
 
-(def returned-nil (Returned. keep-state keep-state []))
+(def returned-nil (Returned. keep-state keep-state nil nil))
+
+(defn- ^:no-doc returned-with-app-state
+  [ret app-state]
+  (Returned. app-state (:local-state ret)
+             (:actions ret)
+             (:messages ret)))
+
+
+(defn- ^:no-doc state->returned
+  [app-state local-state]
+  (Returned. app-state local-state nil nil))
 
 (defn actions->returned
   [actions]
-  (Returned. keep-state keep-state actions))
+  (Returned. keep-state keep-state actions nil))
 
 (defn returned?
   [x]
@@ -500,7 +513,8 @@
              (if (keep-state? local-state)
                (:local-state ret)
                local-state)
-             (concat (:actions ret) actions)))
+             (concat (:actions ret) actions)
+             (:messages ret)))
 
 (defrecord ^{:doc "This marks effects returned by an invocation.
 
@@ -539,49 +553,59 @@
                        (:local-state returned)
                        keep-state)
          actions (transient (if (returned? returned)
-                              (:actions returned)
-                              []))]
+                              (or (:actions returned) [])
+                              []))
+
+         messages (if (returned? returned) ; no transient for queues
+                    (or (:messages returned) #queue [])
+                    #queue [])]
     (if (empty? args)
-      (Returned. app-state local-state (persistent! actions))
+      (Returned. app-state local-state
+                 (persistent! actions) messages)
       (let [arg (second args)
             nxt (nnext args)]
         (case (first args)
-          (:app-state) (recur nxt arg local-state actions)
-          (:local-state) (recur nxt app-state arg actions)
-          (:action) (recur nxt app-state local-state (conj! actions arg))
+          (:app-state) (recur nxt arg local-state actions messages)
+          (:local-state) (recur nxt app-state arg actions messages)
+          (:action) (recur nxt app-state local-state (conj! actions arg) messages)
+          (:message) (recur nxt app-state local-state actions (conj messages arg))
           (throw (str "invalid argument " (first args) " to reacl/return")))))))
 
 (defn- ^:no-doc action-effect
   [reduce-action app-state action]
-  (if-let [^Effects efs (reduce-action app-state action)]
-    (let [ret (effects->returned efs)
-          app-state-2 (:app-state ret)]
-      [(:app-state ret) (:actions ret)])
-    [keep-state [action]]))
+  (if-let [^Effects efs (reduce-action app-state action)] ; prep for optimization
+    (effects->returned efs)
+    (actions->returned [action])))
 
 (defn ^:no-doc reduce-returned-actions
   "Returns app-state, local-state for this, actions reduced here, to be sent to parent."
-  [comp app-state ^Returned ret]
-  (let [reduce-action (action-reducer comp)
-        actual-app-state (extract-app-state comp)]
+  [comp app-state0 ^Returned ret]
+  (let [reduce-action (action-reducer comp)]
     (loop [actions (:actions ret)
            app-state (:app-state ret)
            local-state (:local-state ret)
-           reduced-actions (transient [])]
+           reduced-actions (transient [])
+           messages (or (:messages ret) #queue [])] ; no transients for queues
       (if (empty? actions)
-        [app-state local-state (persistent! reduced-actions)]
+        ;; FIXME: why not Returned?
+        [app-state local-state (persistent! reduced-actions) messages]
         (let [action (first actions)
-              [action-app-state new-actions] (action-effect reduce-action
-                                                            (if (keep-state? app-state)
-                                                              actual-app-state
-                                                              app-state)
-                                                            action)]
+              action-ret (action-effect reduce-action
+                                        (if (keep-state? app-state)
+                                          app-state0
+                                          app-state)
+                                        action)
+              action-app-state (:app-state action-ret)
+              ;; we ignore local-state here - no point
+              new-actions (:actions action-ret)
+              new-messages (:messages action-ret)]
           (recur (rest actions)
-                 (if (instance? KeepState action-app-state)
+                 (if (keep-state? action-app-state)
                    app-state
                    action-app-state)
                  local-state
-                 (reduce conj! reduced-actions new-actions)))))))
+                 (reduce conj! reduced-actions new-actions)
+                 (reduce conj messages new-messages)))))))
 
 (defn- ^:no-doc reaction->pending-message
   [component as ^Reaction reaction]
@@ -592,54 +616,12 @@
                       target)
         msg (apply (:make-message reaction) as (:args reaction))]
     [real-target msg]))
-  
-(defn- ^:no-doc handle-message
-  "Handle a message for a Reacl component.
-
-  For internal use.
-
-  This returns a `Returned` object."
-  ([comp msg]
-   (handle-message comp msg nil))
-  ([comp msg ^Returned returned]
-   (if (instance? EmbedAppState msg)
-     (if (returned? returned)
-       (add-to-returned returned
-                        ((:embed msg) (extract-app-state comp) (:app-state msg))
-                        keep-state
-                        [])
-       (Returned. ((:embed msg) (extract-app-state comp) (:app-state msg))
-                  keep-state
-                  []))
-     (let [app-state (extract-app-state comp)
-           args (extract-args comp)
-           ^Effects efs ((aget comp "__handleMessage")
-                         comp
-                         app-state (extract-local-state comp)
-                         (compute-locals (.-constructor comp) app-state args)
-                         args (extract-refs comp)
-                         msg)]
-       (effects->returned efs returned)))))
-
-(defn ^:no-doc handle-message->state
-  "Handle a message for a Reacl component.
-
-  For internal use.
-
-  This returns application state and local state."
-  [comp msg]
-  (let [ret (handle-message comp msg)
-        [app-state local-state _actions-for-parent] (reduce-returned-actions comp (extract-app-state comp) ret)]
-    [(if (not (keep-state? app-state)) app-state (extract-app-state comp))
-     (if (not (keep-state? local-state)) local-state (extract-local-state comp))]))
 
 (defn- ^:no-doc process-message
   "Process a message for a Reacl component."
   [comp app-state local-state msg]
   (if (instance? EmbedAppState msg)
-    (Returned. ((:embed msg) app-state (:app-state msg))
-               keep-state
-               [])
+    (state->returned ((:embed msg) app-state (:app-state msg)) keep-state)
     (let [args (extract-args comp)
           ^Effects efs ((aget comp "__handleMessage")
                         comp
@@ -650,20 +632,42 @@
                         msg)]
       (effects->returned efs))))
 
+(defn- ^:no-doc handle-message
+  "Handle a message for a Reacl component.
+
+  For internal use.
+
+  This returns a `Returned` object."
+  [comp msg]
+  (process-message comp (extract-app-state comp) (extract-local-state comp) msg))
+
+(defn ^:no-doc handle-message->state
+  "Handle a message for a Reacl component.
+
+  For internal use.
+
+  This returns application state and local state."
+  [comp msg]
+  (let [ret (handle-message comp msg)
+        [app-state local-state _actions-for-parent _messages] (reduce-returned-actions comp (extract-app-state comp) ret)]
+    [(if (not (keep-state? app-state)) app-state (extract-app-state comp))
+     (if (not (keep-state? local-state)) local-state (extract-local-state comp))]))
+
 ;; FIXME: thread all the things properly
 
 (defn process-reactions
   "Process all reactions that apply to a certain component and propagate upwards."
-  [this app-state0 local-state0 actions pending-messages]
+  [this app-state0 local-state0 actions pending-messages queued-messages]
   (loop [msgs pending-messages
          remaining (transient [])
          app-state keep-state
          local-state keep-state
-         actions (transient actions)]
+         actions (transient actions)
+         queued-messages (or queued-messages #queue [])]
     (if (empty? msgs)
       
       [(persistent! remaining)
-       (Returned. app-state local-state (persistent! actions))]
+       (Returned. app-state local-state (persistent! actions) queued-messages)]
       
       (let [[target msg] (first msgs)]
         (if (identical? target this)
@@ -675,12 +679,13 @@
                    remaining
                    (:app-state ret)
                    (:local-state ret)
-                   (reduce conj! actions (:actions ret))))
+                   (reduce conj! actions (:actions ret))
+                   (reduce conj queued-messages (:messages ret))))
           (recur (rest msgs)
                  (conj! remaining (first msgs))
-                 app-state local-state actions))))))
+                 app-state local-state actions queued-messages))))))
 
-(defrecord UpdateInfo [toplevel-component toplevel-app-state app-state-map local-state-map])
+(defrecord UpdateInfo [toplevel-component toplevel-app-state app-state-map local-state-map queued-messages])
 
 (defn- ^:no-doc update-state-map
   [state-map comp state]
@@ -702,40 +707,70 @@
       (::no-state) (extract-app-state comp)
       res)))
 
-(defn handle-returned
-  "Handle all effects described in a [[Returned]] object.
+(defn- ^:no-doc handle-returned-1
+  "Handle a single subcycle in a [[Returned]] object.
 
   Assumes the actions in `ret` are for comp.
 
   Returns `UpdateInfo` value."
   [comp ^Returned ret pending-messages app-state-map local-state-map]
-   (let [app-state (get-app-state comp app-state-map)
-         [app-state local-state actions-for-parent] (reduce-returned-actions comp app-state ret)]
-    (let [pending-messages
-          (if-let [reaction (and (not (keep-state? app-state))
-                                 (props-extract-reaction (.-props comp)))]
-            (cons (reaction->pending-message comp app-state reaction) pending-messages)
-            pending-messages)]
-      (if-let [parent (component-parent comp)]
-        (let [[pending-messages returned] (process-reactions parent
-                                                             (get-app-state parent app-state-map)
-                                                             (get-local-state parent local-state-map)
-                                                             actions-for-parent pending-messages)]
+  (let [app-state (right-state
+                   (get-app-state comp app-state-map)
+                   (:app-state ret))
+        [app-state local-state actions-for-parent queued-messages] (reduce-returned-actions comp app-state ret)
+        app-state-map (update-state-map app-state-map comp app-state)
+        local-state-map (update-state-map local-state-map comp local-state)]
 
-          (recur parent returned pending-messages
-                 (update-state-map app-state-map comp (right-state app-state (:app-state returned)))
-                 (update-state-map local-state-map comp (right-state local-state (:local-state returned)))))
-        (UpdateInfo. comp
-                     app-state
-                     (update-state-map app-state-map comp app-state)
-                     (update-state-map local-state-map comp local-state))))))
+    (if-let [parent (component-parent comp)]
+       (let [pending-messages
+             (if-let [reaction (and (not (keep-state? app-state))
+                                    (props-extract-reaction (.-props comp)))]
+               (cons (reaction->pending-message comp app-state reaction) pending-messages)
+               pending-messages)
+             [pending-messages returned] (process-reactions parent
+                                                            (get-app-state parent app-state-map)
+                                                            (get-local-state parent local-state-map)
+                                                            actions-for-parent pending-messages queued-messages)]
+
+         (recur parent returned pending-messages
+                (update-state-map app-state-map comp (:app-state returned))
+                (update-state-map local-state-map comp (:local-state returned))))
+       (UpdateInfo. comp
+                    app-state
+                    app-state-map local-state-map
+                    queued-messages))))
+
+(defn ^:no-doc handle-returned
+  "Execute a complete supercycle.
+
+  Returns `UpdateInfo` object."
+  [comp ^Returned ret]
+  (loop [comp comp
+         ^Returned ret ret
+         app-state-map {}
+         local-state-map {}
+         queued-messages #queue []]
+    (let [ui (handle-returned-1 comp ret nil app-state-map local-state-map)
+          queued-messages (:queued-messages ui)]
+      (if (empty? queued-messages)
+        ui
+        (let [[dest msg] (peek queued-messages)
+              queued-messages (pop queued-messages)
+              ^Returned ret (process-message dest
+                                             (get-app-state dest app-state-map)
+                                             (get-local-state dest local-state-map)
+                                             msg)]
+          (recur dest ret
+                 app-state-map
+                 local-state-map
+                 (reduce conj queued-messages (:messages ret))))))))
 
 (defn handle-returned!
   "Handle all effects described in a [[Returned]] object.
 
   Assumes the actions in `ret` are for comp."
   [comp ^Returned ret]
-  (let [ui (handle-returned comp ret nil {} {})
+  (let [ui (handle-returned comp ret)
         comp (:toplevel-component ui)
         app-state (:toplevel-app-state ui)
         uber (resolve-uber comp)]

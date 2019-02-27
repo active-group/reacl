@@ -89,6 +89,10 @@
   [comp clazz]
   (js/ReactTestUtils.findRenderedComponentWithType comp (reacl/react-class clazz)))
 
+(defn doms-with-dom-class
+  [comp clazz]
+  (js/ReactTestUtils.scryRenderedDOMComponentsWithClass comp clazz))
+
 (defn dom-content
   [comp]
   (.-textContent comp))
@@ -325,3 +329,34 @@
         dom (dom-with-tag item "input")]
     (js/ReactTestUtils.Simulate.change dom)
     (is (= "foofoooof" (.-value dom)))))
+
+(reacl/defclass queued-sub
+  this app-state [super]
+  render
+  (dom/div
+   (dom/button
+    {:onclick
+     (fn [_]
+       (reacl/send-message! this "new"))}
+    "Button")
+   (dom/div {:class "app-state"} app-state))
+  handle-message
+  (fn [msg]
+    (reacl/return :message [super msg])))
+   
+(reacl/defclass queued-super
+  this app-state []
+  render
+  (dom/div (queued-sub app-state this))
+  handle-message
+  (fn [msg]
+    (reacl/return :app-state msg)))
+
+(deftest queued-test
+  (let [item (test-util/instantiate&mount queued-super "old")]
+    (is (= ["old"]
+           (map dom-content (doms-with-dom-class item "app-state"))))
+    (let [sub (dom-with-class item queued-sub)]
+      (test-util/send-message! sub "new")
+      (is (= ["new"]
+             (map dom-content (doms-with-dom-class item "app-state")))))))

@@ -334,11 +334,7 @@
   this app-state [super]
   render
   (dom/div
-   (dom/button
-    {:onclick
-     (fn [_]
-       (reacl/send-message! this "new"))}
-    "Button")
+   (dom/button "Button")
    (dom/div {:class "app-state"} app-state))
   handle-message
   (fn [msg]

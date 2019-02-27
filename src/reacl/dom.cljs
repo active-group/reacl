@@ -13,7 +13,7 @@
   (:require-macros [reacl.dom :refer [defdom]])
   (:require [cljsjs.react]
             [clojure.string :as string])
-  (:refer-clojure :exclude (meta map time set symbol)))
+  (:refer-clojure :exclude (meta map time use set symbol)))
 
 (defn camelize
   "Camelcases a hyphenated string, for example:

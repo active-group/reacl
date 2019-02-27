@@ -468,3 +468,25 @@
         (is (= (test-util/extract-app-state c)
                [:action :foo]))))
     ))
+
+(deftest action-to-message-test
+  ;; Basic test that covers (return :message) as an option to handle actions
+  (let [button (reacl/class "button" this [action]
+                 render (dom/div)
+                 handle-message
+                 (fn [msg]
+                   (reacl/return :action action)))
+
+        form (reacl/class "form" this state []
+               render (button (reacl/opt :reduce-action
+                                         (fn [_ action]
+                                           (assert (= action :action1))
+                                           (reacl/return :message [this :msg1])))
+                              :action1)
+               handle-message
+               (fn [msg]
+                 (reacl/return :app-state msg)))]
+    (let [c (test-util/instantiate&mount form nil)]
+      (test-util/send-message! (dom-with-class c button) nil)
+      (is (= (test-util/extract-app-state c)
+             :msg1)))))

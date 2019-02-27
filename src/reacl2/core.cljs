@@ -947,7 +947,11 @@
             (with-state-and-args component-will-update)
 
             "componentDidUpdate"
-            (with-state-and-args component-did-update)
+            (when component-did-update
+              (let [f (with-state-and-args component-did-update)]
+                (fn [prev-props prev-state]
+                  (this-as this
+                           (opt-handle-effects! this (.call f this prev-props prev-state))))))
 
             "componentWillUnmount"
             (std+state component-will-unmount)

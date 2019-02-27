@@ -360,3 +360,66 @@
       (test-util/send-message! sub "new")
       (is (= ["new"]
              (map dom-content (doms-with-dom-class item "app-state")))))))
+
+(deftest return-in-did-update-test
+  ;; testing that all 'returned' values from component-did-update work (issue #23)
+  (let [did-update-called (atom false)
+        test1 (reacl/class "test1" this app-state [counter2 rval]
+                           local-state [counter 1]
+                           component-did-update (fn [prev-app-state prev-local-state prev-counter2 prev-rval]
+                                                  ;; must use a condition, 
+                                                  (if (not @did-update-called)
+                                                    (do
+                                                      (reset! did-update-called true)
+                                                      rval)
+                                                    (do
+                                                      (reacl/return))))
+                           render (dom/div)
+                           handle-message
+                           (fn [msg]
+                             (assert (= :force-update msg))
+                             (reacl/return :local-state (inc counter))))
+        test2 (reacl/class "test2" this last-ret [rval]
+                           local-state [counter 1]
+                           render (test1 (reacl/opt :reaction (reacl/reaction this vector :app-state)
+                                                    :reduce-action (fn [_ action]
+                                                                     (reacl/return :message [this [action :action]])))
+                                         nil
+                                         counter rval)
+                           handle-message
+                           (fn [msg]
+                             (if (= :force-update msg)
+                               (reacl/return :local-state (inc counter))
+                               ;; otherwise, 'expose' the app-state change or action returned of test1, with [v :app-state] => [:app-state v]
+                               (reacl/return :app-state (reverse msg)))))]
+
+    (testing "local-state works"
+      (let [c (test-util/instantiate&mount test1 nil 0 (reacl/return :local-state -1))]
+        ;; before
+        (is (not= (test-util/extract-local-state c)
+                  -1))
+        (is (not @did-update-called))
+        ;; trigger update
+        (reset! did-update-called false)
+        (test-util/send-message! c :force-update)
+        ;; afterwards:
+        (is @did-update-called)
+        (is (= (test-util/extract-local-state c)
+               -1))))
+
+    (testing "app-state works"
+      (let [c (test-util/instantiate&mount test2 nil (reacl/return :app-state :foo))]
+        (reset! did-update-called false)
+        (test-util/send-message! c :force-update)
+        (is @did-update-called)
+        (is (= (test-util/extract-app-state c)
+               [:app-state :foo]))))
+
+    (testing "actions work"
+      (let [c (test-util/instantiate&mount test2 nil (reacl/return :action :foo))]
+        (reset! did-update-called false)
+        (test-util/send-message! c :force-update)
+        (is @did-update-called)
+        (is (= (test-util/extract-app-state c)
+               [:action :foo]))))
+    ))

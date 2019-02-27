@@ -200,3 +200,48 @@
   (reacl/defclass display-name-test1 this [] render (dom/div))
   (is (= (.-displayName (reacl/react-class display-name-test1))
          "reacl2.test.core-test/display-name-test1")))
+
+(deftest return-test
+  ;; tests properties of 'reacl/return'
+  (let [comp (reacl/instantiate-toplevel contacts-display contacts)] ;; just any component.
+    (testing "keep-state by default"
+      (is (= (reacl/return)
+             (reacl/return :app-state reacl/keep-state)))
+      (is (= (reacl/return)
+             (reacl/return :local-state reacl/keep-state))))
+    (testing "nil state is not keep-state"
+      (is (not= (reacl/return)
+                (reacl/return :app-state nil)))
+      (is (not= (reacl/return)
+                (reacl/return :local-state nil))))
+    (testing "multiple messages and actions possible"
+      (is (not= (reacl/return :action 1)
+                (reacl/return :action 1 :action 2)))
+      (is (not= (reacl/return :message [comp 1])
+                (reacl/return :message [comp 1] :message [comp 2]))))
+    (testing "messages and action have an order"
+      (is (not= (reacl/return :action 2 :action 1)
+                (reacl/return :action 1 :action 2)))
+      (is (not= (reacl/return :message [comp 1] :message [comp 2])
+                (reacl/return :message [comp 2] :message [comp 1]))))))
+
+(deftest concat-returned-test
+  (let [comp (reacl/instantiate-toplevel contacts-display contacts)] ;; just any component
+    (is (= (reacl/concat-returned (reacl/return :app-state 1)
+                                  (reacl/return :local-state 2)
+                                  (reacl/return :message [comp 3])
+                                  (reacl/return :action 4))
+           (reacl/return :app-state 1
+                         :local-state 2
+                         :message [comp 3]
+                         :action 4)))
+    (is (= (reacl/concat-returned (reacl/return :app-state 0 :local-state 0 :message [comp 3] :action 4)
+                                  (reacl/return :app-state 1 :local-state 2)
+                                  (reacl/return :message [comp 30])
+                                  (reacl/return :action 40))
+           (reacl/return :app-state 1
+                         :local-state 2
+                         :message [comp 3]
+                         :message [comp 30]
+                         :action 4
+                         :action 40)))))

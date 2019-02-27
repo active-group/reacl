@@ -475,7 +475,7 @@
     ls
     rs))
 
-(defrecord ^{:doc "Composite object for the effects caused by [[return]].
+(defrecord ^{:doc "Object for the effects denoted by [[return]] and compositions of them.
   For internal use."
              :private true
              :no-doc true}
@@ -484,29 +484,37 @@
      ;; queue
      messages])
 
-(def returned-nil (Returned. keep-state keep-state nil nil))
+(def returned-nil (Returned. keep-state keep-state nil #queue []))
 
-(defn- ^:no-doc returned-with-app-state
-  [ret app-state]
-  (Returned. app-state (:local-state ret)
-             (:actions ret)
-             (:messages ret)))
+(defn returned-app-state
+  "Returns the app-state from the given [[return]] value."
+  [ret]
+  (:app-state ret))
 
+(defn returned-local-state
+  "Returns the local-state from the given [[return]] value."
+  [ret]
+  (:local-state ret))
 
-(defn- ^:no-doc state->returned
-  [app-state local-state]
-  (Returned. app-state local-state nil nil))
+(defn returned-actions
+  "Returns the actions from the given [[return]] value."
+  [ret]
+  (:actions ret))
 
-(defn actions->returned
-  [actions]
-  (Returned. keep-state keep-state actions nil))
+(defn returned-messages
+  "Returns the messages from the given [[return]] value."
+  [ret]
+  (:messages ret))
 
 (defn returned?
   [x]
   (instance? Returned x))
 
-(defn add-to-returned
-  [^Returned ret app-state local-state actions]
+(defn- add-to-returned  ;; Note: should be private, to allow future extension to it. Use concat-returned.
+  "Adds the given messages and action to the given [[return]] value, and
+  replaces app-state and local-state with the given values, unless
+  they are [[keep-state]]."
+  [^Returned ret app-state local-state actions messages]
   (Returned. (if (keep-state? app-state)
                (:app-state ret)
                app-state)
@@ -514,68 +522,62 @@
                (:local-state ret)
                local-state)
              (concat (:actions ret) actions)
-             (:messages ret)))
+             (reduce conj
+                     (:messages ret)
+                     messages)))
 
-(defrecord ^{:doc "This marks effects returned by an invocation.
-
-  The `args` field contains the list of arguments to [[return]].
-
-  Used internally by [[return]]."}
-    Effects
-    [args])
+(defn concat-returned
+  "Concatenated the given return values from left to right. Actions and messages are appended, states are replaced unless they are [[keep-state]."
+  [& rets]
+  (reduce (fn [r1 r2]
+            (add-to-returned r1
+                             (returned-app-state r2)
+                             (returned-local-state r2)
+                             (returned-actions r2)
+                             (returned-messages r2)))
+          returned-nil
+          rets))
 
 (defn return
   "Return state from a Reacl event handler.
 
-   Has two optional keyword arguments:
+   Has optional keyword arguments:
 
-   - `:app-state` is for a new app state.
-   - `:local-state` is for a new component-local state.
-   - `:action` is for an action
+   - `:app-state` is for a new app state (only once).
+   - `:local-state` is for a new component-local state (only once).
+   - `:action` is for an action (may be present multiple times)
+   - `:message` is for messages to be queued (may be present multiple times)
 
    A state can be set to nil. To keep a state unchanged, do not specify
   that option, or specify the value [[reacl.core/keep-state]]."
   [& args]
-  (Effects. args))
-
-(defn ^:no-doc effects->returned
-  "Reduce the effects of a [[return]] invocation, returning a `Returned` object,
-   accumulating onto a previous one if present.
-
-  For internal use only."
-  [^Effects efs & [^Returned returned]]
-  ;; FIXME: returned is dodgy, zap it
-  (loop [args (seq (:args efs))
-         app-state (if (returned? returned)
-                     (:app-state returned)
-                     keep-state)
-         local-state (if (returned? returned)
-                       (:local-state returned)
-                       keep-state)
-         actions (transient (if (returned? returned)
-                              (or (:actions returned) [])
-                              []))
-
-         messages (if (returned? returned) ; no transient for queues
-                    (or (:messages returned) #queue [])
-                    #queue [])]
+  (assert (even? (count args)))
+  (loop [args (seq args)
+         app-state keep-state
+         local-state keep-state
+         actions (transient [])
+         messages #queue []] ;; no transient for queues
     (if (empty? args)
       (Returned. app-state local-state
                  (persistent! actions) messages)
       (let [arg (second args)
             nxt (nnext args)]
         (case (first args)
-          (:app-state) (recur nxt arg local-state actions messages)
-          (:local-state) (recur nxt app-state arg actions messages)
+          (:app-state) (do (when-not (= app-state keep-state)
+                             (throw (str "An :app-state argument to reacl/return must be specified only once.")))
+                           (recur nxt arg local-state actions messages))
+          (:local-state) (do (when-not (= local-state keep-state)
+                               (throw (str "A :local-state argument to reacl/return must be specified only once.")))
+                             (recur nxt app-state arg actions messages))
           (:action) (recur nxt app-state local-state (conj! actions arg) messages)
           (:message) (recur nxt app-state local-state actions (conj messages arg))
-          (throw (str "invalid argument " (first args) " to reacl/return")))))))
+          (throw (str "Invalid argument " (first args) " to reacl/return.")))))))
 
 (defn- ^:no-doc action-effect
   [reduce-action app-state action]
-  (if-let [^Effects efs (reduce-action app-state action)] ; prep for optimization
-    (effects->returned efs)
-    (actions->returned [action])))
+  (if-let [ret (reduce-action app-state action)] ; prep for optimization
+    ret
+    (return :action action)))
 
 (defn ^:no-doc reduce-returned-actions
   "Returns app-state, local-state for this, actions reduced here, to be sent to parent."
@@ -621,16 +623,16 @@
   "Process a message for a Reacl component."
   [comp app-state local-state msg]
   (if (instance? EmbedAppState msg)
-    (state->returned ((:embed msg) app-state (:app-state msg)) keep-state)
-    (let [args (extract-args comp)
-          ^Effects efs ((aget comp "__handleMessage")
-                        comp
-                        app-state local-state
-                        ;; FIXME: can we avoid recomputing when nothing has changed?
-                        (compute-locals (.-constructor comp) app-state args)
-                        args (extract-refs comp)
-                        msg)]
-      (effects->returned efs))))
+    (return :app-state ((:embed msg) app-state (:app-state msg)))
+    (let [handle-message (aget comp "__handleMessage")]
+      (let [args (extract-args comp)
+            ret (handle-message comp
+                                app-state local-state
+                                ;; FIXME: can we avoid recomputing when nothing has changed?
+                                (compute-locals (.-constructor comp) app-state args)
+                                args (extract-refs comp)
+                                msg)]
+        ret))))
 
 (defn- ^:no-doc handle-message
   "Handle a message for a Reacl component.
@@ -780,17 +782,12 @@
       (.setState uber #js {:reacl_uber_app_state app-state}))))
 
 
-(defn ^:no-doc handle-effects!
-  "Handle all effects described in a [[Effects]] object."
-  [comp ^Effects efs]
-  (let [^Returned ret (effects->returned efs)]
-    (handle-returned! comp ret)))
-
 (defn resolve-component
   "Resolves a component to its \"true\" Reacl component.
 
   You need to use this when trying to do things directly to a top-level component."
   [comp]
+  (assert (some? (.-props comp)) (str "Expected a Reacl component, but was: " comp))
   (if (aget (.-props comp) "reacl_toplevel_class")
     (.-current (aget comp "reacl_toplevel_ref"))
     comp))
@@ -806,10 +803,10 @@
     (handle-returned! comp ret)
     ret))
 
-(defn opt-handle-effects! [component v]
+(defn opt-handle-returned! [component v]
   (when v
-    (assert (instance? Effects v))
-    (handle-effects! component v)))
+    (assert (returned? v) (str "A 'reacl/return' value was expected: " (pr-str v)))
+    (handle-returned! component v)))
 
 ;; Attention: duplicate definition for macro in core.clj
 (def ^:private specials #{:render :initial-state :handle-message
@@ -871,7 +868,7 @@
             (and f
                  (fn [& react-args]
                    (this-as this
-                     (opt-handle-effects! this (apply f
+                     (opt-handle-returned! this (apply f
                                                        this
                                                        (extract-app-state this) (extract-local-state this)
                                                        (extract-locals this) (extract-args this) (extract-refs this)
@@ -951,7 +948,7 @@
               (let [f (with-state-and-args component-did-update)]
                 (fn [prev-props prev-state]
                   (this-as this
-                           (opt-handle-effects! this (.call f this prev-props prev-state))))))
+                           (opt-handle-returned! this (.call f this prev-props prev-state))))))
 
             "componentWillUnmount"
             (std+state component-will-unmount)
@@ -1110,9 +1107,9 @@
         pass-through (fn [this res] res)
         entries (filter identity
                         (vector 
-                         (entry :component-did-mount "componentDidMount" (fn [this res] (opt-handle-effects! this res)))
-                         (entry :component-will-mount "componentWillMount" (fn [this res] (opt-handle-effects! this res)))
-                         (entry :component-will-unmount "componentWillUnmount" (fn [this res] (opt-handle-effects! this res)))
+                         (entry :component-did-mount "componentDidMount" (fn [this res] (opt-handle-returned! this res)))
+                         (entry :component-will-mount "componentWillMount" (fn [this res] (opt-handle-returned! this res)))
+                         (entry :component-will-unmount "componentWillUnmount" (fn [this res] (opt-handle-returned! this res)))
                          (app+local-entry :component-will-update "componentWillUpdate")
                          (app+local-entry :component-did-update "componentDidUpdate")
                          ;; FIXME: :component-will-receive-args 

@@ -346,7 +346,7 @@
                                                                           (fn [app-state action] ; FIXME: can probably greatly optimize this case
                                                                             (return :action action)))}))))
 
-              :displayName "reacl_toplevel"
+              :displayName (str `toplevel)
 
               :getChildContext (fn []
                                  (this-as this 

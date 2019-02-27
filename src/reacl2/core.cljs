@@ -801,7 +801,8 @@
   Returns the `Returned` object returned by the message handler."
   [comp msg]
   ;; this is mainly for automated tests that send a message to the top-level component directly
-  (let [^Returned ret (handle-message comp msg)]
+  (let [comp (resolve-component comp)
+        ^Returned ret (handle-message comp msg)]
     (handle-returned! comp ret)
     ret))
 

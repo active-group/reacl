@@ -195,3 +195,8 @@
   (let [st (reacl-test/handle-message comment-box ["foo" "bar" "baz"] [] nil (Refresh.))]
     (is (= [(EdnXhr. nil "comments.edn" ->NewComments)]
            (:actions st)))))
+
+(deftest display-name-test
+  (reacl/defclass display-name-test1 this [] render (dom/div))
+  (is (= (.-displayName (reacl/react-class display-name-test1))
+         "reacl2.test.core-test/display-name-test1")))

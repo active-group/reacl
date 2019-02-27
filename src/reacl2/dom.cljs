@@ -440,7 +440,7 @@
 
    :else arg))
 
-(defn- ^:no-doc attributes? [v]
+(defn attributes? [v]
   (and (map? v)
        (not (satisfies? IHasDom v))))
 

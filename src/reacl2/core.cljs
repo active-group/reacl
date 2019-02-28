@@ -678,8 +678,8 @@
                                      msg)]
             (recur (rest msgs)
                    remaining
-                   (:app-state ret)
-                   (:local-state ret)
+                   (right-state app-state (:app-state ret))
+                   (right-state local-state (:local-state ret))
                    (reduce conj! actions (:actions ret))
                    (reduce conj queued-messages (:messages ret))))
           (recur (rest msgs)

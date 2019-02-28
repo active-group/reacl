@@ -753,7 +753,9 @@
          local-state-map {}
          queued-messages #queue []]
     (let [ui (handle-returned-1 comp ret nil app-state-map local-state-map)
-          queued-messages (:queued-messages ui)]
+          app-state-map (:app-state-map ui)
+          local-state-map (:local-state-map ui)
+          queued-messages (reduce conj queued-messages (:queued-messages ui))]
       (if (empty? queued-messages)
         ui
         (let [[dest msg] (peek queued-messages)

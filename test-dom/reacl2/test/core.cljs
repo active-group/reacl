@@ -90,6 +90,7 @@
   (js/ReactTestUtils.findRenderedComponentWithType comp (reacl/react-class clazz)))
 
 (defn doms-with-dom-class
+  "Returns a list of all dom nodes with the given `:class? attributes rendered by `comp`."
   [comp clazz]
   (js/ReactTestUtils.scryRenderedDOMComponentsWithClass comp clazz))
 
@@ -330,31 +331,31 @@
     (js/ReactTestUtils.Simulate.change dom)
     (is (= "foofoooof" (.-value dom)))))
 
-(reacl/defclass queued-sub
-  this app-state [super]
-  render
-  (dom/div
-   (dom/button "Button")
-   (dom/div {:class "app-state"} app-state))
-  handle-message
-  (fn [msg]
-    (reacl/return :message [super msg])))
-   
-(reacl/defclass queued-super
-  this app-state []
-  render
-  (dom/div (queued-sub app-state this))
-  handle-message
-  (fn [msg]
-    (reacl/return :app-state msg)))
 
 (deftest queued-test
-  (let [item (test-util/instantiate&mount queued-super "old")]
+  (let [queued-sub (reacl/class "queued-sub"
+                                this app-state [super]
+                                render
+                                (dom/div
+                                 (dom/button "Button")
+                                 (dom/div {:class "app-state"} app-state))
+                                handle-message
+                                (fn [msg]
+                                  (reacl/return :message [super "->"]
+                                                :message [super msg])))
+        queued-super (reacl/class "queued-super"
+                                  this app-state []
+                                  render
+                                  (dom/div (queued-sub app-state this))
+                                  handle-message
+                                  (fn [msg]
+                                    (reacl/return :app-state (str app-state msg))))
+        item (test-util/instantiate&mount queued-super "old")]
     (is (= ["old"]
            (map dom-content (doms-with-dom-class item "app-state"))))
     (let [sub (dom-with-class item queued-sub)]
       (test-util/send-message! sub "new")
-      (is (= ["new"]
+      (is (= ["old->new"]
              (map dom-content (doms-with-dom-class item "app-state")))))))
 
 (deftest container-class-action-reaction-test

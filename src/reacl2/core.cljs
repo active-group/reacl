@@ -601,9 +601,8 @@
               new-actions (:actions action-ret)
               new-messages (:messages action-ret)]
           (recur (rest actions)
-                 (if (keep-state? action-app-state)
-                   app-state
-                   action-app-state)
+                 (right-state app-state
+                              action-app-state)
                  local-state
                  (reduce conj! reduced-actions new-actions)
                  (reduce conj messages new-messages)))))))
@@ -751,12 +750,14 @@
          app-state-map {}
          local-state-map {}
          queued-messages #queue []]
+    ;; process this Returned, resulting in updated states, and maybe more messages.
     (let [ui (handle-returned-1 comp ret nil app-state-map local-state-map)
           app-state-map (:app-state-map ui)
           local-state-map (:local-state-map ui)
           queued-messages (reduce conj queued-messages (:queued-messages ui))]
       (if (empty? queued-messages)
         ui
+        ;; process the next message, resulting in a new 'Returned', then recur.
         (let [[dest msg] (peek queued-messages)
               queued-messages (pop queued-messages)
               ^Returned ret (process-message dest

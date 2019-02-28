@@ -8,7 +8,7 @@
             [cljsjs.react.dom.test-utils]
             [cljs.test :as t])
   (:require-macros [cljs.test
-                    :refer (is deftest run-tests testing)]))
+                    :refer (is deftest run-tests testing async)]))
 
 (enable-console-print!)
 
@@ -476,18 +476,53 @@
                  render (dom/div)
                  handle-message
                  (fn [msg]
-                   (reacl/return :action action)))
+                   (reacl/return :app-state :action-sent-app
+                                 :action action)))
 
         form (reacl/class "form" this state []
-               render (button (reacl/opt :reduce-action
+               render (button (reacl/opt :reaction (reacl/reaction this identity)
+                                         :reduce-action
                                          (fn [_ action]
                                            (assert (= action :action1))
                                            (reacl/return :message [this :msg1])))
                               :action1)
                handle-message
                (fn [msg]
-                 (reacl/return :app-state msg)))]
+                 (reacl/return :app-state (cons msg state))))]
     (let [c (test-util/instantiate&mount form nil)]
       (test-util/send-message! (dom-with-class c button) nil)
       (is (= (test-util/extract-app-state c)
-             :msg1)))))
+             [:msg1 :action-sent-app])))))
+
+(deftest action-async-message-test
+  (let [button (reacl/class "button" this [action]
+                            render (dom/div)
+                            handle-message
+                            (fn [msg]
+                              (reacl/return ;;:local-state :action-sent-loc
+                               :app-state :action-sent-app
+                               :action this)))
+
+        message-sent (atom false)
+        form (reacl/class "form" this state []
+                          render (button (reacl/opt :reaction (reacl/reaction this identity)
+                                                    :reduce-action
+                                                    (fn [_ action]
+                                                      (js/window.setTimeout #(do (reacl/send-message! this :msg1)
+                                                                                 (reset! message-sent true))
+                                                                            10)
+                                                      (reacl/return)))
+                                         :action1)
+                          handle-message
+                          (fn [msg]
+                            (reacl/return :app-state (cons msg state))))]
+    (async done
+           (let [c (test-util/instantiate&mount form nil)]
+             (test-util/send-message! (dom-with-class c button) nil)
+             (js/window.setTimeout (fn []
+                                     (is @message-sent)
+                                     (is (= (test-util/extract-app-state c)
+                                            [:msg1 :action-sent-app]))
+                                     (done))
+                                   20)))))
+

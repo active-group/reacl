@@ -526,3 +526,35 @@
                                      (done))
                                    20)))))
 
+(deftest local-state-mapping-test
+  ;; regression test; the container local-state was set to the parent's local-state.
+  (let [child (reacl/class "child" this state []
+                           render (dom/div))
+        container (reacl/class "container" this state [f]
+                               render (f state)
+                               handle-message (fn [msg]
+                                                (reacl/return :local-state (:local msg)
+                                                              :app-state [this (:app msg)])))
+        parent (reacl/class "parent" this []
+                            render (container (reacl/opt :reaction (reacl/reaction this #(vector :container-app-state %)))
+                                              nil
+                                              (fn [state]
+                                                (child state)))
+                            handle-message (fn [msg]
+                                             (reacl/return :local-state msg
+                                                           :app-state :baz)))
+        
+        ]
+    (let [c (test-util/instantiate&mount parent)]
+      (test-util/send-message! (dom-with-class c container)
+                               {:local 42 :app :foo})
+      ;; parent's local-state:
+      (is (= (first (test-util/extract-local-state c))
+             :container-app-state))
+      (is (= (second (second (test-util/extract-local-state c)))
+             :foo))
+      ;; the app-state contains the container instance, so we can look at it's local-state:
+      (is (= (test-util/extract-local-state (first (second (test-util/extract-local-state c))))
+             42)))))
+
+

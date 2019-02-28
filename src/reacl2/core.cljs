@@ -733,8 +733,8 @@
                                                             actions-for-parent pending-messages queued-messages)]
 
          (recur parent returned pending-messages
-                (update-state-map app-state-map comp (:app-state returned))
-                (update-state-map local-state-map comp (:local-state returned))))
+                (update-state-map app-state-map parent (:app-state returned))
+                (update-state-map local-state-map parent (:local-state returned))))
        (UpdateInfo. comp
                     app-state
                     app-state-map local-state-map

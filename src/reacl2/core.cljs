@@ -593,9 +593,8 @@
         [app-state local-state (persistent! reduced-actions) messages]
         (let [action (first actions)
               action-ret (action-effect reduce-action
-                                        (if (keep-state? app-state)
-                                          app-state0
-                                          app-state)
+                                        (right-state app-state0
+                                                     app-state)
                                         action)
               action-app-state (:app-state action-ret)
               ;; we ignore local-state here - no point
@@ -770,7 +769,7 @@
                  (reduce conj queued-messages (:messages ret))))))))
 
 (defn handle-returned!
-  "Handle all effects described in a [[Returned]] object.
+  "Handle all effects described and caused by a [[Returned]] object. This is the entry point into a Reacl update cycle.
 
   Assumes the actions in `ret` are for comp."
   [comp ^Returned ret]
@@ -778,6 +777,8 @@
         comp (:toplevel-component ui)
         app-state (:toplevel-app-state ui)
         uber (resolve-uber comp)]
+    ;; after handle-returned, all messages must have been processed:
+    (assert (empty? (:queued-messages ui)))
     (doseq [[comp local-state] (:local-state-map ui)]
       (set-local-state! comp local-state))
     (when-not (keep-state? app-state)

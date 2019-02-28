@@ -795,17 +795,22 @@
   (if (aget (.-props comp) "reacl_toplevel_class")
     (.-current (aget comp "reacl_toplevel_ref"))
     comp))
-  
+
+(def ^:dynamic *send-message-forbidden* false)
+
 (defn send-message!
   "Send a message to a Reacl component.
 
   Returns the `Returned` object returned by the message handler."
   [comp msg]
-  ;; this is mainly for automated tests that send a message to the top-level component directly
-  (let [comp (resolve-component comp)
-        ^Returned ret (handle-message comp msg)]
-    (handle-returned! comp ret)
-    ret))
+  (when *send-message-forbidden*
+    (assert false "The function send-message! must never be called during an update cycle. Use (reacl/return :message ...) instead."))
+  ;; resolve-component is mainly for automated tests that send a message to the top-level component directly
+  (binding [*send-message-forbidden* true]
+    (let [comp (resolve-component comp)
+          ^Returned ret (handle-message comp msg)]
+      (handle-returned! comp ret)
+      ret)))
 
 (defn opt-handle-returned! [component v]
   (when v

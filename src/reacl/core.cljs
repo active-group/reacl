@@ -14,7 +14,7 @@
 
 (def ^:static react-class reacl2/react-class)
 
-(def ^:static has-class? reacl2/react-class)
+(def ^:static has-class? reacl2/has-class?)
 
 (def ^:static opt reacl2/opt)
 

@@ -20,6 +20,10 @@
   [comp]
   (reacl/extract-local-state (reacl/resolve-component comp)))
 
+(defn extract-args
+  [comp]
+  (reacl/extract-args (reacl/resolve-component comp)))
+
 (defn render-to-text
   [dom]
   (js/ReactDOMServer.renderToStaticMarkup dom))
@@ -190,7 +194,7 @@
    :else
    (throw (str "invalid pattern: " pattern))))
 
-(defrecord PathElement [type props-predicate])
+(defrecord ^:private PathElement [type props-predicate])
 
 (defn ->path-element-type
   [x]

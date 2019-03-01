@@ -15,14 +15,14 @@
             [clojure.string :as string])
   (:refer-clojure :exclude (meta map time use set symbol)))
 
-(defn camelize
+(defn- camelize
   "Camelcases a hyphenated string, for example:
   > (camelize \"background-color\")
   < \"backgroundColor\""
   [s]
   (string/replace s #"-(.)" (fn [[_ c]] (string/upper-case c))))
 
-(defn camelize-style-name
+(defn- camelize-style-name
   "Camelcases a hyphenated CSS property name, for example:
   > (camelize-style-name \"background-color\")
   < \"backgroundColor\"
@@ -37,7 +37,7 @@
   [s]
   (camelize (string/replace s #"^-ms" "ms-")))
 
-(def reacl->react-attribute-names
+(def ^:private reacl->react-attribute-names
   #js {:accept "accept"
        :accept-charset "acceptCharset"
        :access-key "accessKey"
@@ -325,11 +325,11 @@
        :onwaiting "onWaiting"
        })
 
-(def reacl->style-names
+(def ^:private reacl->style-names
   "Cache for style names encountered."
   #js {})
 
-(defn reacl->react-style-name
+(defn- reacl->react-style-name
   "Convert Reacl style name (keyword) to React name (string)."
   [reacl-name]
   (let [reacl-name (name reacl-name)]
@@ -338,19 +338,19 @@
           (aset reacl->style-names reacl-name react-name)
           react-name))))
 
-(defn- ^:no-doc aset-style->react
+(defn- aset-style->react
   [obj style value]
   (aset obj (reacl->react-style-name style) value)
   obj)
 
-(defn- ^:no-doc styles->react
+(defn- styles->react
   "Convert a Clojure map with keyword keys to a JavaScript hashmap with string keys."
   [mp]
   (reduce-kv aset-style->react
              #js {}
              mp))
 
-(defn-  ^:no-doc aset-attribute [obj k0 v0]
+(defn- aset-attribute [obj k0 v0]
   (let [k (if-let [react-name (aget reacl->react-attribute-names (name k0))]
             react-name
             (name k0))
@@ -370,14 +370,14 @@
              #js {}
              mp))
 
-(defprotocol HasDom
+(defprotocol ^:private HasDom
   "General protocol for objects that contain or map to a virtual DOM object.
 
   This is needed for [[letdom]], which wraps the DOM nodes on its
   right-hand sides."  
   (-get-dom [thing]))
 
-(defprotocol ^:no-doc IDomBinding
+(defprotocol ^:private IDomBinding
   (binding-get-dom [this])
   (binding-set-dom! [this v])
   (binding-get-ref [this])
@@ -387,7 +387,7 @@
 (deftype ^{:doc "Composite object
   containing an atom containing DOM object and a name for referencing.
   This is needed for [[letdom]]."
-           :no-doc true}
+           :private true}
     DomBinding
  [^{:unsynchronized-mutable true} dom ^{:unsynchronized-mutable true} ref literally?]
   IDomBinding
@@ -399,7 +399,7 @@
   HasDom
   (-get-dom [_] dom))
 
-(defn make-dom-binding
+(defn ^:no-doc make-dom-binding
   "Make an empty DOM binding from a ref name.
 
   If `literally?` is not true, gensym the name."
@@ -423,12 +423,12 @@
     (DomBinding. (js/React.cloneElement dom #js {:key key})
                  key false)))
 
-(defn- ^:no-doc set-dom-key
+(defn- set-dom-key
   "Attach a key property to a DOM object."
   [dom key]
   (js/React.cloneElement dom #js {:key key}))
 
-(defn- ^:no-doc normalize-arg
+(defn- normalize-arg
   "Normalize the argument to a DOM-constructing function.
 
   In particular, each [[HasDom]] object is mapped to its DOM object.
@@ -446,7 +446,10 @@
 
    :else arg))
 
-(defn- ^:no-doc attributes? [v]
+(defn attributes?
+  "Returns true if `v` will be treated as an attribute map in the
+  first optional argument to the DOM-construction functions."
+  [v]
   (and (map? v)
        (not (satisfies? HasDom v))))
 

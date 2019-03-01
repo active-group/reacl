@@ -2,6 +2,9 @@
   (:require [reacl2.core :as reacl :include-macros true]
             [reacl2.dom :as dom :include-macros true]
             [reacl2.test-util.alpha :as test-util]
+            ;; include 'reacl1' to see they compile at least:
+            [reacl.core :as reacl1 :include-macros true]
+            [reacl.dom :as dom1 :include-macros true]
             [active.clojure.lens :as lens]
             [cljsjs.react]
             [cljsjs.react.test-renderer]

@@ -360,7 +360,7 @@
     (aset obj k v)
     obj))
 
-(defn- ^:no-doc attributes
+(defn- attributes
   "Convert attributes represented as a Clojure map to a React map.
 
   This knows about `:style`, and expects a Clojure map for the value."

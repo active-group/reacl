@@ -440,7 +440,10 @@
 
    :else arg))
 
-(defn attributes? [v]
+(defn attributes?
+  "Returns true if `v` will be treated as an attribute map in the
+  first optional argument to the DOM-construction functions."
+  [v]
   (and (map? v)
        (not (satisfies? IHasDom v))))
 

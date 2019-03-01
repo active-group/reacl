@@ -22,7 +22,14 @@
             [lein-auto "0.1.3"]]
 
   :profiles {:dev {:dependencies [[active-clojure "0.11.0" :exclusions [org.clojure/clojure]]
-                                  [lein-doo "0.1.7"]]}}
+                                  [lein-doo "0.1.7"]
+                                  [codox-theme-rdash "0.1.2"]]}}
+
+  :codox {:language :clojurescript
+          :metadata {:doc/format :markdown}
+          :themes [:rdash]
+          :src-dir-uri "http://github.com/active-group/reacl/blob/master/"
+          :src-linenum-anchor-prefix "L"}
 
   :clean-targets [:target-path "out" "target"]
 
@@ -83,9 +90,6 @@
                           :optimizations :whitespace
                           :parallel-build true}}]}
 
-  :codox {:language :clojurescript
-          :metadata {:doc/format :markdown}
-          :src-dir-uri "http://github.com/active-group/reacl/blob/master/"
-          :src-linenum-anchor-prefix "L"})
+  )
 
 

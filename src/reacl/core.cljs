@@ -33,8 +33,7 @@
 
 (defn ^:no-doc class->view
   [clazz]
-  (let [react-class (reacl2/react-class clazz)
-        className (.-displayName react-class)]
+  (let [react-class (reacl2/react-class clazz)]
     (reify
       IFn
       (-invoke [this]

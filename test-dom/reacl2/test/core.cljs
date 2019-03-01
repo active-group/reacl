@@ -46,11 +46,10 @@
                   (assoc todo :done? checked?))))
 
 (deftest simple
-  (let [item (reacl/instantiate-toplevel to-do-item (Todo. 42 "foo" false))]
-    (is (= (test-util/extract-app-state item)
-           (Todo. 42 "foo" false)))
-    (is (= "<div><input type=\"checkbox\" value=\"false\"/>foo</div>"
-           (test-util/render-to-text item)))))
+  (is (= (test-util/extract-app-state (test-util/instantiate&mount to-do-item (Todo. 42 "foo" false)))
+         (Todo. 42 "foo" false)))
+  (is (= (test-util/render-to-text (reacl/instantiate-toplevel to-do-item (Todo. 42 "foo" false)))
+         "<div><input type=\"checkbox\" value=\"false\"/>foo</div>")))
 
 (deftest handle-message-simple
   (let [item (test-util/instantiate&mount to-do-item (Todo. 42 "foo" false))]

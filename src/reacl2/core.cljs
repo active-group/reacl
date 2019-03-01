@@ -575,9 +575,14 @@
 
 (defn- ^:no-doc action-effect
   [reduce-action app-state action]
-  (if-let [ret (reduce-action app-state action)] ; prep for optimization
-    ret
-    (return :action action)))
+  (let [ret (reduce-action app-state action)] ; prep for optimization
+    (if (returned? ret)
+      ret
+      (do (assert false (str "A 'reacl/return' value was expected, but an action-reducer returned: " (pr-str ret)))
+          ;; for backwards-compatibility we pass the action when ret if falsey, and don't if truthy.
+          (if ret
+            (return)
+            (return :action action))))))
 
 (defn ^:no-doc reduce-returned-actions
   "Returns app-state, local-state for this, actions reduced here, to be sent to parent."
@@ -813,9 +818,10 @@
       ret)))
 
 (defn opt-handle-returned! [component v]
-  (when v
-    (assert (returned? v) (str "A 'reacl/return' value was expected: " (pr-str v)))
-    (handle-returned! component v)))
+  (when (some? v)
+    (if (returned? v)
+      (handle-returned! component v)
+      (assert false (str "A 'reacl/return' value was expected, but a method returned: " (pr-str v))))))
 
 ;; Attention: duplicate definition for macro in core.clj
 (def ^:private specials #{:render :initial-state :handle-message

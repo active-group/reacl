@@ -635,7 +635,10 @@
                                 (compute-locals (.-constructor comp) app-state args)
                                 args (extract-refs comp)
                                 msg)]
-        ret))))
+        (if (returned? ret)
+          ret
+          (do (assert false (str "A 'reacl/return' value was expected, but a handle-message returned: " (pr-str ret)))
+              returned-nil))))))
 
 (defn- ^:no-doc handle-message
   "Handle a message for a Reacl component.

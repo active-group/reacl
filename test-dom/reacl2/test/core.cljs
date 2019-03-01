@@ -44,7 +44,7 @@
 
 (deftest simple
   (let [item (reacl/instantiate-toplevel to-do-item (Todo. 42 "foo" false))]
-    (is (= (reacl/extract-app-state item)
+    (is (= (test-util/extract-app-state item)
            (Todo. 42 "foo" false)))
     (is (= "<div><input type=\"checkbox\" value=\"false\"/>foo</div>"
            (test-util/render-to-text item)))))
@@ -125,8 +125,8 @@
 (deftest foo-element
   (let [e (foo 42 12)]
     (is (reacl/has-class? foo e))
-    (is (= [12] (reacl/extract-args e)))
-    (is (= 42 (reacl/extract-app-state e)))))
+    (is (= [12] (test-util/extract-args e)))
+    (is (= 42 (test-util/extract-app-state e)))))
 
 (deftest foo-render
   (let [e (foo 42 12)]

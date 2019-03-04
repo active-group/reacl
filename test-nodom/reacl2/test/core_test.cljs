@@ -225,20 +225,20 @@
       (is (not= (reacl/return :message [comp 1] :message [comp 2])
                 (reacl/return :message [comp 2] :message [comp 1]))))))
 
-(deftest concat-returned-test
+(deftest merge-returned-test
   (let [comp (reacl/instantiate-toplevel contacts-display contacts)] ;; just any component
-    (is (= (reacl/concat-returned (reacl/return :app-state 1)
-                                  (reacl/return :local-state 2)
-                                  (reacl/return :message [comp 3])
-                                  (reacl/return :action 4))
+    (is (= (reacl/merge-returned (reacl/return :app-state 1)
+                                 (reacl/return :local-state 2)
+                                 (reacl/return :message [comp 3])
+                                 (reacl/return :action 4))
            (reacl/return :app-state 1
                          :local-state 2
                          :message [comp 3]
                          :action 4)))
-    (is (= (reacl/concat-returned (reacl/return :app-state 0 :local-state 0 :message [comp 3] :action 4)
-                                  (reacl/return :app-state 1 :local-state 2)
-                                  (reacl/return :message [comp 30])
-                                  (reacl/return :action 40))
+    (is (= (reacl/merge-returned (reacl/return :app-state 0 :local-state 0 :message [comp 3] :action 4)
+                                 (reacl/return :app-state 1 :local-state 2)
+                                 (reacl/return :message [comp 30])
+                                 (reacl/return :action 40))
            (reacl/return :app-state 1
                          :local-state 2
                          :message [comp 3]

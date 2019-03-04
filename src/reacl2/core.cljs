@@ -518,7 +518,7 @@
   [x]
   (instance? Returned x))
 
-(defn- add-to-returned  ;; Note: private to allow future extension to return. Use concat-returned for composition.
+(defn- add-to-returned  ;; Note: private to allow future extension to return. Use merge-returned for composition.
   "Adds the given messages and action to the given [[return]] value, and
   replaces app-state and local-state with the given values, unless
   they are [[keep-state]]."
@@ -534,9 +534,10 @@
                      (:messages ret)
                      messages)))
 
-(defn concat-returned
-  "Concatenated the given return values from left to right. Actions and messages are appended, states are replaced unless they are [[keep-state]."
+(defn merge-returned
+  "Merge the given return values from left to right. Actions and messages are appended, states are replaced unless they are [[keep-state]."
   [& rets]
+  (assert (every? returned? rets))
   (reduce (fn [r1 r2]
             (add-to-returned r1
                              (returned-app-state r2)

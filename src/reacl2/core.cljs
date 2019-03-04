@@ -124,6 +124,10 @@
 
 (declare return)
 
+(defn- default-reduce-action [app-state action]
+  ;; FIXME: can probably greatly optimize cases where this is used.
+  (return :action action))
+
 (defn- make-props
   "Forge the props for a React element, for testing.
 
@@ -132,8 +136,7 @@
   #js {:reacl_args (vec args)
        :reacl_app_state app-state
        :reacl_locals (compute-locals cl app-state args)
-       :reacl_reduce_action (fn [app-state action]
-                              (return :action action))})
+       :reacl_reduce_action default-reduce-action})
 
 (declare react-class)
 
@@ -353,8 +356,7 @@
                                                                        (reaction :parent ->EmbedAppState embed-app-state)
                                                                        no-reaction))
                                                  :reacl_reduce_action (or (:reduce-action opts)
-                                                                          (fn [app-state action] ; FIXME: can probably greatly optimize this case
-                                                                            (return :action action)))}))))
+                                                                          default-reduce-action)}))))
 
               :displayName (str `toplevel)
 
@@ -430,8 +432,7 @@
                                                        (reaction :parent ->EmbedAppState embed-app-state)
                                                        no-reaction))
                                  :reacl_reduce_action (or (:reduce-action opts)
-                                                          (fn [app-state action] ; FIXME: can probably greatly optimize this case
-                                                            (return :action action)))})))
+                                                          default-reduce-action)})))
 
 (defn- instantiate-embedded-internal-v1
   [clazz app-state reaction args]
@@ -440,8 +441,7 @@
                                :reacl_locals (-compute-locals clazz app-state args)
                                :reacl_args args
                                :reacl_reaction reaction
-                               :reacl_reduce_action (fn [app-state action]
-                                                      (return :action action))}))
+                               :reacl_reduce_action default-reduce-action}))
 
 (defn render-component
   "Instantiate and render a component into the DOM.

@@ -563,3 +563,89 @@
              42)))))
 
 
+(deftest livecylce-calls-test
+  ;; tests all arguments to the livecycle methods, and when they are called.
+
+  (let [calls (atom {})
+
+        c (reacl/class "class"
+                       this app-state [arg1 arg2]
+                       local-state [state :state1]
+
+                       render (dom/div)
+
+                       handle-message
+                       (fn [msg] msg)
+
+                       component-will-mount
+                       (fn [& args] (swap! calls assoc :component-will-mount args) nil)
+                       
+                       component-did-mount
+                       (fn [& args] (swap! calls assoc :component-did-mount args) nil)
+                       
+                       component-will-receive-args
+                       (fn [& args] (swap! calls assoc :component-will-receive-args args) nil)
+                       
+                       component-will-update
+                       (fn [& args] (swap! calls assoc :component-will-update args) nil)
+                       
+                       component-did-update
+                       (fn [& args] (swap! calls assoc :component-did-update args) nil)
+                       
+                       component-will-unmount
+                       (fn [& args] (swap! calls assoc :component-will-unmount args) nil)
+                       
+                       should-component-update?
+                       (fn [& args]
+                         (swap! calls assoc :should-component-update? args)
+                         true))
+
+        div (js/document.createElement "div")]
+
+    (let [comp (reacl/render-component div c :app-state :arg1 :arg2)]
+    
+      (testing "the first render/mount"
+        (is (= @calls
+               {:component-will-mount nil
+                :component-did-mount nil})))
+      
+      (testing "a non-update"
+        (reset! calls {})
+        (test-util/send-message! comp (reacl/return))
+        (is (= @calls {})))
+
+      (testing "a local-state update"
+        (reset! calls {})
+        (test-util/send-message! comp (reacl/return :local-state :state2))
+        (is (= @calls
+               {:component-will-update '(:app-state :state2 :arg1 :arg2) ;; args = new
+                :component-did-update '(:app-state :state1 :arg1 :arg2)
+                :should-component-update? '(:app-state :state2 :arg1 :arg2)})))
+
+      (testing "an app-state update"
+        (reset! calls {})
+        (test-util/send-message! comp (reacl/return :app-state :new-app-state))
+        (is (= @calls
+               { ;; TODO: should this be called?  :component-will-receive-args
+                :component-will-update '(:new-app-state :state2 :arg1 :arg2) ;; args = new
+                :component-did-update '(:app-state :state2 :arg1 :arg2) ;; args = old
+                :should-component-update? '(:new-app-state :state2 :arg1 :arg2)})))) 
+    
+    (testing "an update of the args"
+      (reset! calls {})
+      ;; Note: app-state is only 'initial' in render-component; not used here.
+      (reacl/render-component div c :ignored-app-state :new-arg1 :new-arg2)
+      (is (= @calls
+             { ;; TODO??!! :component-will-receive-args '(:new-app-state :state2 :new-arg1 :new-arg2)
+              :component-will-update '(:new-app-state :state2 :new-arg1 :new-arg2)
+              :component-did-update '(:new-app-state :state2 :arg1 :arg2)
+              :should-component-update? '(:new-app-state :state2 :new-arg1 :new-arg2)})))
+
+    (testing "an unmount"
+      (reset! calls {})
+      (reacl/render-component div (reacl/class "foo" this [] render (dom/span)))
+    
+      (is (= @calls
+             {:component-will-unmount nil}))))
+  
+  )

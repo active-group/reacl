@@ -38,7 +38,7 @@
   [s]
   (camelize (string/replace s #"^-ms" "ms-")))
 
-(def ^:private reacl->react-attribute-names
+(def ^:no-doc reacl->react-attribute-names
   #js {:accept "accept"
        :accept-charset "acceptCharset"
        :access-key "accessKey"

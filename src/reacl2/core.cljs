@@ -266,7 +266,18 @@
 
 (defrecord ^{:doc "Optional arguments for instantiation." :private true}
     Options
-    [map])
+  [map])
+
+(defn opt?
+  "Returns true if v is the result of [[opt]]."
+  [v]
+  (instance? Options v))
+
+(defn opt-map
+  "For a value created by [[opt]], returns a map with the arguments that were passed to it."
+  [v]
+  (assert (opt? v))
+  (:map v))
 
 (defn opt
   "Create options for component instantiation.

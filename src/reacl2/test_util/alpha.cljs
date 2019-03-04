@@ -199,7 +199,7 @@
 (defn ->path-element-type
   [x]
   (cond
-    (keyword x) (name x)
+    (keyword? x) (name x)
     (reacl/reacl-class? x) (reacl/react-class x)
     :else x))
 

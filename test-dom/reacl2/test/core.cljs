@@ -71,13 +71,6 @@
       (let [input (test-util/descend-into-element t [:div :input])]
         (is (not (.-value (.-props input))))))))
 
-(reacl/defclass foo
-  this bam [bar]
-  local [baz (+ bam 15)
-         bla (+ baz bar 7)]
-  render
-  (dom/span (dom/div (str baz)) (dom/div (str bla))))
-
 (defn dom-with-tag
   [comp tag-name]
   (js/ReactTestUtils.findRenderedDOMComponentWithTag comp tag-name))
@@ -118,35 +111,53 @@
       (is (= ["test"]
              (map dom-content divs))))))
 
-(deftest locals-sequential
-  (let [item (test-util/instantiate&mount foo 42 12)
-        divs (doms-with-tag item "div")]
-    (is (= ["57" "76"]
-           (map dom-content divs)))))
+(deftest locals-sequential-test
+  (let [foo (reacl/class "foo"
+                         this bam [bar]
+                         local [baz (+ bam 15)
+                                bla (+ baz bar 7)]
+                         render
+                         (dom/span (dom/div (str baz)) (dom/div (str bla))))]
+    (let [item (test-util/instantiate&mount foo 42 12)
+          divs (doms-with-tag item "div")]
+      (is (= ["57" "76"]
+             (map dom-content divs))))))
 
-(deftest foo-element
-  (let [e (foo 42 12)]
-    (is (reacl/has-class? foo e))
-    (is (= [12] (test-util/extract-args e)))
+(deftest has-class?-test
+  (let [foo (reacl/class "foo"
+                         this []
+                         render (dom/span))]
+    (is (reacl/has-class? foo (foo)))))
+
+(deftest extract-app-state-test
+  (let [foo (reacl/class "foo"
+                         this bam []
+                         render (dom/span))
+        e (foo 42)]
     (is (= 42 (test-util/extract-app-state e)))))
 
-(deftest foo-render
-  (let [e (foo 42 12)]
-    (is (= [:span [:div "57"] [:div "76"]] (test-util/render->hiccup e)))))
+(deftest extract-args-test
+  (let [foo (reacl/class "foo"
+                         this [bar]
+                         render (dom/span))
+        e (foo 12)]
+    (is (= [12] (test-util/extract-args e)))))
 
-(reacl/defclass bar
-  this [app-state]
-  local-state [local-state 1]
-  render
-  (dom/span (foo app-state local-state))
-  handle-message
-  (fn [new]
-    (reacl/return :local-state new)))
 
-(deftest local-change
-  (let [item (test-util/instantiate&mount bar 5)]
+(deftest local-state-test
+  (let [bar (reacl/class "bar"
+                         this []
+                         local-state [local-state 1]
+                         render
+                         (dom/span (dom/div local-state))
+                         handle-message
+                         (fn [new]
+                           (reacl/return :local-state new)))
+        item (test-util/instantiate&mount bar)]
+    (is (= ["1"]
+           (map dom-content (doms-with-tag item "div"))))
     (test-util/send-message! item 2)
-    (is (= ["20" "29"]
+    (is (= ["2"]
            (map dom-content (doms-with-tag item "div"))))))
 
 (reacl/defclass blam
@@ -191,33 +202,32 @@
     (is (= ["19"] ;; 2*6+7
            (map dom-content (doms-with-tag item "div"))))))
 
-(reacl/defclass action-class1
-  this app-state []
-  render (dom/div "foo")
-
-  component-will-mount
-  (fn []
-    (reacl/return :action :action)))
-
-(reacl/defclass action-class2
-  this [register-app-state!]
-  render (dom/div (action-class1 (reacl/opt :reduce-action
-                                            (fn [app-state action]
-                                              (case action
-                                                (:action) (reacl/return :action :this-action
-                                                                        :app-state :app-state1)
-                                                (reacl/return :action :another-action)))
-                                            :reaction (reacl/reaction this
-                                                                      (fn [app-state]
-                                                                        (register-app-state! app-state))))
-                                 :app-state0))
-  handle-message ; the reaction sends a message
-  (fn [msg]
-    (reacl/return)))
-
-
 (deftest transform-action-test
-  (let [msga (atom [])
+  (let [action-class1 (reacl/class "action-class1"
+                                   this app-state []
+                                   render (dom/div "foo")
+
+                                   component-will-mount
+                                   (fn []
+                                     (reacl/return :action :action)))
+
+        action-class2 (reacl/class "action-class2"
+                        this [register-app-state!]
+                        render (dom/div (action-class1 (reacl/opt :reduce-action
+                                                                  (fn [app-state action]
+                                                                    (case action
+                                                                      (:action) (reacl/return :action :this-action
+                                                                                              :app-state :app-state1)
+                                                                      (reacl/return :action :another-action)))
+                                                                  :reaction (reacl/reaction this
+                                                                                            (fn [app-state]
+                                                                                              (register-app-state! app-state))))
+                                                       :app-state0))
+                        handle-message  ; the reaction sends a message
+                        (fn [msg]
+                          (reacl/return)))
+
+        msga (atom [])
         app-statea (atom [])
         item (test-util/instantiate&mount action-class2
                                           (reacl/opt :reduce-action
@@ -277,18 +287,16 @@
     (is (= [:this-action] @msga))
     (is (= [:app-state1a] @app-statea))))
 
-(reacl/defclass app-state-change-with-reaction-class this state []
-                render
-                (dom/div (str state))
 
-                handle-message
-                (fn [msg]
-                  (reacl/return :app-state msg
-                                :action :doAction)))
+(deftest app-state-change-with-message-test
+  (let [item (test-util/instantiate&mount (reacl/class "app-state-change-with-reaction-class" this state []
+                                                       render
+                                                       (dom/div (str state))
 
-
-(deftest app-state-change-with-reaction-test
-  (let [item (test-util/instantiate&mount app-state-change-with-reaction-class 1)]
+                                                       handle-message
+                                                       (fn [msg]
+                                                         (reacl/return :app-state msg)))
+                                          1)]
     (is (= ["1"]
            (map dom-content (doms-with-tag item "div"))))
     (test-util/send-message! item 2)
@@ -296,45 +304,40 @@
            (map dom-content (doms-with-tag item "div"))))))
 
 
-(reacl/defclass local-state-boolean-value-class this []
-  local-state [foo? false]
-  render
-  (dom/div))
-
-(reacl/defclass local-state-nil-value-class this []
-  local-state [foo? nil]
-  render
-  (dom/div))
-
 (deftest local-state-boolean-value-test
-  (let [item (test-util/instantiate&mount local-state-boolean-value-class)]
+  (let [item (test-util/instantiate&mount (reacl/class "local-state-boolean-value-class" this []
+                                                       local-state [foo? false]
+                                                       render
+                                                       (dom/div)))]
     (is (false? (test-util/extract-local-state item))))
-  (let [item (test-util/instantiate&mount local-state-nil-value-class)]
+  (let [item (test-util/instantiate&mount (reacl/class "local-state-nil-value-class" this []
+                                                       local-state [foo? nil]
+                                                       render
+                                                       (dom/div)))]
     (is (nil? (test-util/extract-local-state item)))))
 
-(reacl/defclass text-refs
-  this content []
-  refs [text-input]
-  render
-  (dom/input {:ref text-input
-              :type "text"
-              :value content
-              :onchange (fn [e]
-                          (let [v (.-value (reacl/get-dom text-input))]
-                            (test-util/send-message! this (str v v))))})
-  handle-message
-  (fn [new-content]
-    (reacl/return :app-state
-                  (apply str new-content (reverse (.-value (reacl/get-dom text-input)))))))
 
 (deftest text-refs-message
-  (let [item (test-util/instantiate&mount text-refs "foo")
+  (let [item (test-util/instantiate&mount (reacl/class "text-refs"
+                                                       this content []
+                                                       refs [text-input]
+                                                       render
+                                                       (dom/input {:ref text-input
+                                                                   :type "text"
+                                                                   :value content
+                                                                   :onchange (fn [e]
+                                                                               (let [v (.-value (reacl/get-dom text-input))]
+                                                                                 (test-util/send-message! this (str v v))))})
+                                                       handle-message
+                                                       (fn [new-content]
+                                                         (reacl/return :app-state
+                                                                       (apply str new-content (reverse (.-value (reacl/get-dom text-input)))))))
+                                          "foo")
         dom (dom-with-tag item "input")]
     (js/ReactTestUtils.Simulate.change dom)
     (is (= "foofoooof" (.-value dom)))))
 
-
-(deftest queued-test
+(deftest queued-messages-test
   (let [queued-sub (reacl/class "queued-sub"
                                 this app-state [super]
                                 render

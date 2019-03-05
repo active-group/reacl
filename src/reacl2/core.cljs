@@ -966,6 +966,15 @@
             "UNSAFE_componentWillMount"
             (std+state component-will-mount)
 
+            "UNSAFE_componentWillReceiveProps"
+            (when component-will-receive-args
+              (fn [next-props]
+                (this-as this
+                         (->> (apply component-will-receive-args this
+                                     (extract-app-state this) (extract-local-state this) (extract-locals this) (extract-args this) (extract-refs this)
+                                     (props-extract-args next-props))
+                              (opt-handle-returned! this)))))
+
             "getChildContext" (fn []
                                 (this-as this 
                                   #js {:reacl_parent this}))

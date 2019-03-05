@@ -626,7 +626,7 @@
         (reset! calls {})
         (test-util/send-message! comp (reacl/return :app-state :new-app-state))
         (is (= @calls
-               { ;; TODO: should this be called?  :component-will-receive-args
+               {:component-will-receive-args '(:arg1 :arg2) ;; <- would be nice if this did not fire.
                 :component-will-update '(:new-app-state :state2 :arg1 :arg2) ;; args = new
                 :component-did-update '(:app-state :state2 :arg1 :arg2) ;; args = old
                 :should-component-update? '(:new-app-state :state2 :arg1 :arg2)})))) 
@@ -635,7 +635,7 @@
       (reset! calls {})
       (reacl/render-component div c :new-app-state :new-arg1 :new-arg2)
       (is (= @calls
-             { ;; TODO??!! :component-will-receive-args '(:new-app-state :state2 :new-arg1 :new-arg2)
+             {:component-will-receive-args '(:new-arg1 :new-arg2)
               :component-will-update '(:new-app-state :state2 :new-arg1 :new-arg2)
               :component-did-update '(:new-app-state :state2 :arg1 :arg2)
               :should-component-update? '(:new-app-state :state2 :new-arg1 :new-arg2)})))
@@ -644,7 +644,8 @@
       (reset! calls {})
       (reacl/render-component div c :new-app-state2 :new-arg1 :new-arg2)
       (is (= @calls
-             {:component-will-update '(:new-app-state2 :state2 :new-arg1 :new-arg2) ;; args = new
+             {:component-will-receive-args '(:new-arg1 :new-arg2)
+              :component-will-update '(:new-app-state2 :state2 :new-arg1 :new-arg2) ;; args = new
               :component-did-update '(:new-app-state :state2 :new-arg1 :new-arg2) ;; args = old
               :should-component-update? '(:new-app-state2 :state2 :new-arg1 :new-arg2)})))
 

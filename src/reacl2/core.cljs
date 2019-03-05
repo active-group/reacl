@@ -843,6 +843,13 @@
       (handle-returned! comp ret)
       ret)))
 
+(defn send-message-allowed?
+  "Returns if calling `send-message!` is allowed at this point; it's
+  basically only allowed in event handlers, outside a Reacl update
+  cycle."
+  []
+  (not *send-message-forbidden*))
+
 (defn- opt-handle-returned! [component v]
   (when (some? v)
     (if (returned? v)

@@ -324,6 +324,12 @@
                            [nil rst])]
     [opts app-state args]))
 
+(defn- internal-reaction [opts]
+  (or (:reaction opts) ; FIXME: what if we have both?
+      (if-let [embed-app-state (:embed-app-state opts)]
+        (reaction :parent ->EmbedAppState embed-app-state)
+        no-reaction)))
+
 (declare keep-state?)
 
 (def ^:no-doc uber-class
@@ -351,10 +357,7 @@
                                                  :reacl_locals (-compute-locals clazz app-state args)
                                                  :reacl_args (vec args)
                                                  :reacl_refs (-make-refs clazz)
-                                                 :reacl_reaction (or (:reaction opts) ; FIXME: what if we have both?
-                                                                     (if-let [embed-app-state (:embed-app-state opts)]
-                                                                       (reaction :parent ->EmbedAppState embed-app-state)
-                                                                       no-reaction))
+                                                 :reacl_reaction (internal-reaction opts)
                                                  :reacl_reduce_action (or (:reduce-action opts)
                                                                           default-reduce-action)}))))
 
@@ -421,16 +424,13 @@
                [& args])}
   [clazz has-app-state? rst]
   (let [[opts app-state args] (deconstruct-opt+app-state has-app-state? rst)]
-    (assert (not (and (:reaction opts) (:embed-app-state opts)))) ; FIXME: assertion to catch FIXME below
+    (assert (not (and (:reaction opts) (:embed-app-state opts)))) ; FIXME: assertion to catch FIXME in internal-reaction
     (js/React.createElement (react-class clazz)
                             #js {:reacl_app_state app-state
                                  :reacl_locals (-compute-locals clazz app-state args)
                                  :reacl_args args
                                  :reacl_refs (-make-refs clazz)
-                                 :reacl_reaction (or (:reaction opts) ; FIXME: what if we have both?
-                                                     (if-let [embed-app-state (:embed-app-state opts)]
-                                                       (reaction :parent ->EmbedAppState embed-app-state)
-                                                       no-reaction))
+                                 :reacl_reaction (internal-reaction opts)
                                  :reacl_reduce_action (or (:reduce-action opts)
                                                           default-reduce-action)})))
 

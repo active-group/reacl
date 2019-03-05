@@ -231,7 +231,7 @@
         ?misc-fns-map (apply dissoc ?other-fns-map special-tags)
 
         _ (when (and compat-v1? (not-empty ?misc-fns-map))
-            (throw (Error. "invalid clauses in class definition: " (keys ?misc-fns-map))))
+            (throw (Error. "Invalid clauses in class definition: " (keys ?misc-fns-map))))
         
 
         ?wrap-std
@@ -268,7 +268,7 @@
                            (if-let [index (first (filter identity (map-indexed (fn [i x] (if (= x thing) i nil)) ?args)))]
                              `(fn [this#]
                                 (nth (reacl2.core/extract-args this#) ~index))
-                             (throw (Error. (str "illegal mixin argument: " thing)))))
+                             (throw (Error. (str "Illegal mixin argument: " thing)))))
 
         ?mixins (if-let [mixins (get ?clause-map 'mixins)]
                   (map (fn [mix]
@@ -287,6 +287,8 @@
                     `(reacl2.core/->Ref nil))
                   ?ref-ids)])
         ]
+    (when (nil? ?render-fn)
+      (throw (Error. "All classes must have a render clause.")))
     `(reacl2.core/create-class ~?name ~compat-v1? ~(if ?mixins `[~@?mixins] `nil) ~has-app-state? ~?compute-locals ~?make-refs ~?fns)))
 
 (defmacro defclass

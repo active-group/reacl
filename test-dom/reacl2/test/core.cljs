@@ -669,3 +669,13 @@
     (let [item (reacl/render-component div clazz "bam" "baz")]
       (is (= (map dom-content (doms-with-tag item "div"))
              ["bam-baz"])))))
+
+(deftest class-name-and-component-test
+  (is (= (reacl/class-name (reacl/class "foobar" this []
+                                        render (dom/div)))
+         "foobar"))
+  (let [c (test-util/instantiate&mount
+           (reacl/class "foobar" this []
+                        render (dom/div (str (boolean (reacl/component? this))))))]
+    (is (= (map dom-content (doms-with-tag c "div"))
+           ["true"]))))

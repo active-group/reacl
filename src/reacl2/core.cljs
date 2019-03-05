@@ -147,7 +147,8 @@
   [cl app-state local-state args]
   (local-state-state local-state))
 
-(declare invoke-reaction)
+(declare invoke-reaction
+         component?)
 
 (defrecord ^{:doc "Type for a reaction, a restricted representation for callback."
              :private true}
@@ -162,14 +163,6 @@
   no-reaction 
   nil)
 
-(defn pass-through-reaction
-  "Use this if you want to pass the app-state as the message.
-
-  `component` must be the component to send the message to"
-  [component]
-  (assert (not (nil? component)))
-  (Reaction. component identity nil))
-
 (defn reaction
   "A reaction that says how to deal with a new app state in a subcomponent.
 
@@ -178,9 +171,19 @@
 
   Common specialized reactions are [[no-reaction]] and [[pass-through-reaction]]."
   [component make-message & args]
-  (assert (not (nil? component)))
-  (assert (not (nil? make-message)))
+  (when-not (or (component? component) (= :parent component))
+    (js/console.log component)
+    (throw (ex-info (str "Expected a component, not: " component) {:value component})))
+  (when-not (ifn? make-message)
+    (throw (ex-info (str "Expected a function, not: " make-message) {:value make-message})))
   (Reaction. component make-message args))
+
+(defn pass-through-reaction
+  "Use this if you want to pass the app-state as the message.
+
+  `component` must be the component to send the message to"
+  [component]
+  (reaction component identity nil))
 
 (declare send-message! component-parent)
 
@@ -242,6 +245,22 @@
   "Extract the React class from a Reacl class."
   [clazz]
   (-react-class clazz))
+
+(defn ^:no-doc component?
+  "Returns if `v` is a value bound to the 'this' part in a class at runtime."
+  [v]
+  ;; Note: not public because there any many notions of what a 'component' might - used internally only to give earlier error.
+  ;; Note: this is probably true for things returned by instantiating a class: (instance? js/React.Component v)
+  ;; But not for the object bound to `this` - the
+  (and (instance? js/Object v)
+       (.hasOwnProperty v "props")
+       (.hasOwnProperty v "state")))
+
+(defn class-name
+  "Returns the display name of the given Reacl class"
+  [class]
+  (assert (reacl-class? class))
+  (.-displayName (react-class class)))
 
 (defn has-class?
   "Find out if an element was generated from a certain Reacl class."
@@ -408,6 +427,8 @@
                [clazz opts & args]
                [clazz & args])}
   [clazz has-app-state? rst]
+  (when-not (reacl-class? clazz)
+    (throw (ex-info (str "Expected a Reacl class as the first argument, but got: " clazz) {:value clazz})))
   (let [[opts app-state args] (deconstruct-opt+app-state has-app-state? rst)]
     (assert (not (and (:reaction opts) (:embed-app-state opts)))) ; FIXME: assertion to catch FIXME below
     (make-uber-component clazz opts args app-state)))
@@ -551,7 +572,7 @@
 (defn merge-returned
   "Merge the given return values from left to right. Actions and messages are appended, states are replaced unless they are [[keep-state]."
   [& rets]
-  (assert (every? returned? rets))
+  (assert (every? returned? rets) "All arguments must be [[return]] values.")
   (reduce (fn [r1 r2]
             (add-to-returned r1
                              (returned-app-state r2)
@@ -574,7 +595,7 @@
    A state can be set to nil. To keep a state unchanged, do not specify
   that option, or specify the value [[reacl.core/keep-state]]."
   [& args]
-  (assert (even? (count args)))
+  (assert (even? (count args)) "Expected an even number of arguments.")
   (loop [args (seq args)
          app-state keep-state
          local-state keep-state
@@ -587,14 +608,15 @@
             nxt (nnext args)]
         (case (first args)
           (:app-state) (do (when-not (= app-state keep-state)
-                             (throw (str "An :app-state argument to reacl/return must be specified only once.")))
+                             (assert false (str "An :app-state argument to reacl/return must be specified only once.")))
                            (recur nxt arg local-state actions messages))
           (:local-state) (do (when-not (= local-state keep-state)
-                               (throw (str "A :local-state argument to reacl/return must be specified only once.")))
+                               (assert false (str "A :local-state argument to reacl/return must be specified only once.")))
                              (recur nxt app-state arg actions messages))
           (:action) (recur nxt app-state local-state (conj! actions arg) messages)
           (:message) (recur nxt app-state local-state actions (conj messages arg))
-          (throw (str "Invalid argument " (first args) " to reacl/return.")))))))
+          (do (assert false (str "Invalid argument " (first args) " to reacl/return."))
+              (recur nxt app-state local-state actions messages)))))))
 
 (defn- action-effect
   [reduce-action app-state action]
@@ -810,7 +832,7 @@
         app-state (:toplevel-app-state ui)
         uber (resolve-uber comp)]
     ;; after handle-returned, all messages must have been processed:
-    (assert (empty? (:queued-messages ui)))
+    (assert (empty? (:queued-messages ui)) "Internal invariant violation.")
     (doseq [[comp local-state] (:local-state-map ui)]
       (set-local-state! comp local-state))
     (when-not (keep-state? app-state)

@@ -622,7 +622,7 @@
                 :component-did-update '(:app-state :state1 :arg1 :arg2)
                 :should-component-update? '(:app-state :state2 :arg1 :arg2)})))
 
-      (testing "an app-state update"
+      (testing "an app-state update from inside"
         (reset! calls {})
         (test-util/send-message! comp (reacl/return :app-state :new-app-state))
         (is (= @calls
@@ -633,13 +633,20 @@
     
     (testing "an update of the args"
       (reset! calls {})
-      ;; Note: app-state is only 'initial' in render-component; not used here.
-      (reacl/render-component div c :ignored-app-state :new-arg1 :new-arg2)
+      (reacl/render-component div c :new-app-state :new-arg1 :new-arg2)
       (is (= @calls
              { ;; TODO??!! :component-will-receive-args '(:new-app-state :state2 :new-arg1 :new-arg2)
               :component-will-update '(:new-app-state :state2 :new-arg1 :new-arg2)
               :component-did-update '(:new-app-state :state2 :arg1 :arg2)
               :should-component-update? '(:new-app-state :state2 :new-arg1 :new-arg2)})))
+
+    (testing "an app-state update from outside"
+      (reset! calls {})
+      (reacl/render-component div c :new-app-state2 :new-arg1 :new-arg2)
+      (is (= @calls
+             {:component-will-update '(:new-app-state2 :state2 :new-arg1 :new-arg2) ;; args = new
+              :component-did-update '(:new-app-state :state2 :new-arg1 :new-arg2) ;; args = old
+              :should-component-update? '(:new-app-state2 :state2 :new-arg1 :new-arg2)})))
 
     (testing "an unmount"
       (reset! calls {})
@@ -649,3 +656,15 @@
              {:component-will-unmount nil}))))
   
   )
+
+(deftest re-render-toplevel
+  (let [div (js/document.createElement "div")
+        clazz (reacl/class "top" this state [arg1]
+                           render (dom/div state "-" arg1))]
+    (let [item (reacl/render-component div clazz "foo" "bar")]
+      (is (= (map dom-content (doms-with-tag item "div"))
+             ["foo-bar"])))
+
+    (let [item (reacl/render-component div clazz "bam" "baz")]
+      (is (= (map dom-content (doms-with-tag item "div"))
+             ["bam-baz"])))))

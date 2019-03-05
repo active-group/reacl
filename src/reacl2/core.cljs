@@ -338,9 +338,10 @@
          #js {:getInitialState (fn []
                                  (this-as this
                                    (aset this "reacl_toplevel_ref" (js/React.createRef))
-                                   #js {:reacl_uber_app_state
-                                        (aget (.-props this)
-                                              "reacl_app_state")}))
+                                   (let [app-state (aget (.-props this)
+                                                         "reacl_app_state")]
+                                     #js {:reacl_initial_app_state app-state
+                                          :reacl_uber_app_state app-state})))
 
               :render
               (fn []
@@ -368,6 +369,19 @@
                                    #js {:reacl_uber this}))})]
          (aset cl "childContextTypes" #js {:reacl_uber js/PropTypes.object})
          (aset cl "contextTypes" #js {:reacl_uber js/PropTypes.object})
+         (aset cl "getDerivedStateFromProps"
+               (fn [new-props state]
+                 ;; take a new app-state from outside;
+                 ;; note this is called before every 'render' call,
+                 ;; which is why we have to remember how the class was
+                 ;; instantiated.
+                 (let [app-state (aget new-props
+                                       "reacl_app_state")]
+                   (if (not (identical? (aget state "reacl_initial_app_state")
+                                        app-state))
+                     #js {:reacl_initial_app_state app-state
+                          :reacl_uber_app_state app-state}
+                     #js {}))))
          cl))
 
 (defn- resolve-uber

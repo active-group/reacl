@@ -128,6 +128,7 @@
 
   Example:
 
+  ```
     (defrecord New-text [text])
     (defrecord Submit [])
     (defrecord Change [todo])
@@ -193,7 +194,8 @@
                                           (if (= changed-id (:id todo) )
                                             changed-todo
                                             todo))
-                                        (:todos app-state))))))))"
+                                        (:todos app-state))))))))
+  ```"
   [?name & ?stuff]
 
   (let [[?component ?stuff] (split-symbol ?stuff `component#)

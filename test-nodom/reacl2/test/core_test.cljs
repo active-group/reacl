@@ -1,7 +1,7 @@
 (ns reacl2.test.core-test
   (:require [reacl2.core :as reacl :include-macros true]
             [reacl2.dom :as dom :include-macros true]
-            [reacl2.test-util :as reacl-test]
+            [reacl2.test-util.alpha :as reacl-test]
             [cljs.test :as t]
             [clojure.string :as string])
   (:require-macros [cljs.test :refer (is deftest testing)]))
@@ -129,34 +129,42 @@
 
 (deftest string-display-test
   (let [e (string-display "Hello, Mike")
-        renderer (reacl-test/create-renderer)]
-    (reacl-test/render! renderer e)
+        renderer (reacl-test/create-renderer e)]
     (let [t (reacl-test/render-output renderer)]
-      (is (reacl-test/dom=? (dom/h1 "Hello, Mike") t))
-      (is (reacl-test/element-has-type? t :h1))
-      (is (= ["Hello, Mike"] (reacl-test/element-children t))))))
+      (is (reacl-test/render-output=dom? t (dom/h1 "Hello, Mike")))
+      (is (reacl-test/element-has-type? t string-display))
+      (is (reacl-test/element-has-type? (first (reacl-test/element-children t)) :h1))
+      (is (= ["Hello, Mike"] (reacl-test/element-children (first (reacl-test/element-children t))))))))
 
 (deftest list-display-test
   (let [e (list-display ["Lion" "Zebra" "Buffalo" "Antelope"])
         renderer (reacl-test/create-renderer)]
     (reacl-test/render! renderer e)
     (let [t (reacl-test/render-output renderer)]
-      (is (reacl-test/element-has-type? t :ul))
-      (doseq [c (reacl-test/element-children t)]
-        (is (reacl-test/element-has-type? c :li))))))
+      (is (reacl-test/element-has-type? t list-display))
+      (let [ul (first (reacl-test/element-children t))]
+        (is (reacl-test/element-has-type? ul :ul))
+        ;; FIXME: the children are empty - Mike doesn't know why
+        (doseq [c (reacl-test/element-children ul)]
+          (is (reacl-test/element-has-type? c :li)))))))
+
+(deftest hiccup-test
+  (let [e (string-display "Hello, Mike")]
+    (is (= [:h1 "Hello, Mike"]
+           (reacl-test/render->hiccup e)))))
 
 (deftest contacts-display-handle-message-test
-  (let [[_ st] (reacl-test/handle-message contacts-display [{:first "David" :last "Frese"}] [] "Foo"
-                                          (->Add {:first "Mike" :last "Sperber"}))]
+  (let [st (reacl-test/handle-message contacts-display [{:first "David" :last "Frese"}] [] "Foo"
+                                      (->Add {:first "Mike" :last "Sperber"}))]
     (is (= [{:first "David", :last "Frese"} {:first "Mike", :last "Sperber"}]
            (:app-state st))))
-  (let [[_ st] (reacl-test/handle-message contacts-display [{:first "David" :last "Frese"}] [] "Foo"
-                                          (->NewText "David Frese"))]
+  (let [st (reacl-test/handle-message contacts-display [{:first "David" :last "Frese"}] [] "Foo"
+                                      (->NewText "David Frese"))]
     (is (= "David Frese"
            (:local-state st)))))
 
 (deftest contacts-display-test
-  (let [e (contacts-display contacts)
+  (let [e (reacl/instantiate-toplevel contacts-display contacts)
         renderer (reacl-test/create-renderer)]
     (reacl-test/render! renderer e)
     (let [t (reacl-test/render-output renderer)
@@ -169,7 +177,8 @@
       (is (= (conj contacts {:first "Mike", :last "Sperber"})
              (:app-state st))))
     (let [t (reacl-test/render-output renderer)]
-      (is (reacl-test/element-has-type? t :div)))))
+      (is (reacl-test/element-has-type? t contacts-display))
+      (is (reacl-test/element-has-type? (first (reacl-test/element-children (first (reacl-test/element-children t)))) :div)))))
 
 (deftest dom-f-perf-test
   (let [mp {:style {:background-color "white"
@@ -183,6 +192,56 @@
     (assert true)))
 
 (deftest comments-action-test
-  (let [[cmp st] (reacl-test/handle-message comment-box ["foo" "bar" "baz"] [] nil (Refresh.))]
-    (is (= [(EdnXhr. cmp "comments.edn" ->NewComments)]
+  (let [st (reacl-test/handle-message comment-box ["foo" "bar" "baz"] [] nil (Refresh.))]
+    (is (= [(EdnXhr. nil "comments.edn" ->NewComments)]
            (:actions st)))))
+
+(deftest display-name-test
+  (reacl/defclass display-name-test1 this [] render (dom/div))
+  (is (= (.-displayName (reacl/react-class display-name-test1))
+         "reacl2.test.core-test/display-name-test1")))
+
+(deftest return-test
+  ;; tests properties of 'reacl/return'
+  (let [comp (reacl/instantiate-toplevel contacts-display contacts)] ;; just any component.
+    (testing "keep-state by default"
+      (is (= (reacl/return)
+             (reacl/return :app-state reacl/keep-state)))
+      (is (= (reacl/return)
+             (reacl/return :local-state reacl/keep-state))))
+    (testing "nil state is not keep-state"
+      (is (not= (reacl/return)
+                (reacl/return :app-state nil)))
+      (is (not= (reacl/return)
+                (reacl/return :local-state nil))))
+    (testing "multiple messages and actions possible"
+      (is (not= (reacl/return :action 1)
+                (reacl/return :action 1 :action 2)))
+      (is (not= (reacl/return :message [comp 1])
+                (reacl/return :message [comp 1] :message [comp 2]))))
+    (testing "messages and action have an order"
+      (is (not= (reacl/return :action 2 :action 1)
+                (reacl/return :action 1 :action 2)))
+      (is (not= (reacl/return :message [comp 1] :message [comp 2])
+                (reacl/return :message [comp 2] :message [comp 1]))))))
+
+(deftest merge-returned-test
+  (let [comp (reacl/instantiate-toplevel contacts-display contacts)] ;; just any component
+    (is (= (reacl/merge-returned (reacl/return :app-state 1)
+                                 (reacl/return :local-state 2)
+                                 (reacl/return :message [comp 3])
+                                 (reacl/return :action 4))
+           (reacl/return :app-state 1
+                         :local-state 2
+                         :message [comp 3]
+                         :action 4)))
+    (is (= (reacl/merge-returned (reacl/return :app-state 0 :local-state 0 :message [comp 3] :action 4)
+                                 (reacl/return :app-state 1 :local-state 2)
+                                 (reacl/return :message [comp 30])
+                                 (reacl/return :action 40))
+           (reacl/return :app-state 1
+                         :local-state 2
+                         :message [comp 3]
+                         :message [comp 30]
+                         :action 4
+                         :action 40)))))

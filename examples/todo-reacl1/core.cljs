@@ -116,11 +116,14 @@
                                    (:todos app-state))))))))
 
 (reacl/defview demo
-  this []
+  this state []
+  initial-state (TodosApp. 0 [])
   render
-  (to-do-app (TodosApp. 0 [])
-             ;; ignore changes in demo
-             reacl/no-reaction))
+  (to-do-app state
+             (reacl/pass-through-reaction this))
+  handle-message
+  (fn [state]
+    (reacl/return :local-state state)))
 
 (reacl/render-component
  (.getElementById js/document "content")

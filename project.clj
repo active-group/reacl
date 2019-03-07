@@ -1,4 +1,4 @@
-(defproject reacl "2.0.8-SNAPSHOT"
+(defproject reacl "2.1.0-SNAPSHOT"
   :description "ClojureScript wrappers for programming with React"
   :url "http://github.com/active-group/reacl"
   :license {:name "Eclipse Public License"
@@ -13,16 +13,29 @@
                  [cljsjs/create-react-class "15.6.3-0" :exclusions [cljsjs/react]]
                  [cljsjs/prop-types "15.6.2-0" :exclusions [cljsjs/react]]
                  [cljsjs/react-test-renderer-shallow "16.4.1-0" :exclusions [cljsjs/react]]
+                 [cljsjs/react-test-renderer "16.4.1-0" :exclusions [cljsjs/react]]
                  ]
 
   :plugins [[lein-cljsbuild "1.1.7"]
             [lein-doo "0.1.10"]
-            [lein-codox "0.9.3"]]
+            [lein-codox "0.9.3"]
+            [lein-auto "0.1.3"]]
 
   :profiles {:dev {:dependencies [[active-clojure "0.11.0" :exclusions [org.clojure/clojure]]
-                                  [lein-doo "0.1.7"]]}}
+                                  [lein-doo "0.1.7"]
+                                  [codox-theme-rdash "0.1.2"]]}}
+
+  :codox {:language :clojurescript
+          :metadata {:doc/format :markdown}
+          :themes [:rdash]
+          :src-dir-uri "http://github.com/active-group/reacl/blob/master/"
+          :src-linenum-anchor-prefix "L"}
 
   :clean-targets [:target-path "out" "target"]
+
+  ;; for test driven development use
+  ;; > lein auto do clean, doo chrome-headless test-nodom once, doo chrome-headless test-dom once
+  :auto {:default {:paths ["src" "test-dom" "test-nodom" "examples"]}}
   
   :cljsbuild
   
@@ -77,9 +90,6 @@
                           :optimizations :whitespace
                           :parallel-build true}}]}
 
-  :codox {:language :clojurescript
-          :metadata {:doc/format :markdown}
-          :src-dir-uri "http://github.com/active-group/reacl/blob/master/"
-          :src-linenum-anchor-prefix "L"})
+  )
 
 

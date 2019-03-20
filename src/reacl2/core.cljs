@@ -230,6 +230,10 @@
   IHasDom
   (-get-dom [_] current))
 
+;; for internal use by class macro.
+(defn ^:no-doc new-ref []
+  (->Ref nil))
+
 (defprotocol ^:no-doc IReaclClass
   (-react-class [clazz])
   (-instantiate-toplevel-internal [clazz rst])

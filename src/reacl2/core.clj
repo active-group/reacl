@@ -286,7 +286,7 @@
         ?make-refs
         `(fn []
           [~@(map (fn [_]
-                    `(reacl2.core/->Ref nil))
+                    `(reacl2.core/new-ref))
                   ?ref-ids)])
         ]
     (when (nil? ?render-fn)

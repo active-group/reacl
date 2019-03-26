@@ -594,7 +594,7 @@
    - `:app-state` is for a new app state (only once).
    - `:local-state` is for a new component-local state (only once).
    - `:action` is for an action (may be present multiple times)
-   - `:message` is for messages to be queued (may be present multiple times)
+   - `:message` is for a tuple `[target message]` to be queued (may be present multiple times)
 
    A state can be set to nil. To keep a state unchanged, do not specify
   that option, or specify the value [[reacl.core/keep-state]]."

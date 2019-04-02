@@ -209,12 +209,6 @@
      embed ; function parent-app-state child-app-state |-> parent-app-state
      ])
 
-(defrecord ^:private KeywordEmbedder [keyword]
-  Fn
-  IFn
-  (-invoke [this outer inner]
-    (assoc outer keyword inner)))
-
 (defprotocol ^:no-doc IHasDom
   "General protocol for objects that contain or map to a virtual DOM object."  
   (-get-dom [thing]))

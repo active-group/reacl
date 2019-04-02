@@ -209,6 +209,15 @@
      embed ; function parent-app-state child-app-state |-> parent-app-state
      ])
 
+(defn embed-reaction
+  "Returns a reaction to be used in `(opt :reaction ...)` which causes
+  the app-state of the instantiated component to be embedded into
+  `component` - the parent component by default. The embedding is done
+  though the function `lens`, which is called on the parent and the
+  child app-state, returning the new parent app-state."
+  ([component lens] (reaction component ->EmbedAppState lens))
+  ([lens] (embed-reaction :parent lens)))
+
 (defrecord ^:private KeywordEmbedder [keyword]
   Fn
   IFn
@@ -305,19 +314,24 @@
   (assert (opt? v))
   (:map v))
 
+(defn- normalize-opt-map [opts]
+  (assert (not (and (:reaction opts) (:embed-app-state opts))))
+  (if (contains? opts :embed-app-state)
+    (-> opts
+        (assoc :reaction (or (:reaction opts)
+                             (if-let [embed-app-state (:embed-app-state opts)]
+                               (embed-reaction embed-app-state)
+                               no-reaction)))
+        (dissoc :embed-app-state))
+    opts))
+
 (defn opt
   "Create options for component instantiation.
 
-  Takes keyword arguments `:reaction`, `:embed-app-state`,
-  `:reduce-action`.
+  Takes keyword arguments `:reaction` and `:reduce-action`.
 
   - `:reaction` must be a reaction to an app-state change, typically created via
-    [[reaction]], [[no-reaction]], or [[pass-through-reaction]].  -
-  - `:embed-app-state` can be specified as an alternative to `:reaction`
-    and specifies, that the app state of this component is embedded in the
-    parent component's app state.  This must be a function of two arguments, the
-    parent app state and this component's app-state.  It must return a new parent
-    app state.
+    [[reaction]], [[embed-reaction]], [[no-reaction]], or [[pass-through-reaction]].  -
   - `:reduce-action` takes arguments `[app-state action]` where `app-state` is the app state
     of the component being instantiated, and `action` is an action.  This
     should call [[return]] to handle the action.  By default, it is a function
@@ -328,7 +342,7 @@
   {:pre [(every? (fn [[k _]]
                    (contains? #{:reaction :embed-app-state :reduce-action} k))
                  mp)]}
-  (Options. mp))
+  (Options. (normalize-opt-map mp)))
 
 (defn- deconstruct-opt
   [rst]
@@ -346,12 +360,6 @@
                            [(first rst) (rest rst)]
                            [nil rst])]
     [opts app-state args]))
-
-(defn- internal-reaction [opts]
-  (or (:reaction opts) ; FIXME: what if we have both?
-      (if-let [embed-app-state (:embed-app-state opts)]
-        (reaction :parent ->EmbedAppState embed-app-state)
-        no-reaction)))
 
 (declare keep-state?)
 
@@ -381,7 +389,7 @@
                                                  :reacl_locals (-compute-locals clazz app-state args)
                                                  :reacl_args (vec args)
                                                  :reacl_refs (-make-refs clazz)
-                                                 :reacl_reaction (internal-reaction opts)
+                                                 :reacl_reaction (:reaction opts)
                                                  :reacl_reduce_action (or (:reduce-action opts)
                                                                           default-reduce-action)}))))
 
@@ -434,7 +442,6 @@
   (when-not (reacl-class? clazz)
     (throw (ex-info (str "Expected a Reacl class as the first argument, but got: " clazz) {:value clazz})))
   (let [[opts app-state args] (deconstruct-opt+app-state has-app-state? rst)]
-    (assert (not (and (:reaction opts) (:embed-app-state opts)))) ; FIXME: assertion to catch FIXME below
     (make-uber-component clazz opts args app-state)))
 
 (defn instantiate-toplevel
@@ -463,13 +470,12 @@
                [& args])}
   [clazz has-app-state? rst]
   (let [[opts app-state args] (deconstruct-opt+app-state has-app-state? rst)]
-    (assert (not (and (:reaction opts) (:embed-app-state opts)))) ; FIXME: assertion to catch FIXME in internal-reaction
     (js/React.createElement (react-class clazz)
                             #js {:reacl_app_state app-state
                                  :reacl_locals (-compute-locals clazz app-state args)
                                  :reacl_args args
                                  :reacl_refs (-make-refs clazz)
-                                 :reacl_reaction (internal-reaction opts)
+                                 :reacl_reaction (:reaction opts)
                                  :reacl_reduce_action (or (:reduce-action opts)
                                                           default-reduce-action)})))
 

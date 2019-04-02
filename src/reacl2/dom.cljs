@@ -255,6 +255,8 @@
        :oninputcapture "onInputCapture"
        :onsubmit "onSubmit"
        :onsubmitcapture "onSubmitCapture"
+       :onreset "onReset"
+       :onresetcapture "onResetCapture"
        :onclick "onClick"
        :onclickcapture "onClickCapture"
        :oncontextmenu "onContextMenu"

@@ -360,3 +360,6 @@
                             ?clause-map))]
     `(reacl2.core/create-mixin ~?wrapped)))
 
+
+(defmacro with-context [ctx & body]
+  `(reacl2.core/with-context* ctx (fn [] ~@body)))

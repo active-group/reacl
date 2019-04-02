@@ -450,6 +450,30 @@
   [this]
   (aget (.-props this) "reacl_reduce_action"))
 
+(def ^{:private true :dynamic true} *instantiation-context* nil)
+
+(defn- resolve-instantiation-context
+  "Returns [opt-map app-state class-args] using values from ctx and maybe args."
+  [ctx has-app-state? args]
+  (let [[opt-map args] (deconstruct-opt args)
+        opt-map (merge (dissoc ctx :app-state) opt-map)]  ;; TODO: warn/error if something inconsistent?
+    (if has-app-state?
+      (if (contains? ctx :app-state)
+        [opt-map (:app-state ctx) args]
+        [opt-map (first args) (rest args)])
+      (do
+        (assert (not (contains? ctx :app-state))) ;; or throw!?
+        [opt-map nil args]))))
+
+(defn with-context*
+  ;; Note: ctx is a map with the same keys as opt plus :app-state
+  [ctx thunk] (binding [*instantiation-context* (if (opt? ctx) (:map ctx) ctx)]
+                (thunk)))
+
+(defn get-context
+  []
+  *instantiation-context*)
+
 (defn- instantiate-embedded-internal
   "Internal function to instantiate an embedded Reacl component.
 
@@ -462,7 +486,9 @@
                [clazz opts & args]
                [& args])}
   [clazz has-app-state? rst]
-  (let [[opts app-state args] (deconstruct-opt+app-state has-app-state? rst)]
+  (let [[opts app-state args] (if-let [ctx (get-context)]
+                                (resolve-instantiation-context ctx has-app-state? rst)
+                                (deconstruct-opt+app-state has-app-state? rst))]
     (assert (not (and (:reaction opts) (:embed-app-state opts)))) ; FIXME: assertion to catch FIXME in internal-reaction
     (js/React.createElement (react-class clazz)
                             #js {:reacl_app_state app-state

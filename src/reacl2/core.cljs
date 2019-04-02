@@ -206,8 +206,17 @@
 
 (defrecord ^:private EmbedAppState
     [app-state ; new app state from child
-     embed ; function parent-app-state child-app-state |-> parent-app-state
-     ])
+     embed ; function parent-app-state parent-local-state child-app-state & embed-args |-> [parent-app-state parent-local-state]
+     embed-args])
+
+(defn- handle-embed-app-state [app-state local-state ^EmbedAppState msg]
+  ;; Note: this allows for an easy extension to make a mixed local/app-state embedding.
+  (let [[app-state local-state] (apply (:embed msg) app-state local-state (:app-state msg) (:embed-args msg))]
+    (return :app-state app-state
+            :local-state local-state)))
+
+(defn- app-state-embed [parent-app-state parent-local-state app-state lens]
+  [(lens parent-app-state app-state) keep-state])
 
 (defn embed-reaction
   "Returns a reaction to be used in `(opt :reaction ...)` which causes
@@ -215,8 +224,19 @@
   `component` - the parent component by default. The embedding is done
   though the function `lens`, which is called on the parent and the
   child app-state, returning the new parent app-state."
-  ([component lens] (reaction component ->EmbedAppState lens))
+  ([component lens] (reaction component ->EmbedAppState app-state-embed lens))
   ([lens] (embed-reaction :parent lens)))
+
+(defn- app-state-embed-locally [parent-app-state parent-local-state app-state lens]
+  [keep-state (lens parent-local-state app-state)])
+
+(defn embed-locally-reaction
+  "Returns a reaction to be used in `(opt :reaction ...)` which causes
+  the app-state of the instantiated component to be embedded into the
+  local-state of `component`. The embedding is done though the
+  function `lens`, which is called on the parent local-state and the
+  child app-state, returning the new parent local-state."
+  [component lens] (reaction component ->EmbedAppState app-state-embed-locally lens))
 
 (defrecord ^:private KeywordEmbedder [keyword]
   Fn
@@ -680,8 +700,11 @@
 (defn- process-message
   "Process a message for a Reacl component."
   [comp app-state local-state msg]
-  (if (instance? EmbedAppState msg)
-    (return :app-state ((:embed msg) app-state (:app-state msg)))
+  (cond
+    (instance? EmbedAppState msg)
+    (handle-embed-app-state app-state local-state msg)
+
+    :else
     (let [handle-message (aget comp "__handleMessage")]
       (let [args (extract-args comp)
             ret (handle-message comp

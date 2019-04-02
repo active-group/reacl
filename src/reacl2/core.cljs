@@ -335,7 +335,7 @@
   (if (empty? rst)
     [{} rst]
     (let [frst (first rst)]
-      (if (instance? Options frst)
+      (if (opt? frst)
         [(:map frst) (rest rst)]
         [{} rst]))))
 

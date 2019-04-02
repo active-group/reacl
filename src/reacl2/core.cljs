@@ -215,6 +215,8 @@
     (return :app-state app-state
             :local-state local-state)))
 
+(declare keep-state)
+
 (defn- app-state-embed [parent-app-state parent-local-state app-state lens]
   [(lens parent-app-state app-state) keep-state])
 
@@ -224,7 +226,7 @@
   `component` - the parent component by default. The embedding is done
   though the function `lens`, which is called on the parent and the
   child app-state, returning the new parent app-state."
-  ([component lens] (reaction component ->EmbedAppState app-state-embed lens))
+  ([component lens] (reaction component ->EmbedAppState app-state-embed [lens]))
   ([lens] (embed-reaction :parent lens)))
 
 (defn- app-state-embed-locally [parent-app-state parent-local-state app-state lens]
@@ -236,7 +238,7 @@
   local-state of `component`. The embedding is done though the
   function `lens`, which is called on the parent local-state and the
   child app-state, returning the new parent local-state."
-  [component lens] (reaction component ->EmbedAppState app-state-embed-locally lens))
+  [component lens] (reaction component ->EmbedAppState app-state-embed-locally [lens]))
 
 (defrecord ^:private KeywordEmbedder [keyword]
   Fn

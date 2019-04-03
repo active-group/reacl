@@ -282,16 +282,10 @@
         `(fn [~?app-state [~@?args]]
            (let ~?locals-clauses
              [~@?locals-ids]))
-
-        ?make-refs
-        `(fn []
-          [~@(map (fn [_]
-                    `(reacl2.core/new-ref))
-                  ?ref-ids)])
         ]
     (when (nil? ?render-fn)
       (throw (Error. "All classes must have a render clause.")))
-    `(reacl2.core/create-class ~?name ~compat-v1? ~(if ?mixins `[~@?mixins] `nil) ~has-app-state? ~?compute-locals ~?make-refs ~?fns)))
+    `(reacl2.core/create-class ~?name ~compat-v1? ~(if ?mixins `[~@?mixins] `nil) ~has-app-state? ~?compute-locals ~(count ?ref-ids) ~?fns)))
 
 (defmacro defclass
   "Define a Reacl class, see [[class]] for documentation.

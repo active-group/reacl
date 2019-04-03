@@ -116,12 +116,6 @@
   [clazz app-state args]
   ((aget clazz "__computeLocals") app-state args))
 
-(defn- make-refs
-  "Make the refs
-  For internal use."
-  [clazz]
-  ((aget clazz "__makeRefs")))
-
 (declare return)
 
 (defn- default-reduce-action [app-state action]
@@ -225,8 +219,11 @@
   (-get-dom [_] current))
 
 ;; for internal use by class macro.
-(defn ^:no-doc new-ref []
+(defn- new-ref []
   (->Ref nil))
+
+(defn- new-refs [n]
+  (vec (repeatedly n new-ref)))
 
 (defprotocol ^:no-doc IReaclClass
   (-react-class [clazz])
@@ -893,7 +890,7 @@
 
 ;; FIXME: just pass all the lifecycle etc. as separate arguments
 
-(defn ^:no-doc create-class [display-name compat-v1? mixins has-app-state? compute-locals make-refs fns]
+(defn ^:no-doc create-class [display-name compat-v1? mixins has-app-state? compute-locals num-refs fns]
   ;; split special functions and miscs
   (let [{specials true misc false} (group-by is-special-fn? fns)
         {:keys [render
@@ -953,6 +950,8 @@
                             (props-extract-app-state other-props)
                             (state-extract-local-state other-state)
                             (props-extract-args other-props))))))
+
+          make-refs (fn [] (new-refs num-refs))
 
           react-method-map
           (merge
@@ -1032,7 +1031,7 @@
 
             "statics"
             #js {"__computeLocals" compute-locals ;; [app-state & args]}
-                 "__makeRefs" make-refs}
+                 }
             }
            )
 

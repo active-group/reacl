@@ -220,14 +220,18 @@
 (defn- app-state-embed [parent-app-state parent-local-state app-state lens]
   [(lens parent-app-state app-state) keep-state])
 
+(defn- id-lens
+  ([v] v)
+  ([_ v] v))
+
 (defn embed-reaction
   "Returns a reaction to be used in `(opt :reaction ...)` which causes
   the app-state of the instantiated component to be embedded into
-  `component` - the parent component by default. The embedding is done
-  though the function `lens`, which is called on the parent and the
-  child app-state, returning the new parent app-state."
-  ([component lens] (reaction component ->EmbedAppState app-state-embed [lens]))
-  ([lens] (embed-reaction :parent lens)))
+  `component`. The embedding is done though the function `lens`, which
+  is called on the parent and the child app-state, returning the new
+  parent app-state. That defaults to return the childs app-state."
+  ([component] (embed-reaction component id-lens))
+  ([component lens] (reaction component ->EmbedAppState app-state-embed [lens])))
 
 (defn- app-state-embed-locally [parent-app-state parent-local-state app-state lens]
   [keep-state (lens parent-local-state app-state)])
@@ -237,8 +241,10 @@
   the app-state of the instantiated component to be embedded into the
   local-state of `component`. The embedding is done though the
   function `lens`, which is called on the parent local-state and the
-  child app-state, returning the new parent local-state."
-  [component lens] (reaction component ->EmbedAppState app-state-embed-locally [lens]))
+  child app-state, returning the new parent local-state. That defaults
+  to return the childs app-state."
+  ([component] (embed-locally-reaction component id-lens))
+  ([component lens] (reaction component ->EmbedAppState app-state-embed-locally [lens])))
 
 (defrecord ^:private KeywordEmbedder [keyword]
   Fn
@@ -342,7 +348,7 @@
     (-> opts
         (assoc :reaction (or (:reaction opts)
                              (if-let [embed-app-state (:embed-app-state opts)]
-                               (embed-reaction embed-app-state)
+                               (embed-reaction :parent embed-app-state)
                                no-reaction)))
         (dissoc :embed-app-state))
     opts))

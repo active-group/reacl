@@ -592,7 +592,7 @@
                              (recur nxt app-state arg actions messages))
           (:action) (recur nxt app-state local-state (conj! actions arg) messages)
           (:message) (recur nxt app-state local-state actions (conj messages arg))
-          (do (assert false (str "Invalid argument " (first args) " to reacl/return."))
+          (do (assert (= false true) (str "Invalid argument " (first args) " to reacl/return."))
               (recur nxt app-state local-state actions messages)))))))
 
 (defn- action-effect
@@ -600,7 +600,7 @@
   (let [ret (reduce-action app-state action)] ; prep for optimization
     (if (returned? ret)
       ret
-      (do (assert false (str "A 'reacl/return' value was expected, but an action-reducer returned: " (pr-str ret)))
+      (do (assert (= false true) (str "A 'reacl/return' value was expected, but an action-reducer returned: " (pr-str ret)))
           ;; for backwards-compatibility we pass the action when ret if falsey, and don't if truthy.
           (if ret
             (return)
@@ -659,7 +659,7 @@
                                 msg)]
         (if (returned? ret)
           ret
-          (do (assert false (str "A 'reacl/return' value was expected, but a handle-message returned: " (pr-str ret)))
+          (do (assert (= false true) (str "A 'reacl/return' value was expected, but a handle-message returned: " (pr-str ret)))
               returned-nil))))))
 
 (defn- handle-message

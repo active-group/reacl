@@ -122,24 +122,7 @@
   ;; FIXME: can probably greatly optimize cases where this is used.
   (return :action action))
 
-(defn- make-props
-  "Forge the props for a React element, for testing.
-
-  For internal use."
-  [cl app-state args]
-  #js {:reacl_args (vec args)
-       :reacl_app_state app-state
-       :reacl_locals (compute-locals cl app-state args)
-       :reacl_reduce_action default-reduce-action})
-
 (declare react-class)
-
-(defn- make-state
-  "Forge the state for a React element, for testing.
-
-  For internal use."
-  [cl app-state local-state args]
-  (local-state-state local-state))
 
 (declare invoke-reaction
          component?)

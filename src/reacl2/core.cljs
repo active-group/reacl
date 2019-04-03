@@ -211,7 +211,6 @@
 (defprotocol ^:no-doc IReaclClass
   (-react-class [clazz])
   (-instantiate-toplevel-internal [clazz rst])
-  (-compute-locals [clazz app-state args])
   (-make-refs [clazz]))
 
 (defn reacl-class?
@@ -352,7 +351,7 @@
                     (js/React.createElement (react-class clazz)
                                             #js {:ref (aget this "reacl_toplevel_ref")
                                                  :reacl_app_state app-state
-                                                 :reacl_locals (-compute-locals clazz app-state args)
+                                                 :reacl_locals (compute-locals (react-class clazz) app-state args)
                                                  :reacl_args (vec args)
                                                  :reacl_refs (-make-refs clazz)
                                                  :reacl_reaction (internal-reaction opts)
@@ -440,7 +439,7 @@
     (assert (not (and (:reaction opts) (:embed-app-state opts)))) ; FIXME: assertion to catch FIXME in internal-reaction
     (js/React.createElement (react-class clazz)
                             #js {:reacl_app_state app-state
-                                 :reacl_locals (-compute-locals clazz app-state args)
+                                 :reacl_locals (compute-locals (react-class clazz) app-state args)
                                  :reacl_args args
                                  :reacl_refs (-make-refs clazz)
                                  :reacl_reaction (internal-reaction opts)
@@ -451,7 +450,7 @@
   [clazz app-state reaction args]
   (js/React.createElement (react-class clazz)
                           #js {:reacl_app_state app-state
-                               :reacl_locals (-compute-locals clazz app-state args)
+                               :reacl_locals (compute-locals (react-class clazz) app-state args)
                                :reacl_args args
                                :reacl_reaction reaction
                                :reacl_reduce_action default-reduce-action}))
@@ -1074,8 +1073,6 @@
           IReaclClass
           (-instantiate-toplevel-internal [this rst]
             (instantiate-toplevel-internal this has-app-state? rst))
-          (-compute-locals [this app-state args]
-            (compute-locals app-state args))
           (-make-refs [this]
             (make-refs))
           (-react-class [this] react-class))
@@ -1128,8 +1125,6 @@
           IReaclClass
           (-instantiate-toplevel-internal [this rst]
             (instantiate-toplevel-internal this has-app-state? rst))
-          (-compute-locals [this app-state args]
-            (compute-locals app-state args))
           (-make-refs [this]
             (make-refs))
           (-react-class [this] react-class))))))

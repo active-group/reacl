@@ -801,7 +801,7 @@
           (recur dest ret
                  app-state-map
                  local-state-map
-                 (reduce conj queued-messages (:messages ret))))))))
+                 queued-messages))))))
 
 (defn- handle-returned!
   "Handle all effects described and caused by a [[Returned]] object. This is the entry point into a Reacl update cycle.

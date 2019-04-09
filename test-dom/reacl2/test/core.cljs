@@ -679,3 +679,40 @@
                         render (dom/div (str (boolean (reacl/component? this))))))]
     (is (= (map dom-content (doms-with-tag c "div"))
            ["true"]))))
+
+(deftest downward-message-test
+  ;; see issue #31
+  (let [child (reacl/class "child" this []
+
+                           local-state [local-state 0]
+
+                           handle-message
+                           (fn [msg]
+                             (case msg
+                               :click
+                               (reacl/return :action [:click-action this])
+
+                               :from-above
+                               (reacl/return :local-state (inc local-state))))
+
+                           render
+                           (dom/button))
+        parent (reacl/class "parent" this [] 
+
+                            handle-message
+                            (fn [msg]
+                              (case (first msg)
+                                :send-down (reacl/return :message [(second msg) :from-above])))
+
+                            render
+                            (dom/div
+                             (child (reacl/opt
+                                     :reduce-action
+                                     (fn [_ action]
+                                       (reacl/return :message [this [:send-down (second action)]]))))))
+        
+        ]
+    (let [root (test-util/instantiate&mount parent)
+          embedded (dom-with-class root child)]
+      (test-util/send-message! embedded :click)
+      (is (= 1 (test-util/extract-local-state embedded))))))

@@ -245,3 +245,52 @@
                          :message [comp 30]
                          :action 4
                          :action 40)))))
+
+(def ^:dynamic *parent-atom* nil)
+  
+(reacl/defclass parent-a
+  this app-state []
+  render
+  (dom/button {:onclick (fn [e] (reacl/send-message! this :new-app-state))})
+  handle-message
+  (fn [msg]
+    (reacl/return :app-state msg)))
+
+(defn constant-parent-b
+  [_]
+  :parent-b)
+
+(reacl/defclass parent-c
+  this app-state [sub-comp]
+  render
+  (dom/div sub-comp)
+  handle-message
+  (fn [msg]
+    (reacl/return)))
+
+(reacl/defclass parent-b
+  this app-state []
+  render
+  (dom/div
+   (parent-c (reacl/opt :reaction ; must not be called
+                        (reacl/reaction this constant-parent-b))
+             :app-state-c
+             (parent-a (reacl/opt :parent this
+                                  :reaction (reacl/pass-through-reaction :parent))
+                       :app-state-a)))
+
+  handle-message
+  (fn [msg]
+    (reset! *parent-atom* msg)
+    (reacl/return :app-state msg)))
+
+(deftest parent-test
+  (binding [*parent-atom* (atom nil)]
+    (let [comp (reacl/instantiate-toplevel parent-b :init)
+          renderer (reacl-test/create-renderer comp)
+          out (reacl-test/render-output renderer)
+          button (reacl-test/descend-into-element out [:div :div :button])
+          st (reacl-test/invoke-callback button :onclick #js {})]
+      (is (= :new-app-state @*parent-atom* )))))
+      
+    

@@ -86,8 +86,6 @@
       reacl2/IReaclClass
       (-instantiate-toplevel-internal [this rst]
         (reacl2/instantiate-toplevel-internal this false rst))
-      (-compute-locals [this app-state args]
-        #js [])
       (-react-class [this] react-class)
       (-make-refs [this] nil)
       )))

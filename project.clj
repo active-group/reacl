@@ -23,7 +23,15 @@
 
   :profiles {:dev {:dependencies [[active-clojure "0.11.0" :exclusions [org.clojure/clojure]]
                                   [lein-doo "0.1.7"]
-                                  [codox-theme-rdash "0.1.2"]]}}
+                                  [codox-theme-rdash "0.1.2"]
+                                  [com.bhauman/figwheel-main "0.2.0"]
+                                  [com.bhauman/rebel-readline-cljs "0.1.4"]]
+                   :resource-paths ["target" "resources"]}
+             :test {:source-paths ["src" "test-nodom" "test-dom"]}}
+
+  ;; open http://localhost:9500/figwheel-extra-main/auto-testing for the tests.
+  :aliases {"fig" ["trampoline" "with-profile" "+dev,+test" "run" "-m" "figwheel.main" "-b" "dev" "-r"]}
+
 
   :codox {:language :clojurescript
           :metadata {:doc/format :markdown}

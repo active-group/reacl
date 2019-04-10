@@ -1,0 +1,3 @@
+^{:auto-testing true
+  :watch-dirs ["src" "test-nodom" "test-dom"]}
+{:main reacl2.test.runner}

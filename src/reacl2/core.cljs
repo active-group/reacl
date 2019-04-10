@@ -12,7 +12,7 @@
   [local-state]
   #js {:reacl_local_state local-state})
 
-(defn- set-local-state!
+(defn ^{:no-doc true} set-local-state!
   "Set Reacl local state of a component.
 
    For internal use."

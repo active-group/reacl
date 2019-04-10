@@ -212,6 +212,7 @@
 (defprotocol ^:no-doc IReaclClass
   (-react-class [clazz])
   (-instantiate-toplevel-internal [clazz rst])
+  (-has-app-state? [clazz])
   (-make-refs [clazz]))
 
 (defn reacl-class?
@@ -223,6 +224,11 @@
   "Extract the React class from a Reacl class."
   [clazz]
   (-react-class clazz))
+
+(defn has-app-state?
+  "Returns if the given class if an app-state class or not."
+  [c]
+  (-has-app-state? c))
 
 (defn ^:no-doc component?
   "Returns if `v` is a value bound to the 'this' part in a class at runtime."
@@ -419,8 +425,8 @@
                [clazz app-state & args]
                [clazz opts & args]
                [clazz & args])}
-  [clazz frst & rst]
-  (instantiate-toplevel-internal clazz true (cons frst rst)))
+  [clazz & rst]
+  (instantiate-toplevel-internal clazz (has-app-state? clazz) rst))
 
 (defn- action-reducer
   [this]
@@ -1077,6 +1083,7 @@
           IReaclClass
           (-instantiate-toplevel-internal [this rst]
             (instantiate-toplevel-internal this has-app-state? rst))
+          (-has-app-state? [this] has-app-state?)
           (-make-refs [this]
             (make-refs))
           (-react-class [this] react-class))
@@ -1129,6 +1136,7 @@
           IReaclClass
           (-instantiate-toplevel-internal [this rst]
             (instantiate-toplevel-internal this has-app-state? rst))
+          (-has-app-state? [this] has-app-state?)
           (-make-refs [this]
             (make-refs))
           (-react-class [this] react-class))))))

@@ -1,5 +1,6 @@
 (ns reacl2.test.test-util.beta-test
-  (:require [reacl2.test-util.beta :as tu :include-macros true]
+  (:require [reacl2.test-util.beta :as tu]
+            [reacl2.test-util.alpha :as alpha]
             [reacl2.core :as reacl :include-macros true]
             [reacl2.dom :as dom :include-macros true]
             )
@@ -99,4 +100,21 @@
     (is (thrown-with-msg? js/Error #"Test component must be mounted to inspect the local-state."
                           (tu/inspect-local-state c)))))
 
-;; TODO: inspect vdom of the component. Call event-handlers/trigger events. get the return from that.
+(deftest dom-inspect-test
+  (let [c (tu/test-class (reacl/class "test" this state [x]
+
+                                      handle-message
+                                      (fn [msg]
+                                        (reacl/return :app-state msg))
+
+                                      render (dom/div (dom/button {:onClick (fn [ev] (reacl/send-message! this x))}))))]
+
+    (tu/mount! c nil :msg-1)
+
+    ;; TODO: testing with old things from alpha; to be replaced...
+    (is (= (tu/with-component-return c
+             (fn [comp]
+               (let [btn (alpha/descend-into-element comp [:div :button])]
+                 (alpha/invoke-callback btn :onclick :my-event))))
+           (reacl/return :app-state :msg-1)))
+    ))

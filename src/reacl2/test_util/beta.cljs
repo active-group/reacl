@@ -26,37 +26,20 @@
 
   )
 
-(defrecord ^:private TestClass [class renderer ret-atom ref-atom])
+(defrecord ^:private TestClass [class renderer ret-atom])
 
-(reacl/defclass ^:private runner-class this [class app-state args ret-atom ref-atom]
-  refs [comp]
-  
+(reacl/defclass ^:private runner-class this [class app-state args ret-atom]
   render (let [red-act (fn [_ action] ;; TODO: static fn!?
                          (swap! ret-atom reacl/merge-returned (reacl/return :action action))
                          (reacl/return))]
            (apply class
                   (if (reacl/has-app-state? class)
-                    (reacl/opt :ref comp :reduce-action red-act :reaction (reacl/pass-through-reaction this))
-                    (reacl/opt :ref comp :reduce-action red-act))
+                    (reacl/opt :reduce-action red-act :reaction (reacl/pass-through-reaction this))
+                    (reacl/opt :reduce-action red-act))
                   (if (reacl/has-app-state? class)
                     (cons app-state args)
                     args)))
 
-  component-did-mount
-  (fn []
-    (reset! ref-atom (reacl/get-dom comp))
-    (reacl/return))
-
-  component-did-update
-  (fn []
-    (reset! ref-atom (reacl/get-dom comp))
-    (reacl/return))
-
-  component-will-unmount
-  (fn []
-    (reset! ref-atom nil)
-    (reacl/return))
-  
   handle-message
   (fn [app-state]
     (swap! ret-atom reacl/merge-returned (reacl/return :app-state app-state))
@@ -68,13 +51,21 @@
         [app-state args] (if (reacl/has-app-state? class)
                            [(first args) (rest args)]
                            [nil args])
-        ret-atom (:ret-atom tc)
-        ref-atom (:ref-atom tc)]
+        ret-atom (:ret-atom tc)]
     (reacl/instantiate-toplevel runner-class
                                 class
                                 app-state args
-                                ret-atom
-                                ref-atom)))
+                                ret-atom)))
+
+(defn- find-component [tc]
+  ;; may return nil if class not mounted.
+  (some-> (try (.-root (:renderer tc))
+               ;; react throws if nothing is rendered; and I don't want to add an extra flag to know it.
+               (catch :default e
+                 nil))
+          (.findByType (reacl/react-class runner-class))
+          (.-children)
+          (aget 0)))
 
 (defn test-class
   "Returns a utility object to test the given class."
@@ -82,8 +73,7 @@
   (assert (reacl/reacl-class? class))
   (TestClass. class
               (js/ReactTestRenderer.create nil nil)
-              (atom (reacl/return))
-              (atom nil)))
+              (atom (reacl/return))))
 
 (defn- with-collect-return! [tc f]
   (assert (instance? TestClass tc))
@@ -115,7 +105,7 @@
   "Returns if the class tested with the given test utility object is currently mounted."
   [tc]
   (assert (instance? TestClass tc))
-  (some? @(:ref-atom tc)))
+  (some? (find-component tc)))
 
 (defn with-component
   "Do something with the component currently instantiated from the
@@ -123,9 +113,17 @@
   args)`, returning what `f` returns. Throws if it is not mounted."
   [tc f & args]
   (assert (instance? TestClass tc))
-  (if-let [comp @(:ref-atom tc)]
+  (if-let [comp (-> (.-root (:renderer tc))
+                    (.findByType (reacl/react-class runner-class))
+                    (.-children)
+                    (aget 0))]
     (apply f comp args)
     (throw (js/Error. "Test component must be mounted."))))
+
+(defn- with-component-instance [tc f & args]
+  (with-component tc
+    (fn [comp]
+      (apply f (.-instance comp) args))))
 
 (defn with-component-return
   "Do something with the component currently instantiated from the
@@ -140,13 +138,21 @@
         (fn []
           (apply f comp args))))))
 
+(defn- with-component-instance-return
+  [tc f & args]
+  (with-component-instance tc
+    (fn [inst]
+      (with-collect-return! tc
+        (fn []
+          (apply f inst args))))))
+
 (defn inspect-local-state
   "Return the current local-state of the component currently
   instantiated from the class of the given test utility object. Throws
   if it is not mounted."
   [tc]
   (if (is-mounted? tc)
-    (with-component tc
+    (with-component-instance tc
       reacl/extract-local-state)
     (throw (js/Error. "Test component must be mounted to inspect the local-state."))))
 
@@ -158,7 +164,7 @@
   [tc state]
   ;; Note: this uses reacl internals!
   (if (is-mounted? tc)
-    (with-component tc
+    (with-component-instance tc
       reacl/set-local-state! state)
     (throw (js/Error. "Test component must be mounted to inject a local-state."))))
 
@@ -169,7 +175,7 @@
   of a `reacl/return` value. Throws if it is not mounted."
   [tc msg]
   (if (is-mounted? tc)
-    (with-component-return tc
+    (with-component-instance-return tc
       reacl/send-message! msg)
     (throw (js/Error. "Test component must be mounted to send a message to it."))))
 

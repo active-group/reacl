@@ -11,7 +11,7 @@
     (-pr-writer [sym writer _]
       (-write writer (str "\"" (.toString sym) "\""))))
 
-(deftest mount-update-unmount-test
+(deftest basics-test
   (let [c (tu/test-class (reacl/class "test" this state []
                                       component-did-mount
                                       (fn []
@@ -27,17 +27,22 @@
                                         (reacl/return :action [:unmounted state]
                                                       :app-state :unmounted))
 
-                                      render (dom/div))
-                         :initial)]
-    (is (= (tu/mount! c) (reacl/return :action [:mounted :initial]
-                                       :app-state :mounted)))
-    ;; TODO: what to expect if mounted/unmounted multiple times?
+                                      render (dom/div)))]
+    (is (= (tu/mount! c :initial) (reacl/return :action [:mounted :initial]
+                                                :app-state :mounted)))
+    ;; same if mounted twice
+    (is (= (tu/mount! c :initial) (reacl/return :action [:mounted :initial]
+                                                :app-state :mounted)))
 
     (is (= (tu/update! c :update-1) (reacl/return :action [:updated :update-1])))
     (is (= (tu/update! c :update-2) (reacl/return :action [:updated :update-2])))
 
     (is (= (tu/unmount! c) (reacl/return :action [:unmounted :update-2]
-                                         :app-state :unmounted)))))
+                                         :app-state :unmounted)))
+
+    ;; throws if unmounted again.
+    (is (thrown-with-msg? js/Error #"Test component must be mounted to be unmounted."
+                          (tu/unmount! c)))))
 
 (deftest messages-test
   (let [c (tu/test-class (reacl/class "test" this state []
@@ -45,13 +50,12 @@
                                       (fn [msg]
                                         (reacl/return :app-state (conj state msg)))
 
-                                      render (dom/div))
-                         [])]
+                                      render (dom/div)))]
     
     (is (thrown-with-msg? js/Error #"Test component must be mounted to send a message to it."
                           (tu/send-message! c :msg-0)))
     
-    (tu/mount! c)
+    (tu/mount! c [])
 
     (is (= (tu/send-message! c :msg-1) (reacl/return :app-state [:msg-1])))
 
@@ -75,14 +79,13 @@
                                           (reacl/return :local-state x)
                                           (reacl/return)))
 
-                                      render (dom/div))
-                         4)]
+                                      render (dom/div)))]
     (is (thrown-with-msg? js/Error #"Test component must be mounted to inspect the local-state."
                           (tu/inspect-local-state c)))
     (is (thrown-with-msg? js/Error #"Test component must be mounted to inject a local-state."
                           (tu/inject-local-state! c 7)))
 
-    (tu/mount! c)
+    (tu/mount! c 4)
     (is (= (tu/inspect-local-state c) 4))
 
     (tu/update! c 6)

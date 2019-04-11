@@ -1,6 +1,5 @@
 (ns reacl2.test-util.beta
   (:require [reacl2.core :as reacl :include-macros true]
-            [reacl2.dom :as dom :include-macros true]
             cljsjs.react.test-renderer))
 
 (comment
@@ -104,26 +103,17 @@
 (defn is-mounted?
   "Returns if the class tested with the given test utility object is currently mounted."
   [tc]
-  (assert (instance? TestClass tc))
   (some? (find-component tc)))
 
-(defn with-component
-  "Do something with the component currently instantiated from the
-  class of the given test utility object, by calling `(f comp &
-  args)`, returning what `f` returns. Throws if it is not mounted."
-  [tc f & args]
-  (assert (instance? TestClass tc))
-  (if-let [comp (-> (.-root (:renderer tc))
-                    (.findByType (reacl/react-class runner-class))
-                    (.-children)
-                    (aget 0))]
-    (apply f comp args)
-    (throw (js/Error. "Test component must be mounted."))))
+(defn get-component
+  "Return the component currently instantiated from the class of the
+  given test utility object. Throws if it is not mounted."
+  [tc]
+  (or (find-component tc)
+      (throw (js/Error. "Test component must be mounted."))))
 
-(defn- with-component-instance [tc f & args]
-  (with-component tc
-    (fn [comp]
-      (apply f (.-instance comp) args))))
+(defn- get-component-instance [tc]
+  (.-instance (get-component tc)))
 
 (defn with-component-return
   "Do something with the component currently instantiated from the
@@ -132,19 +122,9 @@
   class as a result, in form of a `reacl/return` value. Throws if it is
   not mounted."
   [tc f & args]
-  (with-component tc
-    (fn [comp]
-      (with-collect-return! tc
-        (fn []
-          (apply f comp args))))))
-
-(defn- with-component-instance-return
-  [tc f & args]
-  (with-component-instance tc
-    (fn [inst]
-      (with-collect-return! tc
-        (fn []
-          (apply f inst args))))))
+  (with-collect-return! tc
+    (fn []
+      (apply f (get-component tc) args))))
 
 (defn inspect-local-state
   "Return the current local-state of the component currently
@@ -152,8 +132,7 @@
   if it is not mounted."
   [tc]
   (if (is-mounted? tc)
-    (with-component-instance tc
-      reacl/extract-local-state)
+    (reacl/extract-local-state (get-component-instance tc))
     (throw (js/Error. "Test component must be mounted to inspect the local-state."))))
 
 (defn inject-local-state!
@@ -164,8 +143,7 @@
   [tc state]
   ;; Note: this uses reacl internals!
   (if (is-mounted? tc)
-    (with-component-instance tc
-      reacl/set-local-state! state)
+    (reacl/set-local-state! (get-component-instance tc) state)
     (throw (js/Error. "Test component must be mounted to inject a local-state."))))
 
 (defn send-message!
@@ -175,8 +153,7 @@
   of a `reacl/return` value. Throws if it is not mounted."
   [tc msg]
   (if (is-mounted? tc)
-    (with-component-instance-return tc
-      reacl/send-message! msg)
+    (reacl/send-message! (get-component-instance tc) msg)
     (throw (js/Error. "Test component must be mounted to send a message to it."))))
 
 (defn ^{:arglists '([tc app-state & args]

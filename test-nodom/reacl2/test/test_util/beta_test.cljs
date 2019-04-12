@@ -100,6 +100,24 @@
     (is (thrown-with-msg? js/Error #"Test component must be mounted to inspect the local-state."
                           (tu/inspect-local-state c)))))
 
+(deftest function-test
+  ;; can test 'ordinary' functions as as if they were non-app-state classes for the actions 'generated'
+  (let [class1 (reacl/class "class1" this [arg]
+                            render (dom/span)
+                            component-will-mount
+                            (fn []
+                              (reacl/return :action [:mounted arg]))
+                            component-did-update
+                            (fn []
+                              (reacl/return :action [:updated arg])))
+
+        c (tu/test-fn (fn [foo]
+                        (dom/div {} (class1 foo))))]
+
+    (is (= (tu/mount! c :act1) (reacl/return :action [:mounted :act1])))
+    
+    (is (= (tu/update! c :act2) (reacl/return :action [:updated :act2])))))
+
 (deftest dom-inspect-test
   (let [c (tu/test-class (reacl/class "test" this state [x]
 

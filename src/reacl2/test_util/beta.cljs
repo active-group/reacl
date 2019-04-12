@@ -27,17 +27,13 @@
 
 (defrecord ^:private TestClass [class renderer ret-atom])
 
-(reacl/defclass ^:private runner-class this [class app-state args ret-atom]
-  render (let [red-act (fn [_ action] ;; TODO: static fn!?
-                         (swap! ret-atom reacl/merge-returned (reacl/return :action action))
-                         (reacl/return))]
+(reacl/defclass ^:private runner-class this [class args ret-atom]
+  render (if (and (reacl/reacl-class? class)
+                  (reacl/has-app-state? class))
            (apply class
-                  (if (reacl/has-app-state? class)
-                    (reacl/opt :reduce-action red-act :reaction (reacl/pass-through-reaction this))
-                    (reacl/opt :reduce-action red-act))
-                  (if (reacl/has-app-state? class)
-                    (cons app-state args)
-                    args)))
+                  (reacl/opt :reaction (reacl/pass-through-reaction this))
+                  args)
+           (apply class args))
 
   handle-message
   (fn [app-state]
@@ -47,13 +43,14 @@
 (defn- instantiate [tc & args]
   (assert (instance? TestClass tc))
   (let [class (:class tc)
-        [app-state args] (if (reacl/has-app-state? class)
-                           [(first args) (rest args)]
-                           [nil args])
-        ret-atom (:ret-atom tc)]
+        ret-atom (:ret-atom tc)
+        red-act (fn [_ action] ;; TODO: static fn!?
+                  (swap! ret-atom reacl/merge-returned (reacl/return :action action))
+                  (reacl/return))]
     (reacl/instantiate-toplevel runner-class
+                                (reacl/opt :reduce-action red-act)
                                 class
-                                app-state args
+                                args
                                 ret-atom)))
 
 (defn- find-component [tc]
@@ -66,13 +63,25 @@
           (.-children)
           (aget 0)))
 
+(defn test* [class]
+  (TestClass. class
+              (js/ReactTestRenderer.create nil nil)
+              (atom (reacl/return))))
+
+(defn test-fn
+  "Returns a utility object to test the given function or
+  non-app-state class, which should return a dom element or class
+  instance."
+  [f]
+  (assert (or (not (reacl/reacl-class? f))
+              (reacl/has-app-state? f)))
+  (test* f))
+
 (defn test-class
   "Returns a utility object to test the given class."
   [class]
   (assert (reacl/reacl-class? class))
-  (TestClass. class
-              (js/ReactTestRenderer.create nil nil)
-              (atom (reacl/return))))
+  (test* class))
 
 (defn- with-collect-return! [tc f]
   (assert (instance? TestClass tc))

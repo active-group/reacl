@@ -716,3 +716,24 @@
           embedded (dom-with-class root child)]
       (test-util/send-message! embedded :click)
       (is (= 1 (test-util/extract-local-state embedded))))))
+
+(deftest default-should-component-update?-test
+  (let [render-called (atom 0)
+        cl (reacl/class "class" this state [arg]
+                        local-state [x :locst]
+                        
+                        #_should-component-update?
+                        #_(fn [nstate _ narg]
+                          (or (not= state nstate)
+                              (not= arg narg)))
+                        
+                        render
+                        (do (swap! render-called inc)
+                            (dom/div)))]
+    (let [div (js/document.createElement "div")]
+      (is (= @render-called 0))
+      (reacl/render-component div cl :a :b)
+      (is (= @render-called 1))
+      
+      (reacl/render-component div cl :a :b)
+      (is (= @render-called 1)))))

@@ -262,7 +262,7 @@
   "Implements [[should-component-update?]] for React.
 
   For internal use only."
-  [this app-state local-state locals args next-app-state next-local-state & next-args]
+  [this app-state local-state locals args refs next-app-state next-local-state & next-args]
   (or (not= app-state
             next-app-state)
       (not= local-state

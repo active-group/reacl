@@ -74,7 +74,7 @@
   instance."
   [f]
   (assert (or (not (reacl/reacl-class? f))
-              (reacl/has-app-state? f)))
+              (not (reacl/has-app-state? f))))
   (test* f))
 
 (defn test-class

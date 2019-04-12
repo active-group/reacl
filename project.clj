@@ -39,7 +39,7 @@
           :src-dir-uri "http://github.com/active-group/reacl/blob/master/"
           :src-linenum-anchor-prefix "L"}
 
-  :clean-targets [:target-path "out" "target"]
+  :clean-targets ^{:protect false} [:target-path "out" "target"]
 
   ;; for test driven development use
   ;; > lein auto do clean, doo chrome-headless test-nodom once, doo chrome-headless test-dom once

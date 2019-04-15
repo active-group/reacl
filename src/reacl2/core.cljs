@@ -3,7 +3,8 @@
   (:require [cljsjs.react]
             [cljsjs.react.dom]
             [cljsjs.create-react-class]
-            [cljsjs.prop-types]))
+            [cljsjs.prop-types]
+            [reacl2.trace.core :as trace]))
 
 (defn- local-state-state
   "Set Reacl local state in the given state object.
@@ -641,6 +642,8 @@
               ;; we ignore local-state here - no point
               new-actions (:actions action-ret)
               new-messages (:messages action-ret)]
+          (when (not= reduce-action default-reduce-action)
+            (trace/trace-reduced-action! comp action action-ret))
           (recur (rest actions)
                  (right-state app-state
                               action-app-state)
@@ -671,6 +674,7 @@
                                 (compute-locals (.-constructor comp) app-state args)
                                 args (extract-refs comp)
                                 msg)]
+        (trace/trace-handled-message! comp app-state local-state msg ret)
         (if (returned? ret)
           ret
           (do (assert (= false true) (str "A 'reacl/return' value was expected, but a handle-message returned: " (pr-str ret)))
@@ -810,6 +814,7 @@
         comp (:toplevel-component ui)
         app-state (:toplevel-app-state ui)
         uber (resolve-uber comp)]
+    (trace/trace-cycle-done! app-state (:local-state-map ui))
     ;; after handle-returned, all messages must have been processed:
     (assert (empty? (:queued-messages ui)) "Internal invariant violation.")
     (doseq [[comp local-state] (:local-state-map ui)]
@@ -838,6 +843,7 @@
   (when *send-message-forbidden*
     (assert false "The function send-message! must never be called during an update cycle. Use (reacl/return :message ...) instead."))
   ;; resolve-component is mainly for automated tests that send a message to the top-level component directly
+  (trace/trace-send-message! comp msg)
   (binding [*send-message-forbidden* true]
     (let [comp (resolve-component comp)
           ^Returned ret (handle-message comp msg)]

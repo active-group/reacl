@@ -54,7 +54,7 @@
                      {:cycle-id 0}
                      {trace/send-message-trace
                       (fn [state component msg]
-                        (apply log! state "send message" msg "to" (show-comp component)))
+                        (apply log! state "sending message" msg "to" (show-comp component)))
                       
                       trace/handled-message-trace
                       (fn [state component app-state local-state msg returned]

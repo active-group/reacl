@@ -23,8 +23,11 @@
           args))
 
 (defn- show-comp [comp]
-  ;; show args maybe? call show-comp on args that are components, maybe?
-  (apply list (str "#{" (trace/component-class-name comp)) (str "@" (trace/component-id comp)) (concat (show-comp-args (reacl/extract-args comp)) ["}"])))
+  (apply list (str "#{" (trace/component-class-name comp)) (str "@" (trace/component-id comp))
+         ;; this shows args, and call show-comp on args that are component
+         #_(concat (show-comp-args (reacl/extract-args comp)) ["}"])
+         ;; but with this, one can grab the comp from the log into a global variable in Chrome.
+         [comp "}"]))
 
 (defn-  show-comp-short [comp]
   (str (str "#{" (trace/component-class-name comp)) (str " @" (trace/component-id comp)) "}"))
@@ -49,26 +52,54 @@
     "<unchanged>"
     v))
 
+(defn- end-log-cycle [state]
+  (when (:group-open state)
+    (js/console.groupEnd (:cycle-id state)))
+  (assoc state :group-open false))
+
+(defn- start-log-cycle [state]
+  (let [nstate (cond-> state
+                 (:group-open state) (end-log-cycle)
+                 true (update :cycle-id inc))]
+    (js/console.group (str "cycle " (:cycle-id nstate)))
+    (-> nstate
+        (assoc :group-open true))))
+
 (defn setup-console-tracer! []
   (trace/add-tracer! ::console
                      {:cycle-id 0}
                      {trace/send-message-trace
                       (fn [state component msg]
-                        (apply log! state "sending message" msg "to" (show-comp component)))
+                        (as-> state $
+                          (start-log-cycle $)
+                          (apply log! $ "sending message" msg "to" (show-comp component))))
+
+                      trace/render-component-trace
+                      (fn [state class app-state args]
+                        ;; :-( not all cycles started via render-component get to the 'commit' point - only if mounts/updates trigger a msg etc.
+                        ;; Note: there is another cycle that we'll miss: unmount action when 'removing' a mounted component - add to 'uber' willUnmount?
+                        (as-> state $
+                          (start-log-cycle $)
+                          (apply log! $ "rendering component" [(.-displayName (reacl/react-class class)) app-state args])))
                       
                       trace/handled-message-trace
                       (fn [state component app-state local-state msg returned]
+                        #_(when-not (:group-open state) (js/console.error "Handle message ouside cycle?"))
                         (apply log! state "  handled message:"  msg "to" (concat (show-comp component) ["into" (show-ret returned) "given app-state" app-state "and local-state" local-state])))
                       
                       trace/reduced-action-trace
                       (fn [state component action returned]
+                        #_(when-not (:group-open state) (js/console.error "Action ouside cycle?"))
                         (apply log! state "  reduced action" action "from" (concat (show-comp component) ["into" (show-ret returned)])))
                       
                       trace/commit-trace
                       (fn [state global-app-state local-state-map]
+                        #_(when-not (:group-open state) (js/console.error "Commit ouside cycle?"))
                         (-> state
                             (log! "commit global app-state" (global global-app-state) "and local states" (map-keys show-comp-short local-state-map))
-                            (update :cycle-id inc)))}))
+                            (end-log-cycle))
+                        
+                        )}))
 
 (defn shutdown-console-tracer! []
   (trace/remove-tracer! ::console))

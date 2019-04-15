@@ -386,6 +386,7 @@
                  ;; instantiated.
                  (let [app-state (aget new-props
                                        "reacl_app_state")]
+                   (trace/trace-render-component! (aget new-props "reacl_toplevel_class") app-state (aget new-props "reacl_toplevel_args")) ;; TODO: only when things actually changed maybe?
                    (if (not (identical? (aget state "reacl_initial_app_state")
                                         app-state))
                      #js {:reacl_initial_app_state app-state
@@ -814,9 +815,10 @@
         comp (:toplevel-component ui)
         app-state (:toplevel-app-state ui)
         uber (resolve-uber comp)]
-    (trace/trace-cycle-done! app-state (:local-state-map ui))
     ;; after handle-returned, all messages must have been processed:
     (assert (empty? (:queued-messages ui)) "Internal invariant violation.")
+    (trace/trace-cycle-done! app-state (:local-state-map ui))
+    ;; Note: each setState can start a new cycle on its own synchronously! (when some licecycle method returns some message for example)   TODO how to trace that?
     (doseq [[comp local-state] (:local-state-map ui)]
       (set-local-state! comp local-state))
     (when-not (keep-state? app-state)

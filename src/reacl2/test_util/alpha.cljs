@@ -342,8 +342,14 @@
                              (reacl/compute-locals rcl app-state args)
                              args [] msg)))
 
-
 (defn handle-message->state
-  "Handle a message for a Reacl component."
+  "Handle a message for a Reacl component.
+
+  This returns application state and local state."
   [comp msg]
-  (reacl/handle-message->state (reacl/resolve-component comp) msg))
+  (let [comp (reacl/resolve-component comp)
+        ret (reacl/handle-message comp msg)
+        [app-state local-state _actions-for-parent _messages] (reacl/reduce-returned-actions comp (extract-app-state comp) ret)]
+    [(if (not (reacl/keep-state? app-state)) app-state (reacl/extract-app-state comp))
+     (if (not (reacl/keep-state? local-state)) local-state (reacl/extract-local-state comp))]))
+

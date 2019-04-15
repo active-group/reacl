@@ -620,7 +620,7 @@
             (return)
             (return :action action))))))
 
-(defn- reduce-returned-actions
+(defn ^:no-doc reduce-returned-actions
   "Returns app-state, local-state for this, actions reduced here, to be sent to parent."
   [comp app-state0 ^Returned ret]
   (let [reduce-action (action-reducer comp)]
@@ -676,7 +676,7 @@
           (do (assert (= false true) (str "A 'reacl/return' value was expected, but a handle-message returned: " (pr-str ret)))
               returned-nil))))))
 
-(defn- handle-message
+(defn ^:no-doc handle-message
   "Handle a message for a Reacl component.
 
   For internal use.
@@ -684,18 +684,6 @@
   This returns a `Returned` object."
   [comp msg]
   (process-message comp (extract-app-state comp) (extract-local-state comp) msg))
-
-(defn ^:no-doc handle-message->state
-  "Handle a message for a Reacl component.
-
-  For internal use.
-
-  This returns application state and local state."
-  [comp msg]
-  (let [ret (handle-message comp msg)
-        [app-state local-state _actions-for-parent _messages] (reduce-returned-actions comp (extract-app-state comp) ret)]
-    [(if (not (keep-state? app-state)) app-state (extract-app-state comp))
-     (if (not (keep-state? local-state)) local-state (extract-local-state comp))]))
 
 ;; FIXME: thread all the things properly
 

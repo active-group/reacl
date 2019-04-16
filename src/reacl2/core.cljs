@@ -675,7 +675,6 @@
                                 (compute-locals (.-constructor comp) app-state args)
                                 args (extract-refs comp)
                                 msg)]
-        (trace/trace-handled-message! comp app-state local-state msg ret)
         (if (returned? ret)
           ret
           (do (assert (= false true) (str "A 'reacl/return' value was expected, but a handle-message returned: " (pr-str ret)))
@@ -811,6 +810,7 @@
 
   Assumes the actions in `ret` are for comp."
   [comp ^Returned ret]
+  (trace/trace-returned! comp ret)
   (let [ui (handle-returned comp ret)
         comp (:toplevel-component ui)
         app-state (:toplevel-app-state ui)

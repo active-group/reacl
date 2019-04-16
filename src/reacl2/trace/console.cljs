@@ -3,10 +3,18 @@
             [reacl2.core :as reacl]))
 
 (defn- log! [state label & args]
-  (apply js/console.log (str "#" (:cycle-id state))
+  (apply js/console.log
          label
          args)
   state)
+
+(defn- logc! [state label & args]
+  (apply log! state (str "#" (:cycle-id state)) label args))
+
+(defn- loge! [state label & args]
+  (as-> state $
+    (apply log! $ (str "event #" (:event-id state)) label args)
+    (update $ :event-id inc)))
 
 (declare show-comp)
 
@@ -61,42 +69,42 @@
   (let [nstate (cond-> state
                  (:group-open state) (end-log-cycle)
                  true (update :cycle-id inc))]
-    (js/console.group (str "cycle " (:cycle-id nstate)))
+    (js/console.group (str "event #" (:event-id nstate) " cycle #" (:cycle-id nstate)))
     (-> nstate
-        (assoc :group-open true))))
+        (assoc :group-open true
+               :event-id (inc (:event-id nstate))))))
 
 (defn setup-console-tracer! []
   (trace/add-tracer! ::console
-                     {:cycle-id 0}
+                     {:cycle-id 0 :event-id 0}
                      {trace/send-message-trace
-                      (fn [state component msg]
+                      (fn [state component msg] ;; may start a cycle (but must not)
                         (as-> state $
-                          (start-log-cycle $)
-                          (apply log! $ "sending message" msg "to" (show-comp component))))
+                          (apply loge! $ "sending message" msg "to" (show-comp component))))
 
                       trace/render-component-trace
                       (fn [state class app-state args]
-                        ;; :-( not all cycles started via render-component get to the 'commit' point - only if mounts/updates trigger a msg etc.
-                        ;; Note: there is another cycle that we'll miss: unmount action when 'removing' a mounted component - add to 'uber' willUnmount?
+                        (as-> state $
+                          (apply loge! $ "rendering component" [(.-displayName (reacl/react-class class)) app-state args])))
+
+                      trace/returned-trace
+                      (fn [state component returned]
+                        ;; Note: one must look at the previous event (another cycle, a message or a rendering)
+                        ;; to see why this cycle triggered (but hardly no other way...?)
                         (as-> state $
                           (start-log-cycle $)
-                          (apply log! $ "rendering component" [(.-displayName (reacl/react-class class)) app-state args])))
-                      
-                      trace/handled-message-trace
-                      (fn [state component app-state local-state msg returned]
-                        #_(when-not (:group-open state) (js/console.error "Handle message ouside cycle?"))
-                        (apply log! state "  handled message:"  msg "to" (concat (show-comp component) ["into" (show-ret returned) "given app-state" app-state "and local-state" local-state])))
+                          (apply logc! $ "returned from component" (concat (show-comp component) [(show-ret returned)]))))
                       
                       trace/reduced-action-trace
                       (fn [state component action returned]
-                        #_(when-not (:group-open state) (js/console.error "Action ouside cycle?"))
-                        (apply log! state "  reduced action" action "from" (concat (show-comp component) ["into" (show-ret returned)])))
+                        (when-not (:group-open state) (js/console.warn "Action ouside cycle?"))
+                        (apply logc! state "  reduced action" action "from" (concat (show-comp component) ["into" (show-ret returned)])))
                       
                       trace/commit-trace
                       (fn [state global-app-state local-state-map]
-                        #_(when-not (:group-open state) (js/console.error "Commit ouside cycle?"))
+                        (when-not (:group-open state) (js/console.warn "Commit ouside cycle?"))
                         (-> state
-                            (log! "commit global app-state" (global global-app-state) "and local states" (map-keys show-comp-short local-state-map))
+                            (logc! "commit global app-state" (global global-app-state) "and local states" (map-keys show-comp-short local-state-map))
                             (end-log-cycle))
                         
                         )}))

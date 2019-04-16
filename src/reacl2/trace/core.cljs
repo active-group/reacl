@@ -2,17 +2,16 @@
 
 (def ^:private tracers (atom {}))
 
-(def ^{:doc "The given `component` was sent the given `message`,
-  marking the beginning of an update cycle."}
+(def ^{:doc "The given `component` was sent the given `message`"}
   send-message-trace ::send-message-trace)
 
-(def ^{:doc "The given `class` was rendered as a toplevel with the
-  given `app-state` and `args`, marking the beginning of an update
-  cycle."}  render-component-trace ::render-component-trace)
+(def ^{:doc "The given `component` returned `ret` from handling a
+  message or livecycle method. This marks the beginning of an update
+  cycle."}  returned-trace ::returned-trece)
 
-(def ^{:doc "The given `component` received and handled a `message`,
-  under the given `app-state` and `local-state`, resulting in a
-  `returned` value."} handled-message-trace ::handled-message-trace)
+(def ^{:doc "The given `class` was rendered as a toplevel with the
+  given `app-state` and `args`."}
+  render-component-trace ::render-component-trace)
 
 (def ^{:doc "The `component` had an action reducer attached, which
   transformed the given `action` into the given `returned`. "}
@@ -34,7 +33,7 @@
 
 (defn add-tracer! [id initial-state tracer-map]
   (assert (map? tracer-map))
-  (assert (every? #{send-message-trace render-component-trace handled-message-trace reduced-action-trace commit-trace}
+  (assert (every? #{returned-trace send-message-trace render-component-trace reduced-action-trace commit-trace}
                   (keys tracer-map)))
   (assert (every? ifn? (vals tracer-map)))
   (swap! tracers assoc id [initial-state tracer-map]))
@@ -46,13 +45,13 @@
   [component message]
   (trigger-trace! send-message-trace component message))
 
+(defn ^:no-doc trace-returned!
+  [component ret]
+  (trigger-trace! returned-trace component ret))
+
 (defn ^:no-doc trace-render-component!
   [class app-state args]
   (trigger-trace! render-component-trace class app-state args))
-
-(defn ^:no-doc trace-handled-message!
-  [component app-state local-state message returned]
-  (trigger-trace! handled-message-trace component app-state local-state message returned))
 
 (defn ^:no-doc trace-reduced-action!
   [component action returned]

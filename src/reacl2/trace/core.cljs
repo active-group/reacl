@@ -80,3 +80,44 @@
       (let [id (next-id)]
         (.set wmp comp id)
         id))))
+
+(defn event-cycle-ids-initial-state [custom-state] {:cycle-id 0 :event-id 0 :custom custom-state})
+
+(defn- with-next-event-id [state f]
+  (-> (f state (:event-id state))
+      (update :event-id inc)))
+
+(defn map-event-cycle-ids [tracer]
+  (into {}
+        (map (fn [[t f]]
+               [t (cond 
+                    (= t send-message-trace)
+                    (fn [state component msg]
+                      (with-next-event-id state (fn [state ev-id]
+                                                  (update state :custom f ev-id component msg))))
+                    (= t render-component-trace)
+                    (fn [state class app-state args]
+                      (with-next-event-id state (fn [state ev-id]
+                                                  (update state :custom f ev-id class app-state args))))
+
+                    (= t returned-trace)
+                    (fn [state component returned]
+                      (with-next-event-id state
+                        (fn [state ev-id]
+                          ;; and this starts a new cycle.
+                          (-> state
+                              (update :cycle-id inc)
+                              (update :custom f ev-id (inc (:cycle-id state)) component returned)))))
+
+                    (= t reduced-action-trace)
+                    (fn [state component action returned]
+                      (-> state
+                          (update :custom f (:cycle-id state) component action returned)))
+
+                    (= t commit-trace)
+                    (fn [state global-app-state local-state-map]
+                      (-> state
+                          (update :custom f (:cycle-id state) global-app-state local-state-map)))
+
+                    :else (assert false t))])
+             tracer)))

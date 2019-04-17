@@ -809,8 +809,8 @@
   "Handle all effects described and caused by a [[Returned]] object. This is the entry point into a Reacl update cycle.
 
   Assumes the actions in `ret` are for comp."
-  [comp ^Returned ret]
-  (trace/trace-returned! comp ret)
+  [comp ^Returned ret from]
+  (trace/trace-returned! comp ret from)
   (let [ui (handle-returned comp ret)
         comp (:toplevel-component ui)
         app-state (:toplevel-app-state ui)
@@ -849,7 +849,7 @@
   (binding [*send-message-forbidden* true]
     (let [comp (resolve-component comp)
           ^Returned ret (handle-message comp msg)]
-      (handle-returned! comp ret)
+      (handle-returned! comp ret 'handle-message)
       ret)))
 
 (defn send-message-allowed?
@@ -859,11 +859,11 @@
   []
   (not *send-message-forbidden*))
 
-(defn- opt-handle-returned! [component v]
+(defn- opt-handle-returned! [component v from]
   (when (some? v)
     (if (returned? v)
-      (handle-returned! component v)
-      (assert false (str "A 'reacl/return' value was expected, but a method returned: " (pr-str v))))))
+      (handle-returned! component v from)
+      (assert false (str "A 'reacl/return' value was expected, but " from " returned:" (pr-str v))))))
 
 ;; Attention: duplicate definition for macro in core.clj
 (def ^:private specials #{:render :initial-state :handle-message
@@ -921,7 +921,7 @@
                             react-args)))))
 
           std+state
-          (fn [f]
+          (fn [f method-name]
             (and f
                  (fn [& react-args]
                    (this-as this
@@ -929,7 +929,8 @@
                                                        this
                                                        (extract-app-state this) (extract-local-state this)
                                                        (extract-locals this) (extract-args this) (extract-refs this)
-                                                       react-args))))))
+                                                       react-args)
+                                           method-name)))))
 
           ;; and one arg with next/prev-state
           with-state-and-args
@@ -975,23 +976,24 @@
             "__handleMessage" handle-message
 
             "UNSAFE_componentWillMount"
-            (std+state component-will-mount)
+            (std+state component-will-mount 'component-will-mount)
 
             "UNSAFE_componentWillReceiveProps"
             (when component-will-receive-args
               (fn [next-props]
                 (this-as this
-                         (->> (apply component-will-receive-args this
-                                     (extract-app-state this) (extract-local-state this) (extract-locals this) (extract-args this) (extract-refs this)
-                                     (props-extract-args next-props))
-                              (opt-handle-returned! this)))))
+                         (opt-handle-returned! this
+                                               (apply component-will-receive-args this
+                                                      (extract-app-state this) (extract-local-state this) (extract-locals this) (extract-args this) (extract-refs this)
+                                                      (props-extract-args next-props))
+                                               'component-will-receive-args))))
 
             "getChildContext" (fn []
                                 (this-as this 
                                   #js {:reacl_parent this}))
 
             "componentDidMount"
-            (std+state component-did-mount)
+            (std+state component-did-mount 'component-did-mount)
 
             "shouldComponentUpdate"
             (let [f (with-state-and-args should-component-update?)]
@@ -1016,10 +1018,10 @@
               (let [f (with-state-and-args component-did-update)]
                 (fn [prev-props prev-state]
                   (this-as this
-                           (opt-handle-returned! this (.call f this prev-props prev-state))))))
+                           (opt-handle-returned! this (.call f this prev-props prev-state) 'component-did-update)))))
 
             "componentWillUnmount"
-            (std+state component-will-unmount)
+            (std+state component-will-unmount 'component-will-unmount)
 
             "statics"
             #js {"__computeLocals" compute-locals ;; [app-state & args]}
@@ -1173,9 +1175,9 @@
         pass-through (fn [this res] res)
         entries (filter identity
                         (vector 
-                         (entry :component-did-mount "componentDidMount" (fn [this res] (opt-handle-returned! this res)))
-                         (entry :component-will-mount "componentWillMount" (fn [this res] (opt-handle-returned! this res)))
-                         (entry :component-will-unmount "componentWillUnmount" (fn [this res] (opt-handle-returned! this res)))
+                         (entry :component-did-mount "componentDidMount" (fn [this res] (opt-handle-returned! this res 'component-did-mount)))
+                         (entry :component-will-mount "componentWillMount" (fn [this res] (opt-handle-returned! this res 'component-will-mount)))
+                         (entry :component-will-unmount "componentWillUnmount" (fn [this res] (opt-handle-returned! this res 'component-will-unmount)))
                          (app+local-entry :component-will-update "componentWillUpdate")
                          (app+local-entry :component-did-update "componentDidUpdate")
                          ;; FIXME: :component-will-receive-args 

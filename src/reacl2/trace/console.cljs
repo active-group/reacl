@@ -79,12 +79,12 @@
        state)
 
      trace/returned-trace
-     (fn [state event-id cycle-id component returned]
+     (fn [state event-id cycle-id component returned from]
        ;; Note: one must look at the previous event (another cycle, a message or a rendering)
        ;; to see why this cycle triggered (but hardly no other way...?)
        (let [state (start-group state (str "event #" event-id " cycle #" cycle-id))]
          (apply log! (str "#" cycle-id)
-                "returned from component" (concat (show-comp component) [(show-ret returned)]))
+                "returned from" from "of component" (concat (show-comp component) [(show-ret returned)]))
          state))
                       
      trace/reduced-action-trace
@@ -108,9 +108,9 @@
         (apply log! label (concat (show-comp component) ["receiving message" msg])))
       state)
     trace/returned-trace
-    (fn [state component returned]
+    (fn [state component returned from]
       (when (apply pred component args)
-        (apply log! label (concat (show-comp component) ["returned" (show-ret returned)])))
+        (apply log! label (concat (show-comp component) ["returned" (show-ret returned) "from" from])))
       state)
     trace/reduced-action-trace
     (fn [state component action returned]

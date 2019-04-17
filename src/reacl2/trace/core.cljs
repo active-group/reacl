@@ -6,7 +6,7 @@
   send-message-trace ::send-message-trace)
 
 (def ^{:doc "The given `component` returned `ret` from handling a
-  message or livecycle method. This marks the beginning of an update
+  message or the livecycle method `from`. This marks the beginning of an update
   cycle."}  returned-trace ::returned-trece)
 
 (def ^{:doc "The given `class` was rendered as a toplevel with the
@@ -51,8 +51,8 @@
   (trigger-trace! send-message-trace component message))
 
 (defn ^:no-doc trace-returned!
-  [component ret]
-  (trigger-trace! returned-trace component ret))
+  [component ret from]
+  (trigger-trace! returned-trace component ret from))
 
 (defn ^:no-doc trace-render-component!
   [class app-state args]
@@ -111,13 +111,13 @@
                                                                 (update state :custom f ev-id class app-state args))))
 
                                   (= t returned-trace)
-                                  (fn [state component returned]
+                                  (fn [state component returned from]
                                     (with-next-event-id state
                                       (fn [state ev-id]
                                         ;; and this starts a new cycle.
                                         (-> state
                                             (update :cycle-id inc)
-                                            (update :custom f ev-id (inc (:cycle-id state)) component returned)))))
+                                            (update :custom f ev-id (inc (:cycle-id state)) component returned from)))))
 
                                   (= t reduced-action-trace)
                                   (fn [state component action returned]

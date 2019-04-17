@@ -773,3 +773,50 @@
 
       (is (= (test-util/extract-app-state p)
              2)))))
+
+(deftest update-consistency2-test
+  ;; similar to update-consistency-test but testing when the update
+  ;; cascade is caused by rerendering the toplevel comp.
+  (let [class1 (reacl/class "class1" this app-state []
+                            local-state [local-state false]
+
+                            handle-message
+                            (fn [msg]
+                              (reacl/return :local-state true
+                                            :app-state (inc app-state)))
+
+                            component-did-update
+                            (fn []
+                              ;; at this point it used to be that local-state=true and app-state=0 (not increased yet)
+                              ;; so it was increased from 0 to 1 again.
+                              (if local-state
+                                (reacl/return :local-state false
+                                              :app-state (inc app-state))
+                                (reacl/return)))
+
+                            render (dom/div))
+
+        cont (reacl/class "container" this state []
+                          
+                          handle-message (fn [msg]
+                                           (reacl/return :app-state msg))
+
+                          refs [c1-ref]
+
+                          component-did-update
+                          (fn []
+                            (if (= state 0)
+                              (reacl/return :message [(reacl/get-dom c1-ref) :foo])
+                              (reacl/return)))
+                          
+                          render (class1 (reacl/opt :ref c1-ref :reaction (reacl/pass-through-reaction this))
+                                         state))]
+
+    (let [div (js/document.createElement "div")]
+      ;; render once with app-state -1
+      (reacl/render-component div cont -1)
+      ;; update with app-state 0 should start the other updates
+      (let [p (reacl/render-component div cont 0)]
+
+        (is (= (test-util/extract-app-state p)
+               2))))))

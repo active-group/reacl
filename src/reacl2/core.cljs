@@ -841,7 +841,7 @@
   (binding [*send-message-forbidden* true]
     (let [comp (resolve-component comp)
           ^Returned ret (handle-message comp msg)]
-      (handle-returned! comp ret)
+      (js/ReactDOM.unstable_batchedUpdates #(handle-returned! comp ret))
       ret)))
 
 (defn send-message-allowed?

@@ -737,3 +737,39 @@
       
       (reacl/render-component div cl :a :b)
       (is (= @render-called 1)))))
+
+(deftest update-consistency-test
+  (let [class1 (reacl/class "class1" this app-state []
+                            local-state [local-state false]
+
+                            handle-message
+                            (fn [msg]
+                              (reacl/return :local-state true
+                                            :app-state (inc app-state)))
+
+                            component-did-update
+                            (fn []
+                              ;; at this point it used to be that local-state=true and app-state=0 (not increased yet)
+                              ;; so it was increased from 0 to 1 again.
+                              (if local-state
+                                (reacl/return :local-state false
+                                              :app-state (inc app-state))
+                                (reacl/return)))
+
+                            render (dom/div))
+
+        cont (reacl/class "container" this state []
+                          
+                          handle-message (fn [msg]
+                                           (reacl/return :app-state msg))
+                          
+                          render (class1 (reacl/opt :reaction (reacl/pass-through-reaction this))
+                                         state))]
+
+    ;; with one message causing two updates, the 'did-update' should
+    ;; not see them separately, but consistently together:
+    (let [p (test-util/instantiate&mount cont 0)]
+      (test-util/send-message! (dom-with-class p class1) :foo)
+
+      (is (= (test-util/extract-app-state p)
+             2)))))

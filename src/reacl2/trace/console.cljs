@@ -25,8 +25,9 @@
   (apply list (str "#{" (trace/component-class-name comp)) (str "@" (trace/component-id comp))
          ;; this shows args, and call show-comp on args that are component
          #_(concat (show-comp-args (reacl/extract-args comp)) ["}"])
+         "args:" (reacl/extract-args comp)
          ;; but with this, one can grab the comp from the log into a global variable in Chrome.
-         [comp "}"]))
+         ["raw:" comp "}"]))
 
 (defn-  show-comp-short [comp]
   (str (str "#{" (trace/component-class-name comp)) (str " @" (trace/component-id comp)) "}"))
@@ -63,40 +64,70 @@
     (js/console.group label)
     (assoc state :group-open true)))
 
-(defn setup-console-tracer! []
-  (trace/add-tracer! ::console
-                     (trace/event-cycle-ids-initial-state {:group-open false})
-                     (trace/map-event-cycle-ids
-                      {trace/send-message-trace
-                       (fn [state event-id component msg]
-                         (apply log! (str "event #" event-id) "sending message" msg "to" (show-comp component))
-                         state)
+(def console-tracer
+  (trace/map-event-cycle-ids
+   (trace/tracer
+    {:group-open false}
+    {trace/send-message-trace
+     (fn [state event-id component msg]
+       (apply log! (str "event #" event-id) "sending message" msg "to" (show-comp component))
+       state)
 
-                       trace/render-component-trace
-                       (fn [state event-id class app-state args]
-                         (apply log! (str "event #" event-id) "rendering component" [(.-displayName (reacl/react-class class)) app-state args])
-                         state)
+     trace/render-component-trace
+     (fn [state event-id class app-state args]
+       (apply log! (str "event #" event-id) "rendering component" [(.-displayName (reacl/react-class class)) app-state args])
+       state)
 
-                       trace/returned-trace
-                       (fn [state event-id cycle-id component returned]
-                         ;; Note: one must look at the previous event (another cycle, a message or a rendering)
-                         ;; to see why this cycle triggered (but hardly no other way...?)
-                         (let [state (start-group state (str "event #" event-id " cycle #" cycle-id))]
-                           (apply log! (str "#" cycle-id)
-                                  "returned from component" (concat (show-comp component) [(show-ret returned)]))
-                           state))
+     trace/returned-trace
+     (fn [state event-id cycle-id component returned]
+       ;; Note: one must look at the previous event (another cycle, a message or a rendering)
+       ;; to see why this cycle triggered (but hardly no other way...?)
+       (let [state (start-group state (str "event #" event-id " cycle #" cycle-id))]
+         (apply log! (str "#" cycle-id)
+                "returned from component" (concat (show-comp component) [(show-ret returned)]))
+         state))
                       
-                       trace/reduced-action-trace
-                       (fn [state cycle-id component action returned]
-                         (when-not (:group-open state) (js/console.warn "Action ouside cycle?"))
-                         (apply log! (str "#" cycle-id) "  reduced action" action "from" (concat (show-comp component) ["into" (show-ret returned)]))
-                         state)
+     trace/reduced-action-trace
+     (fn [state cycle-id component action returned]
+       #_(when-not (:group-open state) (js/console.warn "Action ouside cycle?"))
+       (apply log! (str "#" cycle-id) "  reduced action" action "from" (concat (show-comp component) ["into" (show-ret returned)]))
+       state)
                       
-                       trace/commit-trace
-                       (fn [state cycle-id global-app-state local-state-map]
-                         (when-not (:group-open state) (js/console.warn "Commit ouside cycle?"))
-                         (log! (str "#" cycle-id) "commit global app-state" (global global-app-state) "and local states" (map-keys show-comp-short local-state-map))
-                         (end-group state))})))
+     trace/commit-trace
+     (fn [state cycle-id global-app-state local-state-map]
+       #_(when-not (:group-open state) (js/console.warn "Commit ouside cycle?"))
+       (log! (str "#" cycle-id) "commit global app-state" (global global-app-state) "and local states" (map-keys show-comp-short local-state-map))
+       (end-group state))})))
 
-(defn shutdown-console-tracer! []
-  (trace/remove-tracer! ::console))
+(defn component-tracer [label pred & args]
+  (trace/tracer
+   {}
+   {trace/send-message-trace
+    (fn [state component msg]
+      (when (apply pred component args)
+        (apply log! label (concat (show-comp component) ["receiving message" msg])))
+      state)
+    trace/returned-trace
+    (fn [state component returned]
+      (when (apply pred component args)
+        (apply log! label (concat (show-comp component) ["returned" (show-ret returned)])))
+      state)
+    trace/reduced-action-trace
+    (fn [state component action returned]
+      (when (apply pred component args)
+        (apply log! label (concat (show-comp component) ["reduced action" action "into" (show-ret returned)])))
+      state)
+                      
+    trace/commit-trace
+    (fn [state global-app-state local-state-map]
+      (doseq [[cmp st] (filter (fn [[cmp st]]
+                                 (apply pred cmp args))
+                               local-state-map)]
+        (apply log! label (concat (show-comp cmp) ["commit local-state" st])))
+      state)}))
+
+#_(defn class-tracer [label clazz]
+  (component-tracer label (fn [component]
+                            (reacl/class-name ..) ???
+                            ))
+  )

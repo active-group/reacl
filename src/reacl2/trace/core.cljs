@@ -31,12 +31,17 @@
              (catch :default e
                (js/console.warn "Tracer failed" e)))))))
 
-(defn add-tracer! [id initial-state tracer-map]
-  (assert (map? tracer-map))
-  (assert (every? #{returned-trace send-message-trace render-component-trace reduced-action-trace commit-trace}
-                  (keys tracer-map)))
-  (assert (every? ifn? (vals tracer-map)))
-  (swap! tracers assoc id [initial-state tracer-map]))
+(defn tracer [initial-state tracer-map]
+  {:initial-state initial-state
+   :tracer-map tracer-map})
+
+(defn add-tracer! [id tracer]
+  (let [{:keys [initial-state tracer-map]} tracer]
+    (assert (map? tracer-map))
+    (assert (every? #{returned-trace send-message-trace render-component-trace reduced-action-trace commit-trace}
+                    (keys tracer-map)))
+    (assert (every? ifn? (vals tracer-map)))
+    (swap! tracers assoc id [initial-state tracer-map])))
 
 (defn remove-tracer! [id]
   (swap! tracers dissoc id))
@@ -81,43 +86,48 @@
         (.set wmp comp id)
         id))))
 
-(defn event-cycle-ids-initial-state [custom-state] {:cycle-id 0 :event-id 0 :custom custom-state})
+(defn- event-cycle-ids-initial-state [custom-state]
+  {:cycle-id 0 :event-id 0 :custom custom-state})
 
 (defn- with-next-event-id [state f]
   (-> (f state (:event-id state))
       (update :event-id inc)))
 
 (defn map-event-cycle-ids [tracer]
-  (into {}
-        (map (fn [[t f]]
-               [t (cond 
-                    (= t send-message-trace)
-                    (fn [state component msg]
-                      (with-next-event-id state (fn [state ev-id]
-                                                  (update state :custom f ev-id component msg))))
-                    (= t render-component-trace)
-                    (fn [state class app-state args]
-                      (with-next-event-id state (fn [state ev-id]
-                                                  (update state :custom f ev-id class app-state args))))
+  (-> tracer
+      (update :initial-state event-cycle-ids-initial-state)
+      (update :tracer-map
+              (fn [tracer-map]
+                (into {}
+                      (map (fn [[t f]]
+                             [t (cond 
+                                  (= t send-message-trace)
+                                  (fn [state component msg]
+                                    (with-next-event-id state (fn [state ev-id]
+                                                                (update state :custom f ev-id component msg))))
+                                  (= t render-component-trace)
+                                  (fn [state class app-state args]
+                                    (with-next-event-id state (fn [state ev-id]
+                                                                (update state :custom f ev-id class app-state args))))
 
-                    (= t returned-trace)
-                    (fn [state component returned]
-                      (with-next-event-id state
-                        (fn [state ev-id]
-                          ;; and this starts a new cycle.
-                          (-> state
-                              (update :cycle-id inc)
-                              (update :custom f ev-id (inc (:cycle-id state)) component returned)))))
+                                  (= t returned-trace)
+                                  (fn [state component returned]
+                                    (with-next-event-id state
+                                      (fn [state ev-id]
+                                        ;; and this starts a new cycle.
+                                        (-> state
+                                            (update :cycle-id inc)
+                                            (update :custom f ev-id (inc (:cycle-id state)) component returned)))))
 
-                    (= t reduced-action-trace)
-                    (fn [state component action returned]
-                      (-> state
-                          (update :custom f (:cycle-id state) component action returned)))
+                                  (= t reduced-action-trace)
+                                  (fn [state component action returned]
+                                    (-> state
+                                        (update :custom f (:cycle-id state) component action returned)))
 
-                    (= t commit-trace)
-                    (fn [state global-app-state local-state-map]
-                      (-> state
-                          (update :custom f (:cycle-id state) global-app-state local-state-map)))
+                                  (= t commit-trace)
+                                  (fn [state global-app-state local-state-map]
+                                    (-> state
+                                        (update :custom f (:cycle-id state) global-app-state local-state-map)))
 
-                    :else (assert false t))])
-             tracer)))
+                                  :else (assert false t))])
+                           tracer-map))))))

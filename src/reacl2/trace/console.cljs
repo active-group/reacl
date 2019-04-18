@@ -126,8 +126,6 @@
         (apply log! label (concat (show-comp cmp) ["commit local-state" st])))
       state)}))
 
-#_(defn class-tracer [label clazz]
+(defn class-tracer [label clazz]
   (component-tracer label (fn [component]
-                            (reacl/class-name ..) ???
-                            ))
-  )
+                            (= clazz (reacl/component-class component)))))

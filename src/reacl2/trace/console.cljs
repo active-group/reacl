@@ -70,12 +70,15 @@
     {:group-open false}
     {trace/send-message-trace
      (fn [state event-id component msg]
-       (apply log! (str "event #" event-id) "sending message" msg "to" (show-comp component))
+       (apply log! (str "event #" event-id) (concat (show-comp component) ["received" msg]) )
        state)
 
      trace/render-component-trace
      (fn [state event-id class app-state args]
-       (apply log! (str "event #" event-id) "rendering component" [(.-displayName (reacl/react-class class)) app-state args])
+       (let [name (.-displayName (reacl/react-class class))]
+         (log! (str "event #" event-id) "rendering component" (if (reacl/has-app-state? class)
+                                                                (list name app-state args)
+                                                                (list name args))))
        state)
 
      trace/returned-trace
@@ -83,14 +86,13 @@
        ;; Note: one must look at the previous event (another cycle, a message or a rendering)
        ;; to see why this cycle triggered (but hardly no other way...?)
        (let [state (start-group state (str "event #" event-id " cycle #" cycle-id))]
-         (apply log! (str "#" cycle-id)
-                "returned from" from "of component" (concat (show-comp component) [(show-ret returned)]))
+         (apply log! (str "#" cycle-id) (concat (show-comp component) [from "returned" (show-ret returned)]))
          state))
                       
      trace/reduced-action-trace
      (fn [state cycle-id component action returned]
-       #_(when-not (:group-open state) (js/console.warn "Action ouside cycle?"))
-       (apply log! (str "#" cycle-id) "  reduced action" action "from" (concat (show-comp component) ["into" (show-ret returned)]))
+       #_(when-not (:group-open state) (js/console.warn "Action outside cycle?"))
+       (apply log! (str "#" cycle-id) (concat (show-comp component) ["reduced" action "into" (show-ret returned)]))
        state)
                       
      trace/commit-trace
@@ -105,17 +107,17 @@
    {trace/send-message-trace
     (fn [state component msg]
       (when (apply pred component args)
-        (apply log! label (concat (show-comp component) ["receiving message" msg])))
+        (apply log! label (concat (show-comp component) ["received" msg])))
       state)
     trace/returned-trace
     (fn [state component returned from]
       (when (apply pred component args)
-        (apply log! label (concat (show-comp component) ["returned" (show-ret returned) "from" from])))
+        (apply log! label (concat (show-comp component) [from "returned" (show-ret returned)])))
       state)
     trace/reduced-action-trace
     (fn [state component action returned]
       (when (apply pred component args)
-        (apply log! label (concat (show-comp component) ["reduced action" action "into" (show-ret returned)])))
+        (apply log! label (concat (show-comp component) ["reduced" action "into" (show-ret returned)])))
       state)
                       
     trace/commit-trace

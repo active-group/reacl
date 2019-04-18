@@ -77,8 +77,8 @@
      (fn [state event-id class app-state args]
        (let [name (.-displayName (reacl/react-class class))]
          (log! (str "event #" event-id) "rendering component" (if (reacl/has-app-state? class)
-                                                                (list name app-state args)
-                                                                (list name args))))
+                                                                (apply list name app-state args)
+                                                                (apply list name args))))
        state)
 
      trace/returned-trace

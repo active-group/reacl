@@ -35,13 +35,15 @@
   {:initial-state initial-state
    :tracer-map tracer-map})
 
-(defn add-tracer! [id tracer]
-  (let [{:keys [initial-state tracer-map]} tracer]
-    (assert (map? tracer-map))
-    (assert (every? #{returned-trace send-message-trace render-component-trace reduced-action-trace commit-trace}
-                    (keys tracer-map)))
-    (assert (every? ifn? (vals tracer-map)))
-    (swap! tracers assoc id [initial-state tracer-map])))
+(defn add-tracer!
+  ([tracer] (add-tracer! tracer tracer)) ;; use the tracer as its id
+  ([id tracer]
+   (let [{:keys [initial-state tracer-map]} tracer]
+     (assert (map? tracer-map))
+     (assert (every? #{returned-trace send-message-trace render-component-trace reduced-action-trace commit-trace}
+                     (keys tracer-map)))
+     (assert (every? ifn? (vals tracer-map)))
+     (swap! tracers assoc id [initial-state tracer-map]))))
 
 (defn remove-tracer! [id]
   (swap! tracers dissoc id))

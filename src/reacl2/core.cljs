@@ -241,6 +241,12 @@
        (.hasOwnProperty v "props")
        (.hasOwnProperty v "state")))
 
+(defn ^:no-doc component-class
+  "Returns the class the given reacl component (a 'this') was created from."
+  [v]
+  (assert (component? v))
+  (aget (.-props v) "reacl_class"))
+
 (defn class-name
   "Returns the display name of the given Reacl class"
   [class]
@@ -367,6 +373,7 @@
                                                  :reacl_locals (compute-locals (react-class clazz) app-state args)
                                                  :reacl_args (vec args)
                                                  :reacl_refs (-make-refs clazz)
+                                                 :reacl_class clazz
                                                  :reacl_reaction (internal-reaction opts)
                                                  :reacl_reduce_action (or (:reduce-action opts)
                                                                           default-reduce-action)}))))
@@ -457,6 +464,7 @@
                                  :reacl_locals (compute-locals (react-class clazz) app-state args)
                                  :reacl_args args
                                  :reacl_refs (-make-refs clazz)
+                                 :reacl_class clazz
                                  :reacl_reaction (internal-reaction opts)
                                  :reacl_parent (:parent opts)
                                  :reacl_reduce_action (or (:reduce-action opts)
@@ -468,6 +476,7 @@
                           #js {:reacl_app_state app-state
                                :reacl_locals (compute-locals (react-class clazz) app-state args)
                                :reacl_args args
+                               :reacl_class clazz
                                :reacl_reaction reaction
                                :reacl_reduce_action default-reduce-action}))
 

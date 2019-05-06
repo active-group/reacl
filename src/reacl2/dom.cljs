@@ -412,18 +412,18 @@
   [this binding]
   (.-current (binding-get-ref binding)))
 
+(defn- set-dom-key
+  "Attach a key property to a DOM object."
+  [dom key]
+  (js/React.cloneElement dom #js {:key key}))
+
 (defn keyed
   "Associate a key with a virtual DOM node."
   [key dom]
   (if-let [ref (aget (.-props dom) "ref")]
     (DomBinding. dom key false)
-    (DomBinding. (js/React.cloneElement dom #js {:key key})
+    (DomBinding. (set-dom-key dom key)
                  key false)))
-
-(defn- set-dom-key
-  "Attach a key property to a DOM object."
-  [dom key]
-  (js/React.cloneElement dom #js {:key key}))
 
 (defn- normalize-arg
   "Normalize the argument to a DOM-constructing function.

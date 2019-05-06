@@ -664,6 +664,9 @@
   (if (instance? EmbedAppState msg)
     (return :app-state ((:embed msg) app-state (:app-state msg)))
     (let [handle-message (aget comp "__handleMessage")]
+      (assert handle-message (if-let [class (.-constructor comp)]
+                               (str "Message target does have a handle-message method: " (str "instance of " (.-displayName class)))
+                               (str "Message target is not a component: " comp)))
       (let [args (extract-args comp)
             ret (handle-message comp
                                 app-state local-state

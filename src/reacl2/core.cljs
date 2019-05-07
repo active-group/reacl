@@ -866,6 +866,7 @@
 (def ^:private specials #{:render :initial-state :handle-message
                           :component-will-mount :component-did-mount
                           :component-will-receive-args
+                          :component-did-catch
                           :should-component-update?
                           :component-will-update :component-did-update
                           :component-will-unmount
@@ -888,6 +889,7 @@
                 component-will-mount
                 component-did-mount
                 component-will-receive-args
+                component-did-catch
                 component-will-update
                 component-did-update
                 component-will-unmount
@@ -901,6 +903,7 @@
     (assert (optional-ifn? component-will-mount))
     (assert (optional-ifn? component-did-mount))
     (assert (optional-ifn? component-will-receive-args))
+    (assert (optional-ifn? component-did-catch))
     (assert (optional-ifn? component-will-update))
     (assert (optional-ifn? component-did-update))
     (assert (optional-ifn? component-will-unmount))
@@ -982,6 +985,9 @@
                                      (extract-app-state this) (extract-local-state this) (extract-locals this) (extract-args this) (extract-refs this)
                                      (props-extract-args next-props))
                               (opt-handle-returned! this)))))
+
+            "componentDidCatch"
+            (std+state component-did-catch)
 
             "getChildContext" (fn []
                                 (this-as this 

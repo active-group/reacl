@@ -9,6 +9,7 @@
            'component-will-mount
            'component-did-mount
            'component-will-receive-args
+           'component-did-catch
            'should-component-update?
            'component-will-update
            'component-did-update

@@ -749,6 +749,33 @@
       (reacl/render-component div cl :a :b)
       (is (= @render-called 1)))))
 
+(deftest component-did-catch-test
+  (let [render-called (atom 0)
+        c1 (reacl/class "class1" this [arg]
+
+                        render (if arg
+                                 (throw (js/Error. "intentional test error"))
+                                 (dom/div)))
+        catched (atom nil)
+        c2 (reacl/class "class2" this state []
+
+                        local-state [local-state nil]
+
+                        component-did-catch
+                        (fn [error info]
+                          (reset! catched [error info])
+                          (reacl/return :local-state :error))
+                        
+                        render
+                        (if (= :error local-state)
+                          (c1 false)
+                          (c1 true)))]
+    (let [d (test-util/instantiate&mount c2 nil)]
+      (is (some? @catched))
+      (is (instance? js/Error (first @catched)))
+      (is (= (test-util/extract-local-state d)
+             :error)))))
+
 (deftest update-consistency-test
   (let [class1 (reacl/class "class1" this app-state []
                             local-state [local-state false]

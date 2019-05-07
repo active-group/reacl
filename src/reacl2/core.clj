@@ -299,12 +299,15 @@
         ?std-fns-map (assoc ?other-fns-map
                             'render ?render-fn)
 
-        ?wrapped-nlocals [['initial-state
-                           (if (some? ?initial-state-expr)
-                             `(fn [~?component ~?app-state [~@?locals-ids] [~@?args-parameters]]
-                                ;; every user misc fn is also visible; for v1 compat
-                                ~(wrap-misc ?initial-state-expr))
-                             `nil)]]
+        ?wrapped-nlocal-state [['initial-state
+                                (if (some? ?initial-state-expr)
+                                  (let [?locals `locals#]
+                                    `(fn [~?component ~?app-state ~?locals [~@?args]]
+                                       ;; every user misc fn is also visible; for v1 compat
+                                       ~(-> ?initial-state-expr
+                                            (wrap-misc)
+                                            (wrap-locals ?locals))))
+                                  `nil)]]
 
         ?wrapped-std (map (fn [[?n ?f]] [?n (?wrap-std ?f)])
                           ?std-fns-map)
@@ -312,7 +315,7 @@
         ?fns
         (into {}
               (map (fn [[?n ?f]] [(keyword ?n) ?f])
-                   (concat ?wrapped-nlocals ?wrapped-std)))
+                   (concat ?wrapped-nlocal-state ?wrapped-std)))
 
         ?mixins (some-> (get ?clause-map 'mixins)
                         (translate-mixins ?args))

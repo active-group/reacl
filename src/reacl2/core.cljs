@@ -356,14 +356,15 @@
                 (this-as this
                   (let [props (.-props this)
                         clazz (aget props "reacl_toplevel_class")
+                        rclazz (react-class clazz)
                         opts (aget props "reacl_toplevel_opts")
                         args (aget props "reacl_toplevel_args")
                         state (.-state this)
                         app-state (aget state "reacl_uber_app_state")]
-                    (js/React.createElement (react-class clazz)
+                    (js/React.createElement rclazz
                                             #js {:ref (aget this "reacl_toplevel_ref")
                                                  :reacl_app_state app-state
-                                                 :reacl_locals (compute-locals (react-class clazz) app-state args)
+                                                 :reacl_locals (compute-locals rclazz app-state args)
                                                  :reacl_args (vec args)
                                                  :reacl_refs (-make-refs clazz)
                                                  :reacl_reaction (internal-reaction opts)
@@ -447,12 +448,13 @@
                [clazz opts & args]
                [& args])}
   [clazz has-app-state? rst]
-  (let [[opts app-state args] (deconstruct-opt+app-state has-app-state? rst)]
+  (let [[opts app-state args] (deconstruct-opt+app-state has-app-state? rst)
+        rclazz (react-class clazz)]
     (assert (not (and (:reaction opts) (:embed-app-state opts)))) ; FIXME: assertion to catch FIXME in internal-reaction
-    (js/React.createElement (react-class clazz)
+    (js/React.createElement rclazz
                             #js {:reacl_app_state app-state
                                  :ref (:ref opts)
-                                 :reacl_locals (compute-locals (react-class clazz) app-state args)
+                                 :reacl_locals (compute-locals rclazz app-state args)
                                  :reacl_args args
                                  :reacl_refs (-make-refs clazz)
                                  :reacl_reaction (internal-reaction opts)

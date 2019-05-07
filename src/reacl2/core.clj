@@ -19,6 +19,38 @@
     [(first stuff) (rest stuff)]
     [dflt stuff]))
 
+;; compile an argument to a mixin to a function of this
+(defn- compile-mixin-argument [?args thing]
+  (if-let [index (first (filter identity (map-indexed (fn [i x] (if (= x thing) i nil)) ?args)))]
+    `(fn [this#]
+       (nth (reacl2.core/extract-args this#) ~index))
+    (throw (Error. (str "Illegal mixin argument: " thing)))))
+
+(defn- translate-mixins [mixins ?args]
+  (map (fn [mix]
+         `(~(first mix) ~@(map (partial compile-mixin-argument ?args) (rest mix))))
+       mixins))
+
+(defn- analyze-stuff [?stuff]
+  (let [[?component ?stuff] (split-symbol ?stuff `component#)
+        [has-app-state? ?app-state ?stuff] (if (symbol? (first ?stuff))
+                                             [true (first ?stuff) (rest ?stuff)]
+                                             [false `app-state# ?stuff])
+
+        [?args & ?clauses] ?stuff
+
+        ?clause-map (apply hash-map ?clauses)]
+    [?component ?app-state has-app-state? ?args ?clause-map]))
+
+(defn- shadow [args other-names]
+  ;; FIXME: this does not handle destructuring args.
+  (let [ls (set other-names)]
+    (map (fn [param]
+           (if (contains? ls param)
+             (gensym param)
+             param))
+         args)))
+
 (defmacro class
   "Create a Reacl class.
 
@@ -198,26 +230,15 @@
   ```"
   [?name & ?stuff]
 
-  (let [[?component ?stuff] (split-symbol ?stuff `component#)
-        [has-app-state? ?app-state ?stuff] (if (symbol? (first ?stuff))
-                                             [true (first ?stuff) (rest ?stuff)]
-                                             [false `app-state# ?stuff])
-
-        [?args & ?clauses] ?stuff
-
-        ?clause-map (apply hash-map ?clauses)
+  (let [[?component ?app-state has-app-state? ?args ?clause-map] (analyze-stuff ?stuff)
+        
         ?locals-clauses (get ?clause-map 'local [])
         ?locals-ids (map first (partition 2 ?locals-clauses))
 
         ?ref-ids (get ?clause-map 'refs [])
         
         ;; locals are supposed to shadow parameters
-        ?args-parameters (let [ls (set ?locals-ids)]
-                           (map (fn [param]
-                                  (if (contains? ls param)
-                                    (gensym param)
-                                    param))
-                                ?args))
+        ?args-parameters (shadow ?args ?locals-ids)
 
         [?local-state ?initial-state-expr] (or (get ?clause-map 'local-state)
                                                [`local-state# nil])
@@ -236,25 +257,27 @@
             (throw (Error. "Invalid clauses in class definition: " (keys ?misc-fns-map))))
         
 
+        wrap-misc (fn [& body]
+                    `(let [~@(mapcat (fn [[n f]] [n `(aget ~?component ~(str n))]) ?misc-fns-map)]
+                       ~@body))
+        
         ?wrap-std
         (fn [?f]
           (if ?f
             (let [?more `more#]
               `(fn [~?component ~?app-state ~?local-state [~@?locals-ids] [~@?args-parameters] [~@?ref-ids] & ~?more]
                  ;; every user misc fn is also visible; for v1 compat
-                 (let [~@(mapcat (fn [[n f]] [n `(aget ~?component ~(str n))]) ?misc-fns-map)]
-                   (apply ~?f ~?more))))
+                 ~(wrap-misc `(apply ~?f ~?more))))
             'nil))
 
         ?std-fns-map (assoc ?other-fns-map
-                       'render ?render-fn)
+                            'render ?render-fn)
 
         ?wrapped-nlocals [['initial-state
                            (if (some? ?initial-state-expr)
                              `(fn [~?component ~?app-state [~@?locals-ids] [~@?args-parameters]]
                                 ;; every user misc fn is also visible; for v1 compat
-                                (let [~@(mapcat (fn [[n f]] [n `(aget ~?component ~(str n))]) ?misc-fns-map)]
-                                  ~?initial-state-expr))
+                                ~(wrap-misc ?initial-state-expr))
                              `nil)]]
 
         ?wrapped-std (map (fn [[?n ?f]] [?n (?wrap-std ?f)])
@@ -265,18 +288,8 @@
               (map (fn [[?n ?f]] [(keyword ?n) ?f])
                    (concat ?wrapped-nlocals ?wrapped-std)))
 
-        ;; compile an argument to a mixin to a function of this
-        compile-argument (fn [thing]
-                           (if-let [index (first (filter identity (map-indexed (fn [i x] (if (= x thing) i nil)) ?args)))]
-                             `(fn [this#]
-                                (nth (reacl2.core/extract-args this#) ~index))
-                             (throw (Error. (str "Illegal mixin argument: " thing)))))
-
-        ?mixins (if-let [mixins (get ?clause-map 'mixins)]
-                  (map (fn [mix]
-                         `(~(first mix) ~@(map compile-argument (rest mix))))
-                       mixins)
-                  nil)
+        ?mixins (some-> (get ?clause-map 'mixins)
+                        (translate-mixins ?args))
 
         ?compute-locals
         `(fn [~?app-state [~@?args]]

@@ -71,15 +71,6 @@
     
     [?component ?app-state has-app-state? ?args ?clause-map]))
 
-(defn- shadow [args other-names]
-  ;; FIXME: this does not handle destructuring args.
-  (let [ls (set other-names)]
-    (map (fn [param]
-           (if (contains? ls param)
-             (gensym param)
-             param))
-         args)))
-
 (defmacro class
   "Create a Reacl class.
 
@@ -266,9 +257,6 @@
 
         ?ref-ids (get ?clause-map 'refs [])
         
-        ;; locals are supposed to shadow parameters
-        ?args-parameters (shadow ?args ?locals-ids)
-
         [?local-state ?initial-state-expr] (if-let [local-state-clauses (get ?clause-map 'local-state)]
                                              (do (assert (= (count local-state-clauses) 2) "The local-state clause must contain exactly one binding.")
                                                  local-state-clauses)
@@ -288,17 +276,24 @@
             (throw (Error. "Invalid clauses in class definition: " (keys ?misc-fns-map))))
         
 
-        wrap-misc (fn [& body]
+        wrap-misc (fn [body]
                     `(let [~@(mapcat (fn [[n f]] [n `(aget ~?component ~(str n))]) ?misc-fns-map)]
-                       ~@body))
+                       ~body))
+        wrap-locals (fn [body locals]
+                      ;; locals are supposed to shadow parameters
+                      `(let [[~@?locals-ids] ~locals]
+                         ~body))
         
         ?wrap-std
         (fn [?f]
           (if ?f
-            (let [?more `more#]
-              `(fn [~?component ~?app-state ~?local-state [~@?locals-ids] [~@?args-parameters] [~@?ref-ids] & ~?more]
+            (let [?more `more#
+                  ?locals `locals#]
+              `(fn [~?component ~?app-state ~?local-state ~?locals [~@?args] [~@?ref-ids] & ~?more]
                  ;; every user misc fn is also visible; for v1 compat
-                 ~(wrap-misc `(apply ~?f ~?more))))
+                 ~(-> `(apply ~?f ~?more)
+                      (wrap-misc)
+                      (wrap-locals ?locals))))
             'nil))
 
         ?std-fns-map (assoc ?other-fns-map

@@ -123,6 +123,17 @@
       (is (= ["57" "76"]
              (map dom-content divs))))))
 
+(deftest locals-shadowing-test
+  ;; locals shall shadow args:
+  (let [foo (reacl/class "foo"
+                         this [& [baz]]
+                         local [baz 42]
+                         render (dom/div (str baz)))]
+    (let [item (test-util/instantiate&mount foo 12)
+          divs (doms-with-tag item "div")]
+      (is (= ["42"]
+             (map dom-content divs))))))
+
 (deftest has-class?-test
   (let [foo (reacl/class "foo"
                          this []

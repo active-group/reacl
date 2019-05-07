@@ -213,6 +213,7 @@
   (-react-class [clazz])
   (-instantiate-toplevel-internal [clazz rst])
   (-has-app-state? [clazz])
+  (-validate! [clazz app-state args])
   (-make-refs [clazz]))
 
 (defn reacl-class?
@@ -361,6 +362,7 @@
                         args (aget props "reacl_toplevel_args")
                         state (.-state this)
                         app-state (aget state "reacl_uber_app_state")]
+                    (-validate! clazz app-state args)
                     (js/React.createElement rclazz
                                             #js {:ref (aget this "reacl_toplevel_ref")
                                                  :reacl_app_state app-state
@@ -451,6 +453,7 @@
   (let [[opts app-state args] (deconstruct-opt+app-state has-app-state? rst)
         rclazz (react-class clazz)]
     (assert (not (and (:reaction opts) (:embed-app-state opts)))) ; FIXME: assertion to catch FIXME in internal-reaction
+    (-validate! clazz app-state args)
     (js/React.createElement rclazz
                             #js {:reacl_app_state app-state
                                  :ref (:ref opts)
@@ -464,12 +467,13 @@
 
 (defn- instantiate-embedded-internal-v1
   [clazz app-state reaction args]
-  (js/React.createElement (react-class clazz)
-                          #js {:reacl_app_state app-state
-                               :reacl_locals (compute-locals (react-class clazz) app-state args)
-                               :reacl_args args
-                               :reacl_reaction reaction
-                               :reacl_reduce_action default-reduce-action}))
+  (let [rclazz (react-class clazz)]
+    (js/React.createElement rclazz
+                            #js {:reacl_app_state app-state
+                                 :reacl_locals (compute-locals rclazz app-state args)
+                                 :reacl_args args
+                                 :reacl_reaction reaction
+                                 :reacl_reduce_action default-reduce-action})))
 
 (defn render-component
   "Instantiate and render a component into the DOM.
@@ -880,7 +884,7 @@
 
 ;; FIXME: just pass all the lifecycle etc. as separate arguments
 
-(defn ^:no-doc create-class [display-name compat-v1? mixins has-app-state? compute-locals num-refs fns]
+(defn ^:no-doc create-class [display-name compat-v1? mixins has-app-state? compute-locals validate num-refs fns]
   ;; split special functions and miscs
   (let [{specials true misc false} (group-by is-special-fn? fns)
         {:keys [render
@@ -1087,6 +1091,8 @@
           (-instantiate-toplevel-internal [this rst]
             (instantiate-toplevel-internal this has-app-state? rst))
           (-has-app-state? [this] has-app-state?)
+          (-validate! [this app-state args]
+            (when validate (apply validate app-state args)))
           (-make-refs [this]
             (make-refs))
           (-react-class [this] react-class))
@@ -1140,6 +1146,8 @@
           (-instantiate-toplevel-internal [this rst]
             (instantiate-toplevel-internal this has-app-state? rst))
           (-has-app-state? [this] has-app-state?)
+          (-validate! [this app-state args]
+            (when validate (apply validate app-state args)))
           (-make-refs [this]
             (make-refs))
           (-react-class [this] react-class))))))

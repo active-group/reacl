@@ -325,10 +325,13 @@
         `(fn [~?app-state [~@?args]]
            (let ~?locals-clauses
              [~@?locals-ids]))
-        ]
+
+        ?validate (when-let [?validate-expr (get ?clause-map 'validate)]
+                    `(fn [~?app-state & ~?args]
+                       ~?validate-expr))]
     (when (nil? ?render-fn)
       (throw (Error. "All classes must have a render clause.")))
-    `(reacl2.core/create-class ~?name ~compat-v1? ~(if ?mixins `[~@?mixins] `nil) ~has-app-state? ~?compute-locals ~(count ?ref-ids) ~?fns)))
+    `(reacl2.core/create-class ~?name ~compat-v1? ~(if ?mixins `[~@?mixins] `nil) ~has-app-state? ~?compute-locals ~?validate ~(count ?ref-ids) ~?fns)))
 
 (defmacro defclass
   "Define a Reacl class, see [[class]] for documentation.

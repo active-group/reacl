@@ -858,3 +858,17 @@
 
         (is (= (test-util/extract-app-state p)
                2))))))
+
+(deftest validate-test
+  (let [error? (atom nil)
+        c (reacl/class "class" this state [arg]
+
+                       validate (reset! error? (not= state arg))
+                       
+                       render (dom/div))]
+
+    (is (some? (test-util/instantiate&mount c 42 42)))
+    (is (not @error?))
+    ;; Note: an actual assert or throw in validate could be catched here, but React still logs an error then which spams the test logs.
+    (test-util/instantiate&mount c 42 21)
+    (is @error?)))

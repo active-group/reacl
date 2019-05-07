@@ -31,6 +31,34 @@
          `(~(first mix) ~@(map (partial compile-mixin-argument ?args) (rest mix))))
        mixins))
 
+(defn- clause-map [?clauses]
+  ;; check for even number of args.
+  (assert (even? (count ?clauses))
+          (str "Invalid class definition. Must have an even number of arguments."
+               ;; if there is a symbol followed by a symbol, report the first as the potential problem
+               (if-let [p (reduce (fn [[r rem] v]
+                                    (if r
+                                      [r (rest rem)] ;; stop
+                                      (if (and (symbol? v)
+                                               (symbol? (first rem)))
+                                        [v (rest rem)]
+                                        [nil (rest rem)])))
+                                  [nil (rest ?clauses)]
+                                  ?clauses)]
+                 (str "Possibly missing def for " p ".")
+                 "")))
+  (let [?clause-map (apply hash-map ?clauses)]
+    ;; check for duplicate defs.
+    (assert (= (count ?clause-map) (/ (count ?clauses) 2))
+            (str "Duplicate class clauses: " (let [keys (map second (filter #(even? (first %))
+                                                                            (map-indexed vector ?clauses)))
+                                                   dups (filter (fn [v]
+                                                                  (> (count (filter #(= v %) keys)) 1))
+                                                                keys)]
+                                               (set dups))))
+
+    ?clause-map))
+
 (defn- analyze-stuff [?stuff]
   (let [[?component ?stuff] (split-symbol ?stuff `component#)
         [has-app-state? ?app-state ?stuff] (if (symbol? (first ?stuff))
@@ -39,7 +67,8 @@
 
         [?args & ?clauses] ?stuff
 
-        ?clause-map (apply hash-map ?clauses)]
+        ?clause-map (clause-map ?clauses)]
+    
     [?component ?app-state has-app-state? ?args ?clause-map]))
 
 (defn- shadow [args other-names]
@@ -240,8 +269,10 @@
         ;; locals are supposed to shadow parameters
         ?args-parameters (shadow ?args ?locals-ids)
 
-        [?local-state ?initial-state-expr] (or (get ?clause-map 'local-state)
-                                               [`local-state# nil])
+        [?local-state ?initial-state-expr] (if-let [local-state-clauses (get ?clause-map 'local-state)]
+                                             (do (assert (= (count local-state-clauses) 2) "The local-state clause must contain exactly one binding.")
+                                                 local-state-clauses)
+                                             [`local-state# nil])
 
         ?render-fn (when-let [?expr (get ?clause-map 'render)]
                      `(fn [] ~?expr))

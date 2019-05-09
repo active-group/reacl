@@ -10,7 +10,7 @@
 
 (defn send-message!
   [comp msg]
-  (reacl/send-message! (reacl/resolve-component comp) msg))
+  (reacl/send-message! comp msg))
 
 (defn extract-app-state
   [comp]

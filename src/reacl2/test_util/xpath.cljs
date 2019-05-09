@@ -3,7 +3,7 @@
             [reacl2.dom :as dom]
             [reacl2.test-util.alpha :as alpha]
             cljsjs.react.test-renderer)
-  (:refer-clojure :exclude [type comp range first last nth or and]))
+  (:refer-clojure :exclude [type comp range first last nth or and contains?]))
 
 ;; Idea: an xpath is a concatenated sequence of selectors (>> sel1 sel2 ...) that can be
 ;; applied to a list of nodes, where each selector maps that list to a
@@ -26,12 +26,28 @@
 
 (declare ^:private react-test-instance)
 
-(defrecord ^:private ReactTestInstance [ri]
+(defn- find-pos [lst v]
+  (loop [i 0
+         lst (seq lst)]
+    (when-not (empty? lst)
+      (if (= v (clojure.core/first lst))
+        i
+        (recur (inc i) (rest lst))))))
+
+(defn- find-node-pos [node]
+  (if-let [p (clojure.core/and (.hasOwnProperty node "parent") ;; is a ReactTestInstance?
+                               (.-parent node)
+                               (find-pos (.-children (.-parent node)) node))]
+    p
+    nil))
+
+(defrecord ^:private ReactTestInstance [ri idx]
   XPathNode
   (node-value [this] ri)
   (node-type [this] (.-type ri))
   (node-children [this] (map-indexed #(react-test-instance this %1 %2) (.-children ri)))
-  (node-parent [this] (ReactTestInstance. (.-parent ri))))
+  (node-parent [this] (let [p (.-parent ri)]
+                        (ReactTestInstance. p (find-node-pos p)))))
 
 (defrecord ^:private RootNode [toplevel]
   XPathNode
@@ -40,12 +56,18 @@
   (node-children [this] (map-indexed #(react-test-instance this %1 %2) (.-children toplevel)))
   (node-parent [this] nil))
 
-(defrecord ^:private TextNode [parent id s]
+(defrecord ^:private TextNode [parent idx s]
   XPathNode
   (node-value [this] s)
   (node-type [this] ::string)
   (node-children [this] nil)
   (node-parent [this] parent))
+
+(defn- node-position [n]
+  (if (clojure.core/or (instance? TextNode n)
+                       (instance? ReactTestInstance n))
+    (:idx n)
+    nil))
 
 ;; used for attribute values, app-state and args lists.
 (defrecord ^:private NodeProperty [parent id value]
@@ -55,11 +77,11 @@
   (node-children [this] nil)
   (node-parent [this] parent))
 
-(defn- react-test-instance [parent id v]
+(defn- react-test-instance [parent idx v]
   (if (string? v)
-    (TextNode. parent id v)
+    (TextNode. parent idx v)
     ;; the raw ReactTestInstance (v) should already have an identity.
-    (ReactTestInstance. v)))
+    (ReactTestInstance. v idx)))
 
 (defn- node-props [node]
   ;; = attributes for dom nodes.
@@ -98,32 +120,42 @@
   (-compose [this other] this)
   (-map-nodes [this nodes] #{}))
 
-(defn ^:no-doc get-range-plus [lst from to]
-  (let [lst (vec lst)
-        to (if (zero? to)
-             (count lst)
-             (if (< to 0)
-               (+ (count lst) to)
-               to))
-        from (if (< from 0)
-               (+ (count lst) from)
-               from)
-        [from to] (if (< from to)
-                    [from to]
-                    [to from])
-        from (if (< from 0) 0 from)
-        to (if (> to (count lst)) (count lst) to)]
-    (map #(get lst %) (clojure.core/range from to))))
-
-(defrecord ^:private Children [from to]
+(defrecord ^:private Children []
   XPathSelector
   (-compose [this other]
     ;; Note: could optimize this here if other is Type for example.
     (SimpleCompose. this other))
   (-map-nodes [this nodes]
-    (let [r (fn [lst]
-              (get-range-plus lst from to))]
-      (mapcat #(r (node-children %)) nodes))))
+    (mapcat node-children nodes)))
+
+(defn ^:no-doc range-plus [count from to]
+  (let [to (if (zero? to)
+             count
+             (if (< to 0)
+               (+ count to)
+               to))
+        from (if (< from 0)
+               (+ count from)
+               from)
+        [from to] (if (< from to)
+                    [from to]
+                    [to from])
+        from (if (< from 0) 0 from)
+        to (if (> to count) count to)]
+    (clojure.core/range from to)))
+
+(defrecord ^:private Position [from to]
+  XPathSelector
+  (-compose [this other]
+    ;; Note: could optimize this here if other is Type for example.
+    (SimpleCompose. this other))
+  (-map-nodes [this nodes]
+    (filter (fn [n]
+              (when-let [p (node-parent n)]
+                (let [count (node-children p)
+                      indixes (set (range-plus count from to))]
+                  (clojure.core/contains? indixes (node-position n)))))
+            nodes)))
 
 (defrecord ^:private All []
   XPathSelector
@@ -132,7 +164,7 @@
     (SimpleCompose. this other))
   (-map-nodes [this nodes]
     ;; these nodes, their children, and all their children
-    (let [cs (-map-nodes (Children. 0 0) nodes)]
+    (let [cs (-map-nodes (Children.) nodes)]
       (concat nodes
               (when-not (empty? cs)
                 (-map-nodes this cs))))))
@@ -150,7 +182,7 @@
   XPathSelector
   (-compose [this other] (SimpleCompose. this other))
   (-map-nodes [this nodes]
-    (filter #(instance? TextNode %) (-map-nodes (Children. 0 0) nodes))))
+    (filter #(instance? TextNode %) (-map-nodes (Children.) nodes))))
 
 (defrecord ^:private Attr [n]
   XPathSelector
@@ -252,7 +284,8 @@
   "Returns all nodes selected by `selector` in the given `node`."
   [node selector]
   (map node-value
-       (-map-nodes selector #{(ReactTestInstance. (alpha/resolve-toplevel node))})))
+       (-map-nodes selector [(let [nn (reacl/resolve-component node)]
+                               (ReactTestInstance. nn (find-node-pos nn)))])))
 
 (defn select
   "Returns the node selected by `selector` in the given `node`, or throws if there is more than one, or returns `nil` otherwise."
@@ -325,29 +358,33 @@
   Valid selectors are all the primitives from this module,
   as well as:\n
   - strings or keywords stand for a virtual dom node as with [[tag]],
-  - Reacl classes stand for a selection by that class as with [[class]]"
+  - Reacl classes stand for a selection by that class as with [[class]]\n
+  Also see [[reacl/>>]] for a convenience macro version of this.
+"
   ([] self) ;; TODO: or void? or error?
   ([& selectors] (reduce -compose (map lift-selector selectors))))
 
 (def ^{:doc "Selects the current node and all of it's children and grand children."} all (All.))
 
-(def ^{:doc "Selects the children of the current node."} children (Children. 0 0))
+(def ^{:doc "Selects the children of the current node."} children (Children.))
 
 (def ^{:doc "Selects the children of the current node and all the grand children."} all-children (comp children all))
 
-(comment  ;; TODO: maybe these should select on the nodes themselves; not on the children...
-
-  (defn range
-  "Selects the children of the current node by their position, starting at index `from` (inclusive) up to index `to` (exclusive). Both `from` and `to` can be negative meaning a position from the end of the children list. A 0 in `from` means the start of the list, but a 0 in `to` stands for the end of list, resp. one behind. So `(range 0 0)` means the full list."
+(defn range
+  "Selects nodes based on their position in the children list of their
+  parent, starting at index `from` (inclusive) up to index
+  `to` (exclusive). Both `from` and `to` can be negative meaning a
+  position from the end of the children list. A 0 in `from` means the
+  start of the list, but a 0 in `to` stands for the end of list,
+  resp. one behind. So `(range 0 0)` means the full list."
   [from to]
-  (Children. from to))
+  (Position. from to))
 
-(defn nth "Select the nth child, starting at index 0." [n] (range n (inc n)))
-(defn nth-last "Select the nth child from the end of the child list." [n] (range (- n) (inc (- n))))
+(defn nth "Select nodes that are the nth child, starting at index 0." [n] (range n (inc n)))
+(defn nth-last "Select nodes that are \"nth but last\" child." [n] (range (- n) (inc (- n))))
 
-;; TODO: ore maybe the first node in the selected set?
-(def first "Select the first child of the current node." (nth 0))
-(def last "Select the last child of the current node." (range -1 0)))
+(def first "Select nodes that are the first child of their parent." (nth 0))
+(def last "Select nodes that are the last child of their parent." (range -1 0))
 
 (def root "Select the root of node tree." (Root.))
 (def root-all "Select all nodes in whole tree starting from root." (comp root all))

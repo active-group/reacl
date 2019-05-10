@@ -104,5 +104,8 @@
          (xpath/>> ** "span" xpath/text)))
 
   (is (= (xpath/comp xpath/children xpath/all (xpath/attr :width))
-         (xpath/>> . / ** :width)))  
+         (xpath/>> . / ** :width)))
+
+  (is (= (xpath/comp xpath/all (xpath/has? (xpath/attr :id)))
+         (xpath/>> ** [:id])))
   )

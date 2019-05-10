@@ -10,6 +10,7 @@
     (= '... f) `xpath/root
     (= '/ f) `xpath/children
     (= '** f) `xpath/all  ;; // is not a valid symbol
+    (vector? f) `(xpath/has? (xpath/>> ~@f))
     :else  ;; else eval
     f))
 
@@ -20,12 +21,9 @@
    - `..` selects the parent node.
    - `...` selects the root node.
    - `**` selects the current node and all its children and grand children.\n
+   - `[x y]` filters as with `(has? (>> x y))`
    Any other form should evaluate to a selector as with [[comp]].\n
    For example `(>> / **)` selects the children and all grand children from the current node.
 "
   [& forms]
-  (if-not (empty? forms)
-    `(xpath/comp ~@(if-not (empty? forms)
-                     (cons (xpath-form (first forms))
-                           (map xpath-form (rest forms)))
-                     (map xpath-form forms)))))
+  `(xpath/comp ~@(map xpath-form forms)))

@@ -362,6 +362,14 @@
     (reacl/reacl-class? sel) (class sel)
     :else sel))
 
+(defn- flatten-xpath
+  "(apply comp (flatten x)) == x  (or at least equivalent)"
+  [sel]
+  (if (instance? SimpleCompose sel)
+    (concat (flatten-xpath (:sel1 sel))
+            (flatten-xpath (:sel2 sel)))
+    [sel]))
+
 (defn- scomp [sel1 sel2]
   (SimpleCompose. sel1 sel2))
 
@@ -377,7 +385,7 @@
 "
   [& selectors]
   (loop [res self
-         selectors (map lift-selector selectors)] ;; TODO: flatten out nested SimpleCompose's?
+         selectors (map lift-selector (mapcat flatten-xpath selectors))]
     (if (empty? selectors)
       res
       (let [s1 (clojure.core/first selectors)]

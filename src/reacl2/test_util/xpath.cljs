@@ -22,6 +22,11 @@
   `(>> my-class [xp/args (xp/is? = [42])])`
 
   matches the context node, if it is an instance of `my-class` and if its argument vector equals `[42]`.
+
+  `(>> / \"span\" [xp/first])`  or  `(>> / \"span\" xp/first)`
+
+  both match the first span element below the context node.
+
 "
   
   (:require [reacl2.core :as reacl]
@@ -361,7 +366,7 @@
   (SimpleCompose. sel1 sel2))
 
 (defn comp "Compose the given xpath selector forms to a combined
-  selector, where from left to right, the selectors restrict the query
+  selector, where from left to right, the selectors restrict the filter
   further. \n
   Valid selectors are all the primitives from this module,
   as well as:\n

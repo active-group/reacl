@@ -309,15 +309,15 @@
 (def ^{:doc "Selects only those nodes that are a virtual dom element of the given string `type`."
        :arglists '([type])}
   tag type)
-(def ^{:doc "Selects only those nodes that are a class instance given Reacl `class`."
-       :arglists '([class])}
+(def ^{:doc "Selects only those nodes that are a class instance given Reacl `c`."
+       :arglists '([c])}
   class type)
 
 (defn- lift-selector [sel]
   ;; for convenience, lift some values are that "obviously" meant to be certain selectors:
   (cond
     (string? sel) (tag sel)
-    (keyword? sel) (tag (name sel))
+    (keyword? sel) (attr sel)
     (reacl/reacl-class? sel) (class sel)
     :else sel))
 
@@ -329,9 +329,10 @@
   further. \n
   Valid selectors are all the primitives from this module,
   as well as:\n
-  - strings or keywords stand for a virtual dom node as with [[tag]],
+  - strings stand for a virtual dom node as with [[tag]],
+  - keywords stand for attribute names as with [[attr]],
   - Reacl classes stand for a selection by that class as with [[class]]\n
-  Also see [[reacl/>>]] for a convenience macro version of this.
+  Also see [[>>]] for a convenience macro version of this.
 "
   [& selectors]
   (loop [res self

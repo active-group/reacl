@@ -15,13 +15,13 @@
     f))
 
 (defmacro >>
-  "Compose the given xpath selector forms to a combined selector, where from left to right, the selectors restrict the query further. Special selector forms are: \n
+  "Compose the given xpath selector forms to a combined selector, where from left to right, the selectors restrict the filter further. Special selector forms are: \n
    - `/` selects the the immediate children.
    - `.` selects/keeps the current node (will only rarely be needed).
    - `..` selects the parent node.
    - `...` selects the root node.
    - `**` selects the current node and all its children and grand children.\n
-   - `[x y]` filters as with `(has? (>> x y))`
+   - `[x y]` filters as with `(has? (>> x y))`\n
    Any other form should evaluate to a selector as with [[comp]].\n
    For example `(>> / **)` selects the children and all grand children from the current node.
 "

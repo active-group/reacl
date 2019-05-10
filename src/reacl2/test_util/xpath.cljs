@@ -1,4 +1,29 @@
 (ns reacl2.test-util.xpath
+  "An xpath is basically a convenient and compositional way to define
+  a filter function on nodes in a virtual DOM tree, resp. the React
+  test renderer tree, roughly based on a 'path' through the tree.
+
+  The functions [[select]], [[select-all]], [[select-one]]
+  and [[contains?]] apply that filter, starting from a specific
+  context node.
+
+  For example:
+
+  `(require [reacl2.test-util.xpath :as xp :include-macros true])`
+
+  `(>> / ** \"div\" [xp/text (xp/is= \"Hello\")])`
+
+  matches on all `div` elements anywhere below the context node, that have a text content equal to `\"Hello\"`.
+
+  `(>> / my-class / \"span\" [:id (xp/is= \"foo\")])`
+
+  matches on all `span` children of instances of the class `my-class` below the context node, that have the id `\"foo\"`.
+
+  `(>> my-class [xp/args (xp/is? = [42])])`
+
+  matches the context node, if it is an instance of `my-class` and if its argument vector equals `[42]`.
+"
+  
   (:require [reacl2.core :as reacl]
             [reacl2.dom :as dom]
             [reacl2.test-util.alpha :as alpha]
@@ -281,7 +306,8 @@
 
 (def ^{:doc "Selects the current node. This the identity element of composing selects with [[comp]]."} self (Id.))
 
-(def ^{:doc "Selects the parent of the current node."}
+(def ^{:doc "Selects the parent of the current node. When using the
+  composition macro [[>>]], the literal `..` is translated into this."}
   parent (Parent.))
 
 (defn or
@@ -319,7 +345,7 @@
                    (name n)))
 
 (defn attr
-  "Selects the value of an attribute `name` from virtual dom nodes."
+  "Selects the value of an attribute `name` from virtual dom nodes. As a convience, a simple keyword `k` is translated into `(attr k)`."
   [name]
   (Attr. (resolve-attr-name name)))
 
@@ -359,9 +385,14 @@
           ;; Note: could also make optimizations over 2 or more.
           :else (recur (scomp res s1) (rest selectors)))))))
 
-(def ^{:doc "Selects the current node and all of it's children and grand children."} all (All.))
+(def ^{:doc "Selects the current node and all of it's children and
+  grand children. When using the composition macro [[>>]], the literal
+  `**` is translated into this."}
+  all (All.))
 
-(def ^{:doc "Selects the children of the current node."} children (Children.))
+(def ^{:doc "Selects the children of the current node. When using the
+  composition macro [[>>]], the literal `/` is translated into this."}
+  children (Children.))
 
 (defn range
   "Selects nodes based on their position in the children list of their
@@ -379,7 +410,7 @@
 (def first "Select nodes that are the first child of their parent." (nth 0))
 (def last "Select nodes that are the last child of their parent." (range -1 0))
 
-(def root "Select the root of node tree." (Root.))
+(def root "Select the root of node tree. When using the composition macro [[>>]], the literal `...` is translated into this." (Root.))
 
 (def ^{:doc "Selects the child nodes of type 'text'."} text
   (Text.))
@@ -394,7 +425,9 @@
   (Args.))
 
 (defn has?
-  "Selects the nodes for which the given selector would result in a non-empty list of nodes."
+  "Selects the nodes for which the given selector would result in a
+  non-empty list of nodes. When using the composition macro [[>>]], a
+  vector literal is translated into this."
   [sel]
   (Has. sel))
 

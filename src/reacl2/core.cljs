@@ -524,7 +524,19 @@
      ;; queue
      messages])
 
+
 (def ^:private returned-nil (Returned. keep-state keep-state nil #queue []))
+
+
+(extend-protocol IPrintWithWriter
+  Returned
+  (-pr-writer [ret writer _]
+    (-write writer
+      (->> (clojure.data.diff ret returned-nil)
+        (first)
+        (pr-str)
+        (str "#" (namespace ::x) ".Returned")))))
+
 
 (defn returned-app-state
   "Returns the app-state from the given [[return]] value."

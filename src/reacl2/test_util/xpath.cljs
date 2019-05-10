@@ -354,6 +354,8 @@
           (instance? Id s1) (recur res (rest selectors))
           (instance? Void s1) s1
           (instance? Root s1) (recur s1 (rest selectors))
+
+          (instance? Id res) (recur s1 (rest selectors))
           ;; Note: could also make optimizations over 2 or more.
           :else (recur (scomp res s1) (rest selectors)))))))
 

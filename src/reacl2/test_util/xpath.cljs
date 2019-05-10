@@ -98,13 +98,11 @@
 ;; selectors
 
 (defprotocol ^:no-doc XPathSelector
-  (-compose [this other] "Return a new selector, that is equivalent to this followed by the given other selector.")
   ;; Note: this is probably not the most efficient api for large node trees, but should be good enough for tests:
   (-map-nodes [this nodes] "Return a list of nodes matching this selector relative to the given nodes."))
 
 (defrecord ^:no-doc SimpleCompose [sel1 sel2]
   XPathSelector
-  (-compose [this other] (SimpleCompose. this other))
   (-map-nodes [this nodes]
     (->> nodes
          (-map-nodes sel1)
@@ -112,19 +110,14 @@
 
 (defrecord ^:private Id []
   XPathSelector
-  (-compose [this other] other)
   (-map-nodes [this nodes] nodes))
 
 (defrecord ^:private Void []
   XPathSelector
-  (-compose [this other] this)
   (-map-nodes [this nodes] #{}))
 
 (defrecord ^:private Children []
   XPathSelector
-  (-compose [this other]
-    ;; Note: could optimize this here if other is Type for example.
-    (SimpleCompose. this other))
   (-map-nodes [this nodes]
     (mapcat node-children nodes)))
 
@@ -146,9 +139,6 @@
 
 (defrecord ^:private Position [from to]
   XPathSelector
-  (-compose [this other]
-    ;; Note: could optimize this here if other is Type for example.
-    (SimpleCompose. this other))
   (-map-nodes [this nodes]
     (filter (fn [n]
               (when-let [p (node-parent n)]
@@ -159,9 +149,6 @@
 
 (defrecord ^:private All []
   XPathSelector
-  (-compose [this other]
-    ;; Note: could optimize this here if other is Type for example.
-    (SimpleCompose. this other))
   (-map-nodes [this nodes]
     ;; these nodes, their children, and all their children
     (let [cs (-map-nodes (Children.) nodes)]
@@ -171,7 +158,6 @@
 
 (defrecord ^:private Type [t]
   XPathSelector
-  (-compose [this other] (SimpleCompose. this other))
   (-map-nodes [this nodes]
     (let [t (if (reacl/reacl-class? t)
               (reacl/react-class t)
@@ -180,13 +166,11 @@
 
 (defrecord ^:private Text []
   XPathSelector
-  (-compose [this other] (SimpleCompose. this other))
   (-map-nodes [this nodes]
     (filter #(instance? TextNode %) (-map-nodes (Children.) nodes))))
 
 (defrecord ^:private Attr [n]
   XPathSelector
-  (-compose [this other] (SimpleCompose. this other))
   (-map-nodes [this nodes]
     (->> nodes
          ;; only DOM nodes.
@@ -204,14 +188,12 @@
 
 (defrecord ^:private AppState []
   XPathSelector
-  (-compose [this other] (SimpleCompose. this other))
   (-map-nodes [this nodes]
     ;; FIXME: remove class instances without app-state
     (map-nodes-to-property nodes "reacl_app_state")))
 
 (defrecord ^:private LocalState []
   XPathSelector
-  (-compose [this other] (SimpleCompose. this other))
   (-map-nodes [this nodes]
     (->> nodes
          (map node-instance)
@@ -220,46 +202,35 @@
 
 (defrecord ^:private Args []
   XPathSelector
-  (-compose [this other] (SimpleCompose. this other))
   (-map-nodes [this nodes]
     (map-nodes-to-property nodes "reacl_args")))
 
 (defrecord ^:private Root []
   XPathSelector
-  (-compose [this other]
-    (SimpleCompose. this other))
   (-map-nodes [this nodes]
     (assert (not-empty nodes) "Cannot go to the root of an empty node set.") ;; or we could remember the node passed to select?
     #{(RootNode. (alpha/resolve-toplevel (node-value (node-parent (clojure.core/first nodes)))))}))
 
 (defrecord ^:private Has [sel]
   XPathSelector
-  (-compose [this other]
-    (SimpleCompose. this other))
   (-map-nodes [this nodes]
     (remove (fn [n] (empty? (-map-nodes sel #{n})))
             nodes)))
 
 (defrecord ^:private Is [pred args]
   XPathSelector
-  (-compose [this other]
-    (SimpleCompose. this other))
   (-map-nodes [this nodes]
     (filter #(apply pred (node-value %) args)
             nodes)))
 
 (defrecord ^:private Parent []
   XPathSelector
-  (-compose [this other]
-    (SimpleCompose. this other))
   (-map-nodes [this nodes]
     ;; Note: multiple nodes may have the same parent; removing duplicates:
     (distinct (filter some? (map node-parent nodes)))))
 
 (defrecord ^:private Or [sel1 sel2]
   XPathSelector
-  (-compose [this other]
-    (SimpleCompose. this other))
   (-map-nodes [this nodes]
     (distinct (concat (-map-nodes sel1 nodes)
                       (-map-nodes sel2 nodes)))))
@@ -272,8 +243,6 @@
 
 (defrecord ^:private And [sel1 sel2]
   XPathSelector
-  (-compose [this other]
-    (SimpleCompose. this other))
   (-map-nodes [this nodes]
     (concat-commons (-map-nodes sel1 nodes)
                     (-map-nodes sel2 nodes))))
@@ -352,6 +321,9 @@
     (reacl/reacl-class? sel) (class sel)
     :else sel))
 
+(defn- scomp [sel1 sel2]
+  (SimpleCompose. sel1 sel2))
+
 (defn comp "Compose the given xpath selector forms to a combined
   selector, where from left to right, the selectors restrict the query
   further. \n
@@ -361,8 +333,18 @@
   - Reacl classes stand for a selection by that class as with [[class]]\n
   Also see [[reacl/>>]] for a convenience macro version of this.
 "
-  ([] self) ;; TODO: or void? or error?
-  ([& selectors] (reduce -compose (map lift-selector selectors))))
+  [& selectors]
+  (loop [res self
+         selectors (map lift-selector selectors)] ;; TODO: flatten out nested SimpleCompose's?
+    (if (empty? selectors)
+      res
+      (let [s1 (clojure.core/first selectors)]
+        (cond
+          (instance? Id s1) (recur res (rest selectors))
+          (instance? Void s1) s1
+          (instance? Root s1) (recur s1 (rest selectors))
+          ;; Note: could also make optimizations over 2 or more.
+          :else (recur (scomp res s1) (rest selectors)))))))
 
 (def ^{:doc "Selects the current node and all of it's children and grand children."} all (All.))
 

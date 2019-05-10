@@ -313,6 +313,16 @@
        :arglists '([c])}
   class type)
 
+(defn- resolve-attr-name [n]
+  (clojure.core/or (clojure.core/and (string? n) n)
+                   (aget dom/reacl->react-attribute-names (name n))
+                   (name n)))
+
+(defn attr
+  "Selects the value of an attribute `name` from virtual dom nodes."
+  [name]
+  (Attr. (resolve-attr-name name)))
+
 (defn- lift-selector [sel]
   ;; for convenience, lift some values are that "obviously" meant to be certain selectors:
   (cond
@@ -371,16 +381,6 @@
 
 (def ^{:doc "Selects the child nodes of type 'text'."} text
   (Text.))
-
-(defn- resolve-attr-name [n]
-  (clojure.core/or (clojure.core/and (string? n) n)
-                   (aget dom/reacl->react-attribute-names (name n))
-                   (name n)))
-
-(defn attr
-  "Selects the value of an attribute `name` from virtual dom nodes."
-  [name]
-  (Attr. (resolve-attr-name name)))
 
 (def ^{:doc "Selects the app-state if the current node is a Reacl component that has one."} app-state
   (AppState.))

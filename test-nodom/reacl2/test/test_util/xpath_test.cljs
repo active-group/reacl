@@ -29,7 +29,7 @@
         (is (= (xpath/select-all comp (xpath/comp clazz xpath/children "div" xpath/children "span" xpath/text))
                ["Hello" "World"]))
 
-        (is (= (xpath/select-all comp (xpath/comp xpath/all-children (xpath/attr :width)))
+        (is (= (xpath/select-all comp (xpath/comp xpath/children xpath/all (xpath/attr :width)))
                [42]))
 
         (is (= (xpath/select comp (xpath/comp clazz xpath/app-state (xpath/is= :initial)))
@@ -40,33 +40,33 @@
         (is (= (xpath/select comp (xpath/comp xpath/root xpath/children (xpath/class clazz)))
                comp))
 
-        (is (= (count (xpath/select-all comp (xpath/comp xpath/all-children (xpath/has? (xpath/attr :width)))))
+        (is (= (count (xpath/select-all comp (xpath/comp xpath/children xpath/all (xpath/has? (xpath/attr :width)))))
                1))
-        (is (= (count (xpath/select-all comp (xpath/comp xpath/all-children (xpath/has? (xpath/comp (xpath/attr :width)
-                                                                                                    (xpath/is= 42))))))
+        (is (= (count (xpath/select-all comp (xpath/comp xpath/children xpath/all (xpath/has? (xpath/comp (xpath/attr :width)
+                                                                                                          (xpath/is= 42))))))
                1))
-        (is (empty? (xpath/select-all comp (xpath/comp xpath/all-children (xpath/has? (xpath/comp (xpath/attr :width) (xpath/is? > 42)))))))
+        (is (empty? (xpath/select-all comp (xpath/comp xpath/children xpath/all (xpath/has? (xpath/comp (xpath/attr :width) (xpath/is? > 42)))))))
 
-        (is (= (count (xpath/select-all comp (xpath/comp xpath/all-children (xpath/has? (xpath/comp xpath/text (xpath/re-matches? #"Hell.*"))))))
+        (is (= (count (xpath/select-all comp (xpath/comp xpath/children xpath/all (xpath/has? (xpath/comp xpath/text (xpath/re-matches? #"Hell.*"))))))
                1))
 
         (is (= (xpath/select comp (xpath/comp xpath/children xpath/parent))
                comp))
-        (is (= (count (xpath/select-all comp (xpath/comp xpath/all-children (xpath/tag "span") xpath/parent))) ;; all spans have a single parent.
+        (is (= (count (xpath/select-all comp (xpath/comp xpath/children xpath/all (xpath/tag "span") xpath/parent))) ;; all spans have a single parent.
                1))
 
-        (is (= (count (xpath/select-all comp (xpath/comp xpath/all-children (xpath/has? (xpath/or (xpath/attr :width)
-                                                                                                  xpath/text)))))
+        (is (= (count (xpath/select-all comp (xpath/comp xpath/children xpath/all (xpath/has? (xpath/or (xpath/attr :width)
+                                                                                                        xpath/text)))))
                3))
-        (is (= (count (xpath/select-all comp (xpath/comp xpath/all-children (xpath/and (xpath/tag "span")
-                                                                                       (xpath/has? (xpath/attr :width))))))
+        (is (= (count (xpath/select-all comp (xpath/comp xpath/children xpath/all (xpath/and (xpath/tag "span")
+                                                                                             (xpath/has? (xpath/attr :width))))))
                1))
-        (is (= (count (xpath/select-all comp (xpath/comp xpath/all-children (xpath/id= "foo"))))
+        (is (= (count (xpath/select-all comp (xpath/comp xpath/children xpath/all (xpath/id= "foo"))))
                1))
-        (is (= (count (xpath/select-all comp (xpath/comp xpath/all-children "span" (xpath/has? xpath/first))))
+        (is (= (count (xpath/select-all comp (xpath/comp xpath/children xpath/all "span" (xpath/has? xpath/first))))
                1))
-        (is (= (xpath/select-all comp (xpath/comp xpath/all-children "span" (xpath/has? xpath/first)))
-               (xpath/select-all comp (xpath/comp xpath/all-children "span" xpath/first))))
+        (is (= (xpath/select-all comp (xpath/comp xpath/children xpath/all "span" (xpath/has? xpath/first)))
+               (xpath/select-all comp (xpath/comp xpath/children xpath/all "span" xpath/first))))
         ))))
 
 (deftest range-plus-test
@@ -97,12 +97,12 @@
 
   (is (= xpath/root
          (xpath/>> ...)))
-  (is (= xpath/root-all
+  (is (= (xpath/comp xpath/root xpath/all)
          (xpath/>> ... **)))
 
   (is (= (xpath/comp xpath/all "span" xpath/text)
          (xpath/>> ** "span" xpath/text)))
 
-  (is (= (xpath/comp xpath/all-children (xpath/attr :width))
+  (is (= (xpath/comp xpath/children xpath/all (xpath/attr :width))
          (xpath/>> . / ** (xpath/attr :width))))  
   )

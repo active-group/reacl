@@ -368,8 +368,6 @@
 
 (def ^{:doc "Selects the children of the current node."} children (Children.))
 
-(def ^{:doc "Selects the children of the current node and all the grand children."} all-children (comp children all))
-
 (defn range
   "Selects nodes based on their position in the children list of their
   parent, starting at index `from` (inclusive) up to index
@@ -387,7 +385,6 @@
 (def last "Select nodes that are the last child of their parent." (range -1 0))
 
 (def root "Select the root of node tree." (Root.))
-(def root-all "Select all nodes in whole tree starting from root." (comp root all))
 
 (def ^{:doc "Selects the child nodes of type 'text'."} text
   (Text.))

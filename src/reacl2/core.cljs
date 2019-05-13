@@ -536,7 +536,7 @@
      messages])
 
 
-(def ^:private returned-nil (Returned. keep-state keep-state nil #queue []))
+(def ^:private returned-nil (Returned. keep-state keep-state [] #queue []))
 
 
 (extend-protocol IPrintWithWriter
@@ -584,7 +584,7 @@
              (if (keep-state? local-state)
                (:local-state ret)
                local-state)
-             (concat (:actions ret) actions)
+             (vec (concat (:actions ret) actions))
              (reduce conj
                      (:messages ret)
                      messages)))

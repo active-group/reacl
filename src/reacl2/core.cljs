@@ -538,15 +538,17 @@
 
 (def ^:private returned-nil (Returned. keep-state keep-state [] #queue []))
 
+(defn- as-map [v]
+  (or v {}))
 
 (extend-protocol IPrintWithWriter
   Returned
   (-pr-writer [ret writer _]
+    (-write writer (str "#" (namespace ::x) ".Returned "))
     (-write writer
-      (->> (clojure.data.diff ret returned-nil)
-        (first)
-        (pr-str)
-        (str "#" (namespace ::x) ".Returned")))))
+            (->> (clojure.data.diff ret returned-nil)
+                 (first)
+                 (as-map)))))
 
 
 (defn returned-app-state

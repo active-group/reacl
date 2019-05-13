@@ -65,7 +65,7 @@
     (js/console.group label)
     (assoc state :group-open true)))
 
-(def ^{:doc "A tracer that logs everything that causes and happens during a Reacl rendering cycle."} console-tracer
+(defonce ^{:doc "A tracer that logs everything that causes and happens during a Reacl rendering cycle."} console-tracer
   (trace/map-event-cycle-ids
    (trace/tracer
     {:group-open false}

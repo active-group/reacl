@@ -1021,7 +1021,7 @@
                                                'component-will-receive-args))))
 
             "componentDidCatch"
-            (std+state component-did-catch)
+            (std+state component-did-catch 'component-did-catch)
 
             "getChildContext" (fn []
                                 (this-as this 

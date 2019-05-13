@@ -1,4 +1,5 @@
 (ns reacl2.trace.console
+  "Tracers to be used with [[reacl2.trace.core/add-tracer!]] that issue log entries via `js/console.log`."
   (:require [reacl2.trace.core :as trace]
             [reacl2.core :as reacl]))
 
@@ -64,7 +65,7 @@
     (js/console.group label)
     (assoc state :group-open true)))
 
-(def console-tracer
+(def ^{:doc "A tracer that logs everything that causes and happens during a Reacl rendering cycle."} console-tracer
   (trace/map-event-cycle-ids
    (trace/tracer
     {:group-open false}
@@ -101,7 +102,11 @@
        (log! (str "#" cycle-id) "commit global app-state" (global global-app-state) "and local states" (map-keys show-comp-short local-state-map))
        (end-group state))})))
 
-(defn component-tracer [label pred & args]
+(defn component-tracer
+  "A tracer that logs the parts of Reacl rendering cycles that involve
+  all components matching the given predicate `(pred comp &
+  args)`. The log entries are prefixed with the given `label`."
+  [label pred & args]
   (trace/tracer
    {}
    {trace/send-message-trace
@@ -128,6 +133,10 @@
         (apply log! label (concat (show-comp cmp) ["commit local-state" st])))
       state)}))
 
-(defn class-tracer [label clazz]
+(defn class-tracer
+  "A tracer that logs the parts of Reacl rendering cycles that involve
+  all components instantiated from the given Reacl class. The log
+  entries are prefixed with the given `label`."
+  [label clazz]
   (component-tracer label (fn [component]
                             (= clazz (reacl/component-class component)))))

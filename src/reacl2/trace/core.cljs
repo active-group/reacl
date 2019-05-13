@@ -1,4 +1,7 @@
-(ns reacl2.trace.core)
+(ns reacl2.trace.core
+  "Functions to install and uninstall
+  tracers ([[add-tracer!]], [[remove-tracer!]], and primitives and
+  utilities to implement new tracers.")
 
 (def ^:private tracers (atom {}))
 
@@ -31,11 +34,18 @@
              (catch :default e
                (js/console.warn "Tracer failed" e)))))))
 
-(defn tracer [initial-state tracer-map]
+(defn tracer
+  "Creates a stateful tracer with an initial state and a map
+  associating functions to one or more available
+  traces ([[send-message-trace]], [[commit-trace]] etc.)."
+  [initial-state tracer-map]
   {:initial-state initial-state
    :tracer-map tracer-map})
 
 (defn add-tracer!
+  "Installs the given tracer under the given id (which replaces a
+  previous tracer associated with the same id). If no id is specified,
+  the tracer itself serves as its id."
   ([tracer] (add-tracer! tracer tracer)) ;; use the tracer as its id
   ([id tracer]
    (let [{:keys [initial-state tracer-map]} tracer]
@@ -43,9 +53,12 @@
      (assert (every? #{returned-trace send-message-trace render-component-trace reduced-action-trace commit-trace}
                      (keys tracer-map)))
      (assert (every? ifn? (vals tracer-map)))
-     (swap! tracers assoc id [initial-state tracer-map]))))
+     (swap! tracers assoc id [initial-state tracer-map])
+     id)))
 
-(defn remove-tracer! [id]
+(defn remove-tracer!
+  "Uninstalls the tracer previously installed under the given id."
+  [id]
   (swap! tracers dissoc id))
 
 (defn ^:no-doc trace-send-message!
@@ -70,14 +83,19 @@
 
 ;; utitlies for tracers
 
-(defn component-class-name [comp]
+(defn component-class-name
+  "Returns the name of the class the given component was instantiated
+  from."
+  [comp]
   (.-displayName (.-constructor comp)))
 
 (defonce ^:private comp-ids (atom nil))
 (defonce ^:private comp-id-next (atom 0))
 (defn- next-id [] (swap! comp-id-next inc))
 
-(defn component-id [comp]
+(defn component-id
+  "Assigns and returns a unique id for each unique component `comp`."
+  [comp]
   (let [wmp (or @comp-ids
                 (let [m (js/WeakMap.)]
                   (reset! comp-ids m)
@@ -95,7 +113,11 @@
   (-> (f state (:event-id state))
       (update :event-id inc)))
 
-(defn map-event-cycle-ids [tracer]
+(defn ^:no-doc map-event-cycle-ids
+  "Transforms the given tracer, so that event and cycle ids are
+  reconstructed from the traces, passed to the trace functions used in
+  the tracer."
+  [tracer]
   (-> tracer
       (update :initial-state event-cycle-ids-initial-state)
       (update :tracer-map

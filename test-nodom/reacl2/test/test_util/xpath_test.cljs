@@ -40,14 +40,14 @@
         (is (= (xpath/select comp (xpath/comp xpath/root xpath/children (xpath/class clazz)))
                comp))
 
-        (is (= (count (xpath/select-all comp (xpath/comp xpath/children xpath/all (xpath/has? (xpath/attr :width)))))
+        (is (= (count (xpath/select-all comp (xpath/comp xpath/children xpath/all (xpath/where (xpath/attr :width)))))
                1))
-        (is (= (count (xpath/select-all comp (xpath/comp xpath/children xpath/all (xpath/has? (xpath/comp (xpath/attr :width)
-                                                                                                          (xpath/is= 42))))))
+        (is (= (count (xpath/select-all comp (xpath/comp xpath/children xpath/all (xpath/where (xpath/comp (xpath/attr :width)
+                                                                                                           (xpath/is= 42))))))
                1))
-        (is (empty? (xpath/select-all comp (xpath/comp xpath/children xpath/all (xpath/has? (xpath/comp (xpath/attr :width) (xpath/is? > 42)))))))
+        (is (empty? (xpath/select-all comp (xpath/comp xpath/children xpath/all (xpath/where (xpath/comp (xpath/attr :width) (xpath/is? > 42)))))))
 
-        (is (= (count (xpath/select-all comp (xpath/comp xpath/children xpath/all (xpath/has? (xpath/comp xpath/text (xpath/re-matches? #"Hell.*"))))))
+        (is (= (count (xpath/select-all comp (xpath/comp xpath/children xpath/all (xpath/where (xpath/comp xpath/text (xpath/re-matches? #"Hell.*"))))))
                1))
 
         (is (= (xpath/select comp (xpath/comp xpath/children xpath/parent))
@@ -55,17 +55,17 @@
         (is (= (count (xpath/select-all comp (xpath/comp xpath/children xpath/all (xpath/tag "span") xpath/parent))) ;; all spans have a single parent.
                1))
 
-        (is (= (count (xpath/select-all comp (xpath/comp xpath/children xpath/all (xpath/has? (xpath/or (xpath/attr :width)
-                                                                                                        xpath/text)))))
+        (is (= (count (xpath/select-all comp (xpath/comp xpath/children xpath/all (xpath/where (xpath/or (xpath/attr :width)
+                                                                                                         xpath/text)))))
                3))
         (is (= (count (xpath/select-all comp (xpath/comp xpath/children xpath/all (xpath/and (xpath/tag "span")
-                                                                                             (xpath/has? (xpath/attr :width))))))
+                                                                                             (xpath/where (xpath/attr :width))))))
                1))
         (is (= (count (xpath/select-all comp (xpath/comp xpath/children xpath/all (xpath/id= "foo"))))
                1))
-        (is (= (count (xpath/select-all comp (xpath/comp xpath/children xpath/all "span" (xpath/has? xpath/first))))
+        (is (= (count (xpath/select-all comp (xpath/comp xpath/children xpath/all "span" (xpath/where xpath/first))))
                1))
-        (is (= (xpath/select-all comp (xpath/comp xpath/children xpath/all "span" (xpath/has? xpath/first)))
+        (is (= (xpath/select-all comp (xpath/comp xpath/children xpath/all "span" (xpath/where xpath/first)))
                (xpath/select-all comp (xpath/comp xpath/children xpath/all "span" xpath/first))))
         ))))
 
@@ -106,6 +106,6 @@
   (is (= (xpath/comp xpath/children xpath/all (xpath/attr :width))
          (xpath/>> . / ** :width)))
 
-  (is (= (xpath/comp xpath/all (xpath/has? (xpath/attr :id)))
+  (is (= (xpath/comp xpath/all (xpath/where (xpath/attr :id)))
          (xpath/>> ** [:id])))
   )

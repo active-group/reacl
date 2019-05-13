@@ -23,9 +23,9 @@
 
   matches the context node, if it is an instance of `my-class` and if its argument vector equals `[42]`.
 
-  `(>> / \"span\" [xp/first])`  or  `(>> / \"span\" xp/first)`
+  `(>> / \"span\" [xp/first])`
 
-  both match the first span element below the context node.
+  matches the first span element below the context node.
 
 "
   
@@ -33,7 +33,7 @@
             [reacl2.dom :as dom]
             [reacl2.test-util.alpha :as alpha]
             cljsjs.react.test-renderer)
-  (:refer-clojure :exclude [type comp range first last nth or and contains?]))
+  (:refer-clojure :exclude [type comp range first last nth or and contains? key]))
 
 ;; Idea: an xpath is a concatenated sequence of selectors (>> sel1 sel2 ...) that can be
 ;; applied to a list of nodes, where each selector maps that list to a
@@ -199,22 +199,24 @@
   (-map-nodes [this nodes]
     (filter #(instance? TextNode %) (-map-nodes (Children.) nodes))))
 
+(defn- map-prop [n nodes]
+  (->> nodes
+       (filter #(.hasOwnProperty (node-props %) n))
+       (map (fn [node]
+              (NodeProperty. node (keyword n) (aget (node-props node) n))))))
+
 (defrecord ^:private Attr [n]
   XPathSelector
   (-map-nodes [this nodes]
     (->> nodes
          ;; only DOM nodes.
          (filter (fn [n] (string? (node-type n))))
-         (filter #(.hasOwnProperty (node-props %) n))
-         (map (fn [node]
-                (NodeProperty. node (keyword n) (aget (node-props node) n)))))))
+         (map-prop n))))
 
 (defn- map-nodes-to-property [nodes property]
   (->> nodes
-       (filter (fn [n] (not (string? (node-type n)))))
-       (filter #(.hasOwnProperty (node-props %) property))
-       (map (fn [node]
-              (NodeProperty. node (keyword property) (aget (node-props node) property))))))
+       (filter (fn [n] (not (string? (node-type n))))) ;; only components.
+       (map-prop property)))
 
 (defrecord ^:private AppState []
   XPathSelector
@@ -235,16 +237,23 @@
   (-map-nodes [this nodes]
     (map-nodes-to-property nodes "reacl_args")))
 
+(defrecord ^:private Prop [k]
+  XPathSelector
+  (-map-nodes [this nodes]
+    (-> nodes
+        (filter #(clojure.core/or (string? (node-type %)) (reacl/reacl-class? (node-type %))))
+        (map-prop k))))
+
 (defrecord ^:private Root []
   XPathSelector
   (-map-nodes [this nodes]
     (assert (not-empty nodes) "Cannot go to the root of an empty node set.") ;; or we could remember the node passed to select?
     #{(RootNode. (alpha/resolve-toplevel (node-value (node-parent (clojure.core/first nodes)))))}))
 
-(defrecord ^:private Has [sel]
+(defrecord ^:private Where [sel]
   XPathSelector
   (-map-nodes [this nodes]
-    (remove (fn [n] (empty? (-map-nodes sel #{n})))
+    (remove (fn [n] (empty? (-map-nodes sel [n])))
             nodes)))
 
 (defrecord ^:private Is [pred args]
@@ -437,12 +446,15 @@
 (def ^{:doc "Selects the argument vector if the current node is a Reacl component."} args
   (Args.))
 
-(defn has?
+(defn where
   "Selects the nodes for which the given selector would result in a
   non-empty list of nodes. When using the composition macro [[>>]], a
   vector literal is translated into this."
   [sel]
-  (Has. sel))
+  (assert (satisfies? XPathSelector sel))
+  (Where. sel))
+
+(def ^{:doc "Selects the key property of the nodes, if they have one."} key (Prop. "key"))
 
 (defn is? "Keeps the current node only if `(pred node & args)` returns truthy." [pred & args]
   (Is. pred args))

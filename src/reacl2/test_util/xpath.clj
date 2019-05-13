@@ -9,8 +9,8 @@
     (= '.. f) `xpath/parent
     (= '... f) `xpath/root
     (= '/ f) `xpath/children
-    (= '** f) `xpath/all  ;; // is not a valid symbol
-    (vector? f) `(xpath/has? (xpath/>> ~@f))
+    (= '** f) `xpath/all
+    (vector? f) `(xpath/where (xpath/>> ~@f))
     :else  ;; else eval
     f))
 

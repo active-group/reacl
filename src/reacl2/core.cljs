@@ -3,7 +3,8 @@
   (:require [cljsjs.react]
             [cljsjs.react.dom]
             [cljsjs.create-react-class]
-            [cljsjs.prop-types]))
+            [cljsjs.prop-types]
+            [reacl2.trace.core :as trace]))
 
 (defn- local-state-state
   "Set Reacl local state in the given state object.
@@ -241,6 +242,12 @@
        (.hasOwnProperty v "props")
        (.hasOwnProperty v "state")))
 
+(defn ^:no-doc component-class
+  "Returns the class the given reacl component (a 'this') was created from."
+  [v]
+  (assert (component? v))
+  (aget (.-props v) "reacl_class"))
+
 (defn class-name
   "Returns the display name of the given Reacl class"
   [class]
@@ -369,6 +376,7 @@
                                                  :reacl_locals (compute-locals rclazz app-state args)
                                                  :reacl_args (vec args)
                                                  :reacl_refs (-make-refs clazz)
+                                                 :reacl_class clazz
                                                  :reacl_reaction (internal-reaction opts)
                                                  :reacl_reduce_action (or (:reduce-action opts)
                                                                           default-reduce-action)}))))
@@ -388,6 +396,7 @@
                  ;; instantiated.
                  (let [app-state (aget new-props
                                        "reacl_app_state")]
+                   (trace/trace-render-component! (aget new-props "reacl_toplevel_class") app-state (aget new-props "reacl_toplevel_args")) ;; TODO: only when things actually changed maybe?
                    (if (not (identical? (aget state "reacl_initial_app_state")
                                         app-state))
                      #js {:reacl_initial_app_state app-state
@@ -460,6 +469,7 @@
                                  :reacl_locals (compute-locals rclazz app-state args)
                                  :reacl_args args
                                  :reacl_refs (-make-refs clazz)
+                                 :reacl_class clazz
                                  :reacl_reaction (internal-reaction opts)
                                  :reacl_parent (:parent opts)
                                  :reacl_reduce_action (or (:reduce-action opts)
@@ -472,6 +482,7 @@
                             #js {:reacl_app_state app-state
                                  :reacl_locals (compute-locals rclazz app-state args)
                                  :reacl_args args
+                                 :reacl_class clazz
                                  :reacl_reaction reaction
                                  :reacl_reduce_action default-reduce-action})))
 
@@ -659,6 +670,8 @@
               ;; we ignore local-state here - no point
               new-actions (:actions action-ret)
               new-messages (:messages action-ret)]
+          (when (not= reduce-action default-reduce-action)
+            (trace/trace-reduced-action! comp action action-ret))
           (recur (rest actions)
                  (right-state app-state
                               action-app-state)
@@ -826,13 +839,15 @@
   "Handle all effects described and caused by a [[Returned]] object. This is the entry point into a Reacl update cycle.
 
   Assumes the actions in `ret` are for comp."
-  [comp ^Returned ret]
+  [comp ^Returned ret from]
+  (trace/trace-returned! comp ret from)
   (let [ui (handle-returned comp ret)
         comp (:toplevel-component ui)
         app-state (:toplevel-app-state ui)
         uber (resolve-uber comp)]
     ;; after handle-returned, all messages must have been processed:
     (assert (empty? (:queued-messages ui)) "Internal invariant violation.")
+    (trace/trace-cycle-done! app-state (:local-state-map ui))
     (doseq [[comp local-state] (:local-state-map ui)]
       (set-local-state! comp local-state))
     (when-not (keep-state? app-state)
@@ -859,10 +874,11 @@
   (when *send-message-forbidden*
     (assert false "The function send-message! must never be called during an update cycle. Use (reacl/return :message ...) instead."))
   ;; resolve-component is mainly for automated tests that send a message to the top-level component directly
+  (trace/trace-send-message! comp msg)
   (binding [*send-message-forbidden* true]
     (let [comp (resolve-component comp)
           ^Returned ret (handle-message comp msg)]
-      (js/ReactDOM.unstable_batchedUpdates #(handle-returned! comp ret))
+      (js/ReactDOM.unstable_batchedUpdates #(handle-returned! comp ret 'handle-message))
       ret)))
 
 (defn send-message-allowed?
@@ -872,11 +888,11 @@
   []
   (not *send-message-forbidden*))
 
-(defn- opt-handle-returned! [component v]
+(defn- opt-handle-returned! [component v from]
   (when (some? v)
     (if (returned? v)
-      (handle-returned! component v)
-      (assert false (str "A 'reacl/return' value was expected, but a method returned: " (pr-str v))))))
+      (handle-returned! component v from)
+      (assert false (str "A 'reacl/return' value was expected, but " from " returned:" (pr-str v))))))
 
 ;; Attention: duplicate definition for macro in core.clj
 (def ^:private specials #{:render :initial-state :handle-message
@@ -937,7 +953,7 @@
                             react-args)))))
 
           std+state
-          (fn [f]
+          (fn [f method-name]
             (and f
                  (fn [& react-args]
                    (this-as this
@@ -945,7 +961,8 @@
                                                        this
                                                        (extract-app-state this) (extract-local-state this)
                                                        (extract-locals this) (extract-args this) (extract-refs this)
-                                                       react-args))))))
+                                                       react-args)
+                                           method-name)))))
 
           ;; and one arg with next/prev-state
           with-state-and-args
@@ -991,16 +1008,17 @@
             "__handleMessage" handle-message
 
             "UNSAFE_componentWillMount"
-            (std+state component-will-mount)
+            (std+state component-will-mount 'component-will-mount)
 
             "UNSAFE_componentWillReceiveProps"
             (when component-will-receive-args
               (fn [next-props]
                 (this-as this
-                         (->> (apply component-will-receive-args this
-                                     (extract-app-state this) (extract-local-state this) (extract-locals this) (extract-args this) (extract-refs this)
-                                     (props-extract-args next-props))
-                              (opt-handle-returned! this)))))
+                         (opt-handle-returned! this
+                                               (apply component-will-receive-args this
+                                                      (extract-app-state this) (extract-local-state this) (extract-locals this) (extract-args this) (extract-refs this)
+                                                      (props-extract-args next-props))
+                                               'component-will-receive-args))))
 
             "componentDidCatch"
             (std+state component-did-catch)
@@ -1010,7 +1028,7 @@
                                   #js {:reacl_parent this}))
 
             "componentDidMount"
-            (std+state component-did-mount)
+            (std+state component-did-mount 'component-did-mount)
 
             "shouldComponentUpdate"
             (let [f (with-state-and-args should-component-update?)]
@@ -1035,10 +1053,10 @@
               (let [f (with-state-and-args component-did-update)]
                 (fn [prev-props prev-state]
                   (this-as this
-                           (opt-handle-returned! this (.call f this prev-props prev-state))))))
+                           (opt-handle-returned! this (.call f this prev-props prev-state) 'component-did-update)))))
 
             "componentWillUnmount"
-            (std+state component-will-unmount)
+            (std+state component-will-unmount 'component-will-unmount)
 
             "statics"
             #js {"__computeLocals" compute-locals ;; [app-state & args]}
@@ -1196,9 +1214,9 @@
         pass-through (fn [this res] res)
         entries (filter identity
                         (vector 
-                         (entry :component-did-mount "componentDidMount" (fn [this res] (opt-handle-returned! this res)))
-                         (entry :component-will-mount "componentWillMount" (fn [this res] (opt-handle-returned! this res)))
-                         (entry :component-will-unmount "componentWillUnmount" (fn [this res] (opt-handle-returned! this res)))
+                         (entry :component-did-mount "componentDidMount" (fn [this res] (opt-handle-returned! this res 'component-did-mount)))
+                         (entry :component-will-mount "componentWillMount" (fn [this res] (opt-handle-returned! this res 'component-will-mount)))
+                         (entry :component-will-unmount "componentWillUnmount" (fn [this res] (opt-handle-returned! this res 'component-will-unmount)))
                          (app+local-entry :component-will-update "componentWillUpdate")
                          (app+local-entry :component-did-update "componentDidUpdate")
                          ;; FIXME: :component-will-receive-args 

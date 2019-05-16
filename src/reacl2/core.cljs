@@ -320,7 +320,7 @@
   "
   [& {:as mp}]
   {:pre [(every? (fn [[k _]]
-                   (contains? #{:reaction :embed-app-state :embed :reduce-action :parent :ref} k))
+                   (contains? #{:reaction :embed-app-state :embed :embed-locally :reduce-action :parent :ref} k))
                  mp)]}
   (Options. mp))
 
@@ -344,17 +344,21 @@
         [(:map frst) (rest rst)]
         [{} rst]))))
 
+(defn opts-parent [opts]
+  (let [parent (:parent opts)]
+    (if (or (not parent) (= parent :parent))
+      (throw (new js/Error "Using :embed requires :parent to be set to the parent component too.")) #_(component-parent this)
+      parent)))
+
 (defn- deconstruct-opt+app-state
   [has-app-state? rst]
   (let [[opts rst] (deconstruct-opt rst)
         [app-state args] (if has-app-state?
                            (if-let [lens (:embed opts)]
-                             (let [parent (:parent opts)
-                                   component (if (or (not parent) (= parent :parent))
-                                               (throw (new js/Error "Using :embed requires :parent to be set to the parent component too.")) #_(component-parent this)
-                                               parent)]
-                               [((lift-lens lens) (extract-app-state component)) rst])
-                             [(first rst) (rest rst)])
+                             [((lift-lens lens) (extract-app-state (opts-parent opts))) rst]
+                             (if-let [lens (:embed-locally opts)]
+                               [((lift-lens lens) (extract-local-state (opts-parent opts))) rst]
+                               [(first rst) (rest rst)]))
                            [nil rst])]
     [opts app-state args]))
 
@@ -363,12 +367,17 @@
 (defn- embed-app-state [app-state local-state child-app-state f]
   [(f app-state child-app-state) keep-state])
 
+(defn- embed-locally [app-state local-state child-app-state f]
+  [keep-state (f local-state child-app-state)])
+
 (defn- internal-reaction [opts]
   (or (:reaction opts) ; FIXME: what if we have both?
       (if-let [f (or (:embed-app-state opts) ;; these are the same here, but :embed must be set to a lens, which is also specially handled in instantiation.
                      (:embed opts))]
         (reaction :parent ->EmbedState embed-app-state [(lift-lens f)])
-        no-reaction)))
+        (if-let [f (:embed-locally opts)]
+          (reaction :parent ->EmbedState embed-locally [(lift-lens f)])
+          no-reaction))))
 
 (def ^:no-doc uber-class
   (let [cl

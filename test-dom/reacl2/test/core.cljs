@@ -213,6 +213,19 @@
       (is (= (test-util/extract-app-state item)
              {:blam-state 6})))))
 
+(deftest local-app-state-full-embed-locally-lens
+  (let [blaz (reacl/class "blaz"
+                          this [init]
+                          local-state [st {:blam-state init}]
+                          render
+                          (dom/span (blam (reacl/opt :parent this
+                                                     :embed-locally :blam-state))))]
+    (let [item (test-util/instantiate&mount blaz 5)
+          embedded (dom-with-class item blam)]
+      (test-util/send-message! embedded 6)
+      (is (= (test-util/extract-local-state item)
+             {:blam-state 6})))))
+
 (reacl/defclass blaz2
   this app-state []
   render

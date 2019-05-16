@@ -186,17 +186,32 @@
     (is (= ["13"]
            (map dom-content (doms-with-tag item "div"))))))
 
-(reacl/defclass blaz
-  this app-state []
-  render
-  (dom/span (blam (reacl/opt :embed-app-state (fn [old new] new)) app-state)))
-
 (deftest local-app-state-change-embed
-  (let [item (test-util/instantiate&mount blaz 5)
-        embedded (dom-with-class item blam)]
-    (test-util/send-message! embedded 6)
-    (is (= ["13"]
-           (map dom-content (doms-with-tag item "div"))))))
+  (let [blaz (reacl/class "blaz"
+                          this app-state []
+                          render
+                          (dom/span (blam (reacl/opt :embed-app-state (fn [old new] new)) app-state)))]
+    (let [item (test-util/instantiate&mount blaz 5)
+          embedded (dom-with-class item blam)]
+      (test-util/send-message! embedded 6)
+      (is (= ["13"]
+             (map dom-content (doms-with-tag item "div")))))))
+
+(deftest local-app-state-full-embed-lens
+  (let [blam-state-lens :blam-state
+        blam-state-lens-alt  (fn
+                               ([parent] (:blam-state parent))
+                               ([parent child] (assoc parent :blam-state child)))
+        blaz (reacl/class "blaz"
+                          this app-state []
+                          render
+                          (dom/span (blam (reacl/opt :parent this
+                                                     :embed blam-state-lens))))]
+    (let [item (test-util/instantiate&mount blaz {:blam-state 5})
+          embedded (dom-with-class item blam)]
+      (test-util/send-message! embedded 6)
+      (is (= (test-util/extract-app-state item)
+             {:blam-state 6})))))
 
 (reacl/defclass blaz2
   this app-state []

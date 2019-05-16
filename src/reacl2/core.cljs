@@ -183,9 +183,10 @@
   (or (aget (.-props comp) "reacl_parent")
       (aget (.-context comp) "reacl_parent")))
 
-(defrecord ^:private EmbedAppState
+(defrecord ^:private EmbedState
     [app-state ; new app state from child
-     embed ; function parent-app-state child-app-state |-> parent-app-state
+     embed ; function parent-app-state parent-local-state child-app-state |-> [parent-app-state parent-local-state]  (one or both can be keep-state)
+     args ;; extra args for embed
      ])
 
 (defprotocol ^:no-doc IHasDom
@@ -319,9 +320,20 @@
   "
   [& {:as mp}]
   {:pre [(every? (fn [[k _]]
-                   (contains? #{:reaction :embed-app-state :reduce-action :parent :ref} k))
+                   (contains? #{:reaction :embed-app-state :embed :reduce-action :parent :ref} k))
                  mp)]}
   (Options. mp))
+
+(defrecord ^:private KeywordLens [k]
+  IFn
+  (-invoke [this v] (get v k))
+  (-invoke [this v vv] (assoc v k vv)))
+
+(defn- lift-lens [v]
+  ;; Note: maybe we should use active.clojure/lens, but we don't have a dependency on that yet.
+  (cond
+    (keyword? v) (KeywordLens. v)
+    :else v))
 
 (defn- deconstruct-opt
   [rst]
@@ -336,17 +348,27 @@
   [has-app-state? rst]
   (let [[opts rst] (deconstruct-opt rst)
         [app-state args] (if has-app-state?
-                           [(first rst) (rest rst)]
+                           (if-let [lens (:embed opts)]
+                             (let [parent (:parent opts)
+                                   component (if (or (not parent) (= parent :parent))
+                                               (throw (new js/Error "Using :embed requires :parent to be set to the parent component too.")) #_(component-parent this)
+                                               parent)]
+                               [((lift-lens lens) (extract-app-state component)) rst])
+                             [(first rst) (rest rst)])
                            [nil rst])]
     [opts app-state args]))
 
+(declare keep-state? keep-state)
+
+(defn- embed-app-state [app-state local-state child-app-state f]
+  [(f app-state child-app-state) keep-state])
+
 (defn- internal-reaction [opts]
   (or (:reaction opts) ; FIXME: what if we have both?
-      (if-let [embed-app-state (:embed-app-state opts)]
-        (reaction :parent ->EmbedAppState embed-app-state)
+      (if-let [f (or (:embed-app-state opts) ;; these are the same here, but :embed must be set to a lens, which is also specially handled in instantiation.
+                     (:embed opts))]
+        (reaction :parent ->EmbedState embed-app-state [(lift-lens f)])
         no-reaction)))
-
-(declare keep-state?)
 
 (def ^:no-doc uber-class
   (let [cl
@@ -416,6 +438,13 @@
                                :reacl_toplevel_args args
                                :reacl_app_state app-state}))
 
+(defn- one-or-none [v & vs]
+  (if v
+    (every? not vs)
+    (if (empty? vs)
+      true
+      (apply one-or-none vs))))
+
 (defn- instantiate-toplevel-internal
   "Internal function to instantiate a Reacl component.
 
@@ -431,7 +460,7 @@
   (when-not (reacl-class? clazz)
     (throw (ex-info (str "Expected a Reacl class as the first argument, but got: " clazz) {:value clazz})))
   (let [[opts app-state args] (deconstruct-opt+app-state has-app-state? rst)]
-    (assert (not (and (:reaction opts) (:embed-app-state opts)))) ; FIXME: assertion to catch FIXME below
+    (assert (one-or-none (:reaction opts) (:embed-app-state opts) (:embed opts))) ; FIXME: assertion to catch FIXME below
     (make-uber-component clazz opts args app-state)))
 
 (defn instantiate-toplevel
@@ -461,7 +490,7 @@
   [clazz has-app-state? rst]
   (let [[opts app-state args] (deconstruct-opt+app-state has-app-state? rst)
         rclazz (react-class clazz)]
-    (assert (not (and (:reaction opts) (:embed-app-state opts)))) ; FIXME: assertion to catch FIXME in internal-reaction
+    (assert (one-or-none (:reaction opts) (:embed-app-state opts) (:embed opts))) ; FIXME: assertion to catch FIXME in internal-reaction
     (-validate! clazz app-state args)
     (js/React.createElement rclazz
                             #js {:reacl_app_state app-state
@@ -694,8 +723,9 @@
 (defn- process-message
   "Process a message for a Reacl component."
   [comp app-state local-state msg]
-  (if (instance? EmbedAppState msg)
-    (return :app-state ((:embed msg) app-state (:app-state msg)))
+  (if (instance? EmbedState msg)
+    (let [[as ls] (apply (:embed msg) app-state local-state (:app-state msg) (:args msg))]
+      (return :app-state as :local-state ls))
     (let [handle-message (aget comp "__handleMessage")]
       (assert handle-message (if-let [class (.-constructor comp)]
                                (str "Message target does have a handle-message method: " (str "instance of " (.-displayName class)))

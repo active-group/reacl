@@ -900,3 +900,50 @@
     ;; Note: an actual assert or throw in validate could be catched here, but React still logs an error then which spams the test logs.
     (test-util/instantiate&mount c 42 21)
     (is @error?)))
+
+#_(deftest compose-reducers-test
+  (let [r1 (fn [app-state action]
+             (reacl/return :app-state (inc app-state)
+                           :action action
+                           :action :act2))
+        r2 (fn [app-state action]
+             (reacl/return :app-state (inc app-state)
+                           :action [action]))
+        r3 (fn [app-state action]
+             (reacl/return :action (first action)))
+        c (reacl/compose-reducers (reacl/compose-reducers r1 r2)
+                                  r3)]
+    ;; r1 called once, r2 twice, and packing in r2 and unpacking in r2 or the actions:
+    (is (= (c 0 :testact)
+           (reacl/return :app-state 3
+                         :action :testact
+                         :action :act2)))
+    
+    ;; keep-state is preserved:
+    (is (= ((reacl/compose-reducers r3 r3)
+            :my-state [[:testact]]))
+        (reacl/return :action :testact))))
+
+(deftest change-reducer-test
+  (let [c1 (reacl/class "class1" this []
+
+                        handle-message
+                        (fn [act]
+                          (reacl/return :action act))
+
+                        render (dom/div))
+        c2 (reacl/class "class2" this state []
+
+                        handle-message
+                        (fn [st]
+                          (reacl/return :app-state st))
+
+                        render (reacl/reduce-action (c1)
+                                                    (fn [app-state action]
+                                                      (reacl/return :message [this [:transformed action]]))))
+
+        e (test-util/instantiate&mount c2 :init)
+        inner (dom-with-class e c1)]
+    (test-util/send-message! inner :my-act)
+    (is (= (test-util/extract-app-state e)
+           [:transformed :my-act]))))

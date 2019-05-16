@@ -935,6 +935,38 @@
       (handle-returned! component v from)
       (assert false (str "A 'reacl/return' value was expected, but " from " returned:" (pr-str v))))))
 
+(defn ^:no-doc compose-reducers [r1 r2]
+  ;; Note: the default reducer just passes the action as is, so we can optimize that
+  (cond
+    (= r1 default-reduce-action) r2
+    (= r2 default-reduce-action) r1
+    :else
+    (fn [app-state action]
+      (let [ret1 (r1 app-state action)
+            ;; get and remove actions from ret1 (in which action was translated to)
+            actions (returned-actions ret1)
+            ret1 (assoc ret1 :actions (:actions returned-nil))]
+        ;; reduce over all actions r1 translated action into;
+        ;; need to keep track of the app-state (once it is set keep that, but als keep-state if not changed at all.
+        (reduce (fn [ret action]
+                  (let [interm-app-state (returned-app-state ret)
+                        current-app-state (right-state app-state interm-app-state)
+                        ret2 (merge-returned ret
+                                             (r2 current-app-state action))]
+                    (if (keep-state? (returned-app-state ret2))
+                      (merge-returned ret2 (return :app-state interm-app-state))
+                      ret2)))
+                ret1
+                actions)))))
+
+(defn reduce-action
+  "Clone the given element, wrapping (composing) its action reducer with the given action reducer `f`."
+  [elem f]
+  (assert f)
+  (js/React.cloneElement elem #js {:reacl_reduce_action (if-let [prev (action-reducer elem)] ;; Note: will usually have one: the default-action-reducer.
+                                                          (compose-reducers prev f)
+                                                          f)}))
+
 ;; Attention: duplicate definition for macro in core.clj
 (def ^:private specials #{:render :initial-state :handle-message
                           :component-will-mount :component-did-mount

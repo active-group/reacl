@@ -377,6 +377,77 @@
                  mp)]}
   (Options. (internal-opt mp)))
 
+;; TODO: use active-clojure lens utils?
+
+(defn- id-lens
+  ([v] v)
+  ([_ v] v))
+
+(defrecord LensComp [l1 l2]
+  IFn
+  (-invoke [_ d]
+    (l2 (l1 d)))
+  (-invoke [_ d v]
+    (l1 d (l2 (l1 d) v))))
+
+(defn- lens-comp [l1 l2]
+  (cond
+    (= l1 id-lens) l2
+    (= l2 id-lens) l1
+    :else
+    (LensComp. l1 l2)))
+
+
+(defn bind
+  ([parent] (bind parent id-lens))
+  ([parent lens]
+   (assert (component? parent))
+   (opt :embed [parent lens])))
+
+(defn bind-locally
+  ([parent] (bind-locally parent id-lens))
+  ([parent lens]
+   (assert (component? parent))
+   (opt :embed-locally [parent lens])))
+
+(defn static [app-state]
+  (opt :app-state app-state))
+
+(defn focus [opt lens]
+  (assert (opt? opt))
+  (update opt :map
+          (fn [mp]
+            (cond-> mp
+              (contains? mp :app-state)
+              (assoc :app-state (lens (:app-state mp)))
+
+              ;; Note: no-reaction = nil can be skipped here.
+              (instance? Reaction (:reaction mp))
+              (as-> $ (if (= ->EmbedState (:make-message (:reaction mp)))
+                        ;; See internal-opt: second reaction argument is a vector with only the lens (maybe this is a bit too hacky; but that's what tests are for)
+                        (update-in $ [:reaction :args]
+                                   (fn [args]
+                                     (update-in (vec args) [0 1]
+                                                lens-comp lens)))
+                        (throw (new js/Error "Cannot focus these opts; must be 'static', 'bind' or 'bind-locally' opts."))))))))
+
+(defn reveal [opt]
+  (assert (opt? opts))
+  (let [mp (:map opts)]
+    (if (contains? mp :app-state)
+      (:app-state mp)
+      (throw (new js/Error "Cannot reveal the app-state from these opts; must be 'static', 'bind' or 'bind-locally' opts.")))))
+
+(defn reactive [app-state reaction]
+  (opt :app-state app-state
+       :reaction reaction))
+
+(defn refer [elem ref]
+  (js/React.cloneElement elem #js {:ref ref}))
+
+;; (defn keyed [elem key]
+;;   (js/React.cloneElement elem #js {:key key}))
+
 (defn- deconstruct-opt
   [rst]
   (if (empty? rst)

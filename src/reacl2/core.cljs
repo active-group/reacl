@@ -296,10 +296,10 @@
 
 (declare keep-state? keep-state)
 
-(defn- embed-app-state [app-state local-state child-app-state f]
+(defn- embed-app-state-f [app-state local-state child-app-state f]
   [(f app-state child-app-state) keep-state])
 
-(defn- embed-locally [app-state local-state child-app-state f]
+(defn- embed-locally-f [app-state local-state child-app-state f]
   [keep-state (f local-state child-app-state)])
 
 (defrecord ^:private KeywordLens [k]
@@ -328,20 +328,23 @@
         (fn [f]
           (assert (not (or (:reaction opts) (:embed opts) (:embed-locally opts))) reaction-invariant-msg)
           (assoc opts
-                 :reaction (reaction :parent ->EmbedState embed-app-state [(lift-lens f)])))
+                 :reaction (reaction :parent ->EmbedState embed-app-state-f [(lift-lens f)])))
+        ;; Note that extract-app-state and extract-local-state only work as expected during rendering (we could try to verify that?)
+        ;; If someone should instantiate components during handle-message, he shall be doomed (or has to adjust :app-state manually).
         :embed :>>
         (fn [[comp f]]
           (assert (not (or (:reaction opts) (:embed-app-state opts) (:embed-locally opts))) reaction-invariant-msg)
-          (assoc opts
-                 :app-state (extract-app-state comp)
-                 :reaction (reaction comp ->EmbedState embed-app-state [(lift-lens f)])))
+          (cond-> (assoc opts
+                         :reaction (reaction comp ->EmbedState embed-app-state-f [(lift-lens f)]))
+            (not (contains? opts :app-state)) (assoc opts :app-state (extract-app-state comp))))
         :embed-locally :>>
         (fn [[comp f]]
           (assert (not (or (:reaction opts) (:embed-app-state opts) (:embed opts))) reaction-invariant-msg)
-          (assoc opts
-                 :app-state (extract-local-state comp)
-                 :reaction (reaction comp ->EmbedState embed-locally [(lift-lens f)])))
-        opts)
+          (cond-> (assoc opts
+                         :reaction (reaction comp ->EmbedState embed-locally-f [(lift-lens f)]))
+            (not (contains? opts :app-state)) (assoc :app-state (extract-local-state comp))))
+        ;; else
+        (assoc opts :reaction no-reaction))
       (dissoc :embed-app-state :embed :embed-locally)))
 
 (defn opt

@@ -336,6 +336,7 @@
           (assert (not (or (:reaction opts) (:embed-app-state opts) (:embed-locally opts))) reaction-invariant-msg)
           (cond-> (assoc opts
                          :reaction (reaction comp ->EmbedState embed-app-state-f [(lift-lens f)]))
+            ;; FIXME: check comp actually has an app-state.
             (not (contains? opts :app-state)) (assoc opts :app-state (extract-app-state comp))))
         :embed-locally :>>
         (fn [[comp f]]
@@ -437,6 +438,10 @@
     (if (contains? mp :app-state)
       (:app-state mp)
       (throw (new js/Error "Cannot reveal the app-state from these opts; must be 'static', 'bind' or 'bind-locally' opts.")))))
+
+(defn redirect-actions [elem target]
+  ;; TODO: also extend this over dom children?
+  (js/React.cloneElement elem #js {:reacl_parent target}))
 
 (defn reactive [app-state reaction]
   (opt :app-state app-state

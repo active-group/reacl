@@ -294,6 +294,56 @@
   (assert (opt? v))
   (:map v))
 
+(declare keep-state? keep-state)
+
+(defn- embed-app-state [app-state local-state child-app-state f]
+  [(f app-state child-app-state) keep-state])
+
+(defn- embed-locally [app-state local-state child-app-state f]
+  [keep-state (f local-state child-app-state)])
+
+(defrecord ^:private KeywordLens [k]
+  IFn
+  (-invoke [this v] (get v k))
+  (-invoke [this v vv] (assoc v k vv)))
+
+(defn- lift-lens [v]
+  ;; Note: maybe we should use active.clojure/lens, but we don't have a dependency on that yet.
+  (cond
+    (keyword? v) (KeywordLens. v)
+    :else v))
+
+(def ^:private reaction-invariant-msg "Only one of :reaction, :embed-app-state, :embed and :embed-locally may be given in an opts value.")
+
+(defn- geti [k m] (get m k))
+
+(defn- internal-opt
+  "Translates the 'user facing api' of using [[opt]] into a simplified form."
+  [opts]
+  (-> (condp geti opts
+        :reaction
+        (do (assert (not (or (:embed-app-state opts) (:embed opts) (:embed-locally opts))) reaction-invariant-msg)
+            opts)
+        :embed-app-state :>>
+        (fn [f]
+          (assert (not (or (:reaction opts) (:embed opts) (:embed-locally opts))) reaction-invariant-msg)
+          (assoc opts
+                 :reaction (reaction :parent ->EmbedState embed-app-state [(lift-lens f)])))
+        :embed :>>
+        (fn [[comp f]]
+          (assert (not (or (:reaction opts) (:embed-app-state opts) (:embed-locally opts))) reaction-invariant-msg)
+          (assoc opts
+                 :app-state (extract-app-state comp)
+                 :reaction (reaction comp ->EmbedState embed-app-state [(lift-lens f)])))
+        :embed-locally :>>
+        (fn [[comp f]]
+          (assert (not (or (:reaction opts) (:embed-app-state opts) (:embed opts))) reaction-invariant-msg)
+          (assoc opts
+                 :app-state (extract-local-state comp)
+                 :reaction (reaction comp ->EmbedState embed-locally [(lift-lens f)])))
+        opts)
+      (dissoc :embed-app-state :embed :embed-locally)))
+
 (defn opt
   "Create options for component instantiation.
 
@@ -320,20 +370,9 @@
   "
   [& {:as mp}]
   {:pre [(every? (fn [[k _]]
-                   (contains? #{:reaction :embed-app-state :embed :embed-locally :reduce-action :parent :ref} k))
+                   (contains? #{:reaction :embed-app-state :embed :embed-locally :app-state :reduce-action :parent :ref} k))
                  mp)]}
-  (Options. mp))
-
-(defrecord ^:private KeywordLens [k]
-  IFn
-  (-invoke [this v] (get v k))
-  (-invoke [this v vv] (assoc v k vv)))
-
-(defn- lift-lens [v]
-  ;; Note: maybe we should use active.clojure/lens, but we don't have a dependency on that yet.
-  (cond
-    (keyword? v) (KeywordLens. v)
-    :else v))
+  (Options. (internal-opt mp)))
 
 (defn- deconstruct-opt
   [rst]
@@ -344,40 +383,15 @@
         [(:map frst) (rest rst)]
         [{} rst]))))
 
-(defn opts-parent [opts]
-  (let [parent (:parent opts)]
-    (if (or (not parent) (= parent :parent))
-      (throw (new js/Error "Using :embed requires :parent to be set to the parent component too.")) #_(component-parent this)
-      parent)))
-
 (defn- deconstruct-opt+app-state
   [has-app-state? rst]
   (let [[opts rst] (deconstruct-opt rst)
         [app-state args] (if has-app-state?
-                           (if-let [lens (:embed opts)]
-                             [((lift-lens lens) (extract-app-state (opts-parent opts))) rst]
-                             (if-let [lens (:embed-locally opts)]
-                               [((lift-lens lens) (extract-local-state (opts-parent opts))) rst]
-                               [(first rst) (rest rst)]))
+                           (if (contains? opts :app-state)
+                             [(:app-state opts) rst]
+                             [(first rst) (rest rst)])
                            [nil rst])]
     [opts app-state args]))
-
-(declare keep-state? keep-state)
-
-(defn- embed-app-state [app-state local-state child-app-state f]
-  [(f app-state child-app-state) keep-state])
-
-(defn- embed-locally [app-state local-state child-app-state f]
-  [keep-state (f local-state child-app-state)])
-
-(defn- internal-reaction [opts]
-  (or (:reaction opts) ; FIXME: what if we have both?
-      (if-let [f (or (:embed-app-state opts) ;; these are the same here, but :embed must be set to a lens, which is also specially handled in instantiation.
-                     (:embed opts))]
-        (reaction :parent ->EmbedState embed-app-state [(lift-lens f)])
-        (if-let [f (:embed-locally opts)]
-          (reaction :parent ->EmbedState embed-locally [(lift-lens f)])
-          no-reaction))))
 
 (def ^:no-doc uber-class
   (let [cl
@@ -408,7 +422,7 @@
                                                  :reacl_args (vec args)
                                                  :reacl_refs (-make-refs clazz)
                                                  :reacl_class clazz
-                                                 :reacl_reaction (internal-reaction opts)
+                                                 :reacl_reaction (:reaction opts)
                                                  :reacl_reduce_action (or (:reduce-action opts)
                                                                           default-reduce-action)}))))
 
@@ -447,13 +461,6 @@
                                :reacl_toplevel_args args
                                :reacl_app_state app-state}))
 
-(defn- one-or-none [v & vs]
-  (if v
-    (every? not vs)
-    (if (empty? vs)
-      true
-      (apply one-or-none vs))))
-
 (defn- instantiate-toplevel-internal
   "Internal function to instantiate a Reacl component.
 
@@ -469,7 +476,6 @@
   (when-not (reacl-class? clazz)
     (throw (ex-info (str "Expected a Reacl class as the first argument, but got: " clazz) {:value clazz})))
   (let [[opts app-state args] (deconstruct-opt+app-state has-app-state? rst)]
-    (assert (one-or-none (:reaction opts) (:embed-app-state opts) (:embed opts))) ; FIXME: assertion to catch FIXME below
     (make-uber-component clazz opts args app-state)))
 
 (defn instantiate-toplevel
@@ -499,7 +505,6 @@
   [clazz has-app-state? rst]
   (let [[opts app-state args] (deconstruct-opt+app-state has-app-state? rst)
         rclazz (react-class clazz)]
-    (assert (one-or-none (:reaction opts) (:embed-app-state opts) (:embed opts))) ; FIXME: assertion to catch FIXME in internal-reaction
     (-validate! clazz app-state args)
     (js/React.createElement rclazz
                             #js {:reacl_app_state app-state
@@ -508,7 +513,7 @@
                                  :reacl_args args
                                  :reacl_refs (-make-refs clazz)
                                  :reacl_class clazz
-                                 :reacl_reaction (internal-reaction opts)
+                                 :reacl_reaction (:reaction opts)
                                  :reacl_parent (:parent opts)
                                  :reacl_reduce_action (or (:reduce-action opts)
                                                           default-reduce-action)})))
@@ -963,9 +968,25 @@
   "Clone the given element, wrapping (composing) its action reducer with the given action reducer `f`."
   [elem f]
   (assert f)
-  (js/React.cloneElement elem #js {:reacl_reduce_action (if-let [prev (action-reducer elem)] ;; Note: will usually have one: the default-action-reducer.
-                                                          (compose-reducers prev f)
-                                                          f)}))
+  (assert (.hasOwnProperty elem "props"))
+  (if (some? (aget (.-props elem) "reacl_class")) ;; aka is-reacl-component?
+    (js/React.cloneElement elem #js {:reacl_reduce_action (if-let [prev (action-reducer elem)] ;; Note: will usually have one: the default-action-reducer.
+                                                            (compose-reducers prev f)
+                                                            f)})
+    ;; for dom elements (or native React components), we map over the children, replacing all action-reducers we find there
+    (do
+      (let [cs (js/React.Children.map (.-children (.-props elem))
+                                      (fn [e]
+                                        ;; child can be a string - keep them as is
+                                        (if (.hasOwnProperty e "props")
+                                          (reduce-action e f)
+                                          e)))]
+        (js/React.cloneElement elem nil cs)))))
+
+(defn map-action [elem f]
+  (reduce-action elem (fn [app-state action]
+                        ;; TODO: allow a 'ignore-action'/nil?
+                        (return :action (f action)))))
 
 ;; Attention: duplicate definition for macro in core.clj
 (def ^:private specials #{:render :initial-state :handle-message

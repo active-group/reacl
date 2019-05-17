@@ -205,8 +205,7 @@
         blaz (reacl/class "blaz"
                           this app-state []
                           render
-                          (dom/span (blam (reacl/opt :parent this
-                                                     :embed blam-state-lens))))]
+                          (dom/span (blam (reacl/opt :embed [this blam-state-lens]))))]
     (let [item (test-util/instantiate&mount blaz {:blam-state 5})
           embedded (dom-with-class item blam)]
       (test-util/send-message! embedded 6)
@@ -218,8 +217,7 @@
                           this [init]
                           local-state [st {:blam-state init}]
                           render
-                          (dom/span (blam (reacl/opt :parent this
-                                                     :embed-locally :blam-state))))]
+                          (dom/span (blam (reacl/opt :embed-locally [this :blam-state]))))]
     (let [item (test-util/instantiate&mount blaz 5)
           embedded (dom-with-class item blam)]
       (test-util/send-message! embedded 6)
@@ -938,9 +936,11 @@
                         (fn [st]
                           (reacl/return :app-state st))
 
-                        render (reacl/reduce-action (c1)
-                                                    (fn [app-state action]
-                                                      (reacl/return :message [this [:transformed action]]))))
+                        render
+                        ;; Note: the component may even be nested in a div:
+                        (reacl/reduce-action (dom/div (c1))
+                                             (fn [app-state action]
+                                               (reacl/return :message [this [:transformed action]]))))
 
         e (test-util/instantiate&mount c2 :init)
         inner (dom-with-class e c1)]

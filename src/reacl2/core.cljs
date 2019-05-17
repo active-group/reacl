@@ -432,16 +432,32 @@
                                                 lens-comp lens)))
                         (throw (new js/Error "Cannot focus these opts; must be 'static', 'bind' or 'bind-locally' opts."))))))))
 
-(defn reveal [opt]
+(defn reveal [opts]
   (assert (opt? opts))
   (let [mp (:map opts)]
     (if (contains? mp :app-state)
       (:app-state mp)
       (throw (new js/Error "Cannot reveal the app-state from these opts; must be 'static', 'bind' or 'bind-locally' opts.")))))
 
+(defn- map-over-components [elem f]
+  (assert (.hasOwnProperty elem "props"))
+  (if (some? (aget (.-props elem) "reacl_class")) ;; aka is-reacl-component?
+    (f elem)
+    ;; for dom elements (or native React components), we map over the children, looking for components there.
+    (do
+      (let [cs (js/React.Children.map (.-children (.-props elem))
+                                      (fn [e]
+                                        ;; child can be a string - keep them as is
+                                        (if (.hasOwnProperty e "props")
+                                          (map-over-components e f)
+                                          e)))]
+        (js/React.cloneElement elem nil cs)))))
+
 (defn redirect-actions [elem target]
-  ;; TODO: also extend this over dom children?
-  (js/React.cloneElement elem #js {:reacl_parent target}))
+  (map-over-components
+   elem
+   (fn [comp]
+     (js/React.cloneElement comp #js {:reacl_parent target}))))
 
 (defn reactive [app-state reaction]
   (opt :app-state app-state
@@ -1047,20 +1063,12 @@
   "Clone the given element, wrapping (composing) its action reducer with the given action reducer `f`."
   [elem f]
   (assert f)
-  (assert (.hasOwnProperty elem "props"))
-  (if (some? (aget (.-props elem) "reacl_class")) ;; aka is-reacl-component?
-    (js/React.cloneElement elem #js {:reacl_reduce_action (if-let [prev (action-reducer elem)] ;; Note: will usually have one: the default-action-reducer.
-                                                            (compose-reducers prev f)
-                                                            f)})
-    ;; for dom elements (or native React components), we map over the children, replacing all action-reducers we find there
-    (do
-      (let [cs (js/React.Children.map (.-children (.-props elem))
-                                      (fn [e]
-                                        ;; child can be a string - keep them as is
-                                        (if (.hasOwnProperty e "props")
-                                          (reduce-action e f)
-                                          e)))]
-        (js/React.cloneElement elem nil cs)))))
+  (map-over-components
+   elem
+   (fn [comp]
+     (js/React.cloneElement comp #js {:reacl_reduce_action (if-let [prev (action-reducer comp)] ;; Note: will usually have one: the default-action-reducer.
+                                                             (compose-reducers prev f)
+                                                             f)}))))
 
 (defn map-action [elem f]
   (reduce-action elem (fn [app-state action]

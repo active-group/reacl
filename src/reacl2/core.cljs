@@ -337,7 +337,7 @@
           (cond-> (assoc opts
                          :reaction (reaction comp ->EmbedState embed-app-state-f [(lift-lens f)]))
             ;; FIXME: check comp actually has an app-state.
-            (not (contains? opts :app-state)) (assoc opts :app-state (extract-app-state comp))))
+            (not (contains? opts :app-state)) (assoc :app-state (extract-app-state comp))))
         :embed-locally :>>
         (fn [[comp f]]
           (assert (not (or (:reaction opts) (:embed-app-state opts) (:embed opts))) reaction-invariant-msg)

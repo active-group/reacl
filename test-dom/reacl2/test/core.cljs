@@ -947,3 +947,38 @@
     (test-util/send-message! inner :my-act)
     (is (= (test-util/extract-app-state e)
            [:transformed :my-act]))))
+
+(deftest focus-and-virtual-app-state-test
+  ;; focus bindings should work, even if a app-state is changed twice during a single cycle.
+  (let [c1 (reacl/class "class1" this state []
+
+                        handle-message
+                        (fn [act]
+                          (if (= act :act1)
+                            (reacl/return :app-state (inc state)
+                                          :message [this :act2])
+                            (reacl/return :app-state (inc state))))
+
+                        render (dom/div))
+        outer-messages (atom 0)
+        c2 (reacl/class "class2" this state []
+
+                        handle-message
+                        (fn [new-state]
+                          (swap! outer-messages inc)
+                          (reacl/return :app-state (update new-state :outer inc)))
+
+                        render
+                        ;; testing with two focus calls...
+                        (c1 (-> (reacl/reactive state (reacl/pass-through-reaction this))
+                                (reacl/focus :middle)
+                                (reacl/focus :inner))))
+
+        e (test-util/instantiate&mount c2 {:middle {:inner 0} :outer 0})
+        inner (dom-with-class e c1)]
+    (test-util/send-message! inner :act1)
+    
+    (is (= @outer-messages 2))
+    (is (= (test-util/extract-app-state e)
+           {:middle {:inner 2} :outer 2})))
+  )

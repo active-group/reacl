@@ -688,7 +688,7 @@
 
 (defn- process-message
   "Process a message for a Reacl component."
-  [comp app-state local-state msg]
+  [comp app-state local-state recompute-locals? msg]
   (if (instance? EmbedAppState msg)
     (return :app-state ((:embed msg) app-state (:app-state msg)))
     (let [handle-message (aget comp "__handleMessage")]
@@ -698,8 +698,9 @@
       (let [args (extract-args comp)
             ret (handle-message comp
                                 app-state local-state
-                                ;; FIXME: can we avoid recomputing when nothing has changed?
-                                (-compute-locals (component-class comp) app-state args)
+                                (if recompute-locals?
+                                  (-compute-locals (component-class comp) app-state args)
+                                  (extract-locals comp))
                                 args (extract-refs comp)
                                 msg)]
         (if (returned? ret)
@@ -714,7 +715,8 @@
 
   This returns a `Returned` object."
   [comp msg]
-  (process-message comp (extract-app-state comp) (extract-local-state comp) msg))
+  ;; Note: the locals in the props are uptodate here, so we can safely pass recompute-locals? = false here.
+  (process-message comp (extract-app-state comp) (extract-local-state comp) false msg))
 
 ;; FIXME: thread all the things properly
 
@@ -737,6 +739,7 @@
           (let [ret (process-message this
                                      (right-state app-state0 app-state)
                                      (right-state local-state0 local-state)
+                                     true  ;; FIXME: can we avoid recomputing when nothing has changed? (maybe use a locals-map?)
                                      msg)]
             (recur (rest msgs)
                    remaining
@@ -756,19 +759,25 @@
     state-map
     (assoc state-map comp state)))
 
-(defn- get-local-state
-  [comp local-state-map]
-  (let [res (get local-state-map comp ::no-state)]
+(defn- state-map-get* [comp state-map f]
+  (let [res (get state-map comp ::no-state)]
     (case res
-      (::no-state) (extract-local-state comp)
-      res)))
+      (::no-state) [false (f comp)]
+      [true res])))
 
-(defn- get-app-state
+(defn- get-local-state*
+  [comp local-state-map]
+  (state-map-get* comp local-state-map extract-local-state))
+
+(defn- get-app-state*
   [comp app-state-map]
-  (let [res (get app-state-map comp ::no-state)]
-    (case res
-      (::no-state) (extract-app-state comp)
-      res)))
+  (state-map-get* comp app-state-map extract-app-state))
+
+(defn- get-local-state [comp local-state-map]
+  (second (get-local-state* comp local-state-map)))
+
+(defn- get-app-state [comp app-state-map]
+  (second (get-app-state* comp app-state-map)))
 
 (defn- handle-returned-1
   "Handle a single subcycle in a [[Returned]] object.
@@ -823,9 +832,16 @@
         ;; process the next message, resulting in a new 'Returned', then recur.
         (let [[dest msg] (peek queued-messages)
               queued-messages (pop queued-messages)
+              [virt-app-state? app-state] (get-app-state* dest app-state-map)
+              local-state (get-local-state dest local-state-map)
+              ;; if app-state is 'virtual', i.e. from the state-map,
+              ;; then we have to recompute
+              ;; locals for a call to handle-message.
+              recompute-locals? virt-app-state?
               ^Returned ret (process-message dest
-                                             (get-app-state dest app-state-map)
-                                             (get-local-state dest local-state-map)
+                                             app-state
+                                             local-state
+                                             recompute-locals?
                                              msg)]
           (recur dest ret
                  app-state-map

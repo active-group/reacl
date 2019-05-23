@@ -339,9 +339,10 @@
         :embed :>>
         (fn [[comp f]]
           (assert (not (or (:reaction opts) (:embed-app-state opts) (:embed-locally opts))) reaction-invariant-msg)
+          (when-not (-has-app-state? (component-class comp))
+            (throw (ex-info (str "Cannot bind to the app-state, as the class does not have an app-state. Maybe use bind-locally instead.") {:class (component-class comp)})))
           (cond-> (assoc opts
                          :reaction (reaction comp ->EmbedState embed-app-state-f [(lift-lens f)]))
-            ;; FIXME: check comp actually has an app-state.
             (not (contains? opts :app-state)) (assoc :app-state (extract-app-state comp))))
         :embed-locally :>>
         (fn [[comp f]]

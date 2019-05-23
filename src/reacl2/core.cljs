@@ -111,12 +111,6 @@
   (aset st "reacl_locals" locals)
   st)
   
-(defn ^:no-doc compute-locals
-  "Compute the locals.
-  For internal use."
-  [clazz app-state args]
-  ((aget clazz "__computeLocals") app-state args))
-
 (declare return)
 
 (defn- default-reduce-action [app-state action]
@@ -215,7 +209,8 @@
   (-instantiate-toplevel-internal [clazz rst])
   (-has-app-state? [clazz])
   (-validate! [clazz app-state args])
-  (-make-refs [clazz]))
+  (-make-refs [clazz])
+  (-compute-locals [clazz app-state args]))
 
 (defn reacl-class?
   "Is an object a Reacl class?"
@@ -373,7 +368,7 @@
                     (js/React.createElement rclazz
                                             #js {:ref (aget this "reacl_toplevel_ref")
                                                  :reacl_app_state app-state
-                                                 :reacl_locals (compute-locals rclazz app-state args)
+                                                 :reacl_locals (-compute-locals clazz app-state args)
                                                  :reacl_args (vec args)
                                                  :reacl_refs (-make-refs clazz)
                                                  :reacl_class clazz
@@ -466,7 +461,7 @@
     (js/React.createElement rclazz
                             #js {:reacl_app_state app-state
                                  :ref (:ref opts)
-                                 :reacl_locals (compute-locals rclazz app-state args)
+                                 :reacl_locals (-compute-locals clazz app-state args)
                                  :reacl_args args
                                  :reacl_refs (-make-refs clazz)
                                  :reacl_class clazz
@@ -480,7 +475,7 @@
   (let [rclazz (react-class clazz)]
     (js/React.createElement rclazz
                             #js {:reacl_app_state app-state
-                                 :reacl_locals (compute-locals rclazz app-state args)
+                                 :reacl_locals (-compute-locals clazz app-state args)
                                  :reacl_args args
                                  :reacl_class clazz
                                  :reacl_reaction reaction
@@ -704,7 +699,7 @@
             ret (handle-message comp
                                 app-state local-state
                                 ;; FIXME: can we avoid recomputing when nothing has changed?
-                                (compute-locals (.-constructor comp) app-state args)
+                                (-compute-locals (component-class comp) app-state args)
                                 args (extract-refs comp)
                                 msg)]
         (if (returned? ret)
@@ -1059,10 +1054,6 @@
 
             "componentWillUnmount"
             (std+state component-will-unmount 'component-will-unmount)
-
-            "statics"
-            #js {"__computeLocals" compute-locals ;; [app-state & args]}
-                 }
             }
            )
 
@@ -1127,6 +1118,8 @@
             (when validate (apply validate app-state args)))
           (-make-refs [this]
             (make-refs))
+          (-compute-locals [this app-state args]
+            (compute-locals app-state args))
           (-react-class [this] react-class))
         (reify
           IFn
@@ -1182,6 +1175,8 @@
             (when validate (apply validate app-state args)))
           (-make-refs [this]
             (make-refs))
+          (-compute-locals [this app-state args]
+            (compute-locals app-state args))
           (-react-class [this] react-class))))))
 
 (def ^:private mixin-methods #{:component-will-mount :component-did-mount

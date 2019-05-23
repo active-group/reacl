@@ -339,7 +339,7 @@
     ;; FIXME: move Reacl guts exposed here back into the core
     (handle-message-internal nil
                              app-state local-state
-                             (reacl/compute-locals rcl app-state args)
+                             (reacl/-compute-locals cl app-state args)
                              args [] msg)))
 
 (defn handle-message->state

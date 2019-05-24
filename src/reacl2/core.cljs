@@ -391,7 +391,6 @@
                  ;; instantiated.
                  (let [app-state (aget new-props
                                        "reacl_app_state")]
-                   (trace/trace-render-component! (aget new-props "reacl_toplevel_class") app-state (aget new-props "reacl_toplevel_args")) ;; TODO: only when things actually changed maybe?
                    (if (not (identical? (aget state "reacl_initial_app_state")
                                         app-state))
                      #js {:reacl_initial_app_state app-state
@@ -1012,7 +1011,10 @@
               (object-array mixins))
 
             "render"
-            (std render)
+            (std (and render
+                      (fn [this app-state local-state locals args refs]
+                        (trace/trace-render-component! this)
+                        (render this app-state local-state locals args refs))))
 
             ;; Note handle-message must always see the most recent
             ;; app-state, even if the component was not updated after

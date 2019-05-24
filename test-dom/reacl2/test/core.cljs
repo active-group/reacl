@@ -6,9 +6,8 @@
             [reacl.core :as reacl1 :include-macros true]
             [reacl.dom :as dom1 :include-macros true]
             [active.clojure.lens :as lens]
-            [cljsjs.react]
             [cljsjs.react.test-renderer]
-            [cljsjs.react.dom.test-utils]
+            ["react-dom/test-utils" :as react-tu]
             [cljs.test :as t])
   (:require-macros [cljs.test
                     :refer (is deftest run-tests testing async)]))
@@ -73,21 +72,21 @@
 
 (defn dom-with-tag
   [comp tag-name]
-  (js/ReactTestUtils.findRenderedDOMComponentWithTag comp tag-name))
+  (react-tu/findRenderedDOMComponentWithTag comp tag-name))
 
 (defn doms-with-tag
   [comp tag-name]
   (into []
-        (js/ReactTestUtils.scryRenderedDOMComponentsWithTag comp tag-name)))
+        (react-tu/scryRenderedDOMComponentsWithTag comp tag-name)))
 
 (defn dom-with-class
   [comp clazz]
-  (js/ReactTestUtils.findRenderedComponentWithType comp (reacl/react-class clazz)))
+  (react-tu/findRenderedComponentWithType comp (reacl/react-class clazz)))
 
 (defn doms-with-dom-class
   "Returns a list of all dom nodes with the given `:class? attributes rendered by `comp`."
   [comp clazz]
-  (js/ReactTestUtils.scryRenderedDOMComponentsWithClass comp clazz))
+  (react-tu/scryRenderedDOMComponentsWithClass comp clazz))
 
 (defn dom-content
   [comp]
@@ -345,7 +344,7 @@
                                                                        (apply str new-content (reverse (.-value (reacl/get-dom text-input)))))))
                                           "foo")
         dom (dom-with-tag item "input")]
-    (js/ReactTestUtils.Simulate.change dom)
+    (react-tu/Simulate.change dom)
     (is (= "foofoooof" (.-value dom)))))
 
 (deftest queued-messages-test

@@ -1,9 +1,9 @@
 (ns ^{:doc "Reacl core functionality."}
   reacl2.core
-  (:require [cljsjs.react]
-            [cljsjs.react.dom]
-            [cljsjs.create-react-class]
-            [cljsjs.prop-types]
+  (:require [react :as react]
+            [react-dom :as react-dom]
+            [create-react-class :as createReactClass] ;; Note: function import, not a namespace.
+            [prop-types :as ptypes]
             [reacl2.trace.core :as trace]))
 
 (defn- local-state-state
@@ -231,7 +231,7 @@
   "Returns if `v` is a value bound to the 'this' part in a class at runtime."
   [v]
   ;; Note: not public because there any many notions of what a 'component' might - used internally only to give earlier error.
-  ;; Note: this is probably true for things returned by instantiating a class: (instance? js/React.Component v)
+  ;; Note: this is probably true for things returned by instantiating a class: (instance? react/Component v)
   ;; But not for the object bound to `this` - the
   (and (instance? js/Object v)
        (.hasOwnProperty v "props")
@@ -345,10 +345,10 @@
 
 (def ^:no-doc uber-class
   (let [cl
-        (js/createReactClass
+        (createReactClass
          #js {:getInitialState (fn []
                                  (this-as this
-                                   (aset this "reacl_toplevel_ref" (js/React.createRef))
+                                   (aset this "reacl_toplevel_ref" (react/createRef))
                                    (let [app-state (aget (.-props this)
                                                          "reacl_app_state")]
                                      #js {:reacl_initial_app_state app-state
@@ -365,24 +365,24 @@
                         state (.-state this)
                         app-state (aget state "reacl_uber_app_state")]
                     (-validate! clazz app-state args)
-                    (js/React.createElement rclazz
-                                            #js {:ref (aget this "reacl_toplevel_ref")
-                                                 :reacl_app_state app-state
-                                                 :reacl_locals (-compute-locals clazz app-state args)
-                                                 :reacl_args (vec args)
-                                                 :reacl_refs (-make-refs clazz)
-                                                 :reacl_class clazz
-                                                 :reacl_reaction (internal-reaction opts)
-                                                 :reacl_reduce_action (or (:reduce-action opts)
-                                                                          default-reduce-action)}))))
+                    (react/createElement rclazz
+                                         #js {:ref (aget this "reacl_toplevel_ref")
+                                              :reacl_app_state app-state
+                                              :reacl_locals (-compute-locals clazz app-state args)
+                                              :reacl_args (vec args)
+                                              :reacl_refs (-make-refs clazz)
+                                              :reacl_class clazz
+                                              :reacl_reaction (internal-reaction opts)
+                                              :reacl_reduce_action (or (:reduce-action opts)
+                                                                       default-reduce-action)}))))
 
               :displayName (str `toplevel)
 
               :getChildContext (fn []
                                  (this-as this 
                                    #js {:reacl_uber this}))})]
-         (aset cl "childContextTypes" #js {:reacl_uber js/PropTypes.object})
-         (aset cl "contextTypes" #js {:reacl_uber js/PropTypes.object})
+         (aset cl "childContextTypes" #js {:reacl_uber ptypes/PropTypes.object})
+         (aset cl "contextTypes" #js {:reacl_uber ptypes/PropTypes.object})
          (aset cl "getDerivedStateFromProps"
                (fn [new-props state]
                  ;; take a new app-state from outside;
@@ -404,11 +404,11 @@
 
 (defn- make-uber-component
   [clazz opts args app-state]
-  (js/React.createElement uber-class
-                          #js {:reacl_toplevel_class clazz
-                               :reacl_toplevel_opts opts
-                               :reacl_toplevel_args args
-                               :reacl_app_state app-state}))
+  (react/createElement uber-class
+                       #js {:reacl_toplevel_class clazz
+                            :reacl_toplevel_opts opts
+                            :reacl_toplevel_args args
+                            :reacl_app_state app-state}))
 
 (defn- instantiate-toplevel-internal
   "Internal function to instantiate a Reacl component.
@@ -457,28 +457,28 @@
         rclazz (react-class clazz)]
     (assert (not (and (:reaction opts) (:embed-app-state opts)))) ; FIXME: assertion to catch FIXME in internal-reaction
     (-validate! clazz app-state args)
-    (js/React.createElement rclazz
-                            #js {:reacl_app_state app-state
-                                 :ref (:ref opts)
-                                 :reacl_locals (-compute-locals clazz app-state args)
-                                 :reacl_args args
-                                 :reacl_refs (-make-refs clazz)
-                                 :reacl_class clazz
-                                 :reacl_reaction (internal-reaction opts)
-                                 :reacl_parent (:parent opts)
-                                 :reacl_reduce_action (or (:reduce-action opts)
-                                                          default-reduce-action)})))
+    (react/createElement rclazz
+                         #js {:reacl_app_state app-state
+                              :ref (:ref opts)
+                              :reacl_locals (-compute-locals clazz app-state args)
+                              :reacl_args args
+                              :reacl_refs (-make-refs clazz)
+                              :reacl_class clazz
+                              :reacl_reaction (internal-reaction opts)
+                              :reacl_parent (:parent opts)
+                              :reacl_reduce_action (or (:reduce-action opts)
+                                                       default-reduce-action)})))
 
 (defn- instantiate-embedded-internal-v1
   [clazz app-state reaction args]
   (let [rclazz (react-class clazz)]
-    (js/React.createElement rclazz
-                            #js {:reacl_app_state app-state
-                                 :reacl_locals (-compute-locals clazz app-state args)
-                                 :reacl_args args
-                                 :reacl_class clazz
-                                 :reacl_reaction reaction
-                                 :reacl_reduce_action default-reduce-action})))
+    (react/createElement rclazz
+                         #js {:reacl_app_state app-state
+                              :reacl_locals (-compute-locals clazz app-state args)
+                              :reacl_args args
+                              :reacl_class clazz
+                              :reacl_reaction reaction
+                              :reacl_reduce_action default-reduce-action})))
 
 (defn render-component
   "Instantiate and render a component into the DOM.
@@ -493,7 +493,7 @@
                [element clazz opts & args]
                [element clazz & args])}
   [element clazz & rst]
-  (js/ReactDOM.render
+  (react-dom/render
    (-instantiate-toplevel-internal clazz rst)
    element))
 
@@ -890,7 +890,7 @@
   (binding [*send-message-forbidden* true]
     (let [comp (resolve-component comp)
           ^Returned ret (handle-message comp msg)]
-      (js/ReactDOM.unstable_batchedUpdates #(handle-returned! comp ret 'handle-message))
+      (react-dom/unstable_batchedUpdates #(handle-returned! comp ret 'handle-message))
       ret)))
 
 (defn send-message-allowed?
@@ -1075,15 +1075,15 @@
             }
            )
 
-          react-class (js/createReactClass
+          react-class (createReactClass
                        (apply js-obj (apply concat
                                             (filter #(not (nil? (second %)))
                                                     react-method-map))))
           ]
-      (aset react-class "childContextTypes" #js {:reacl_parent js/PropTypes.object
-                                                 :reacl_uber js/PropTypes.object})
-      (aset react-class "contextTypes" #js {:reacl_parent js/PropTypes.object
-                                            :reacl_uber js/PropTypes.object})
+      (aset react-class "childContextTypes" #js {:reacl_parent ptypes/PropTypes.object
+                                                 :reacl_uber ptypes/PropTypes.object})
+      (aset react-class "contextTypes" #js {:reacl_parent ptypes/PropTypes.object
+                                            :reacl_uber ptypes/PropTypes.object})
       (if compat-v1?
         (reify
           IFn ; only this is different between v1 and v2

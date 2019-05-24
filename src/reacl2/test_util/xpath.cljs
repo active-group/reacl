@@ -31,8 +31,7 @@
   
   (:require [reacl2.core :as reacl]
             [reacl2.dom :as dom]
-            [reacl2.test-util.alpha :as alpha]
-            cljsjs.react.test-renderer)
+            [reacl2.test-util.alpha :as alpha])
   (:refer-clojure :exclude [type comp range first last nth or and contains? key]))
 
 ;; Idea: an xpath is a concatenated sequence of selectors (>> sel1 sel2 ...) that can be

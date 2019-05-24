@@ -2,10 +2,10 @@
   reacl2.test-util.alpha
   (:require [reacl2.core :as reacl :include-macros true]
             [reacl2.dom :as dom :include-macros true]
-            [cljsjs.react]
-            [cljsjs.react.dom.server]
-            [cljsjs.react.dom.test-utils]
-            [cljsjs.react.test-renderer]
+            ["react-dom/server" :as react-dom-server]
+            ["react-dom/test-utils" :as react-tu]
+            [cljsjs.react.test-renderer] ;; TODO: named import after fix.
+            ;; TODO: cljsjs package is broken; should export ReactShallowRenderer (also externs?) [react-test-renderer-shallow :as ShallowRenderer]
             [cljsjs.react.test-renderer.shallow]))
 
 (defn send-message!
@@ -26,7 +26,7 @@
 
 (defn render-to-text
   [dom]
-  (js/ReactDOMServer.renderToStaticMarkup dom))
+  (react-dom-server/renderToStaticMarkup dom))
 
 ; see http://stackoverflow.com/questions/22463156/updating-react-component-state-in-jasmine-test
 (defn instantiate&mount
@@ -88,7 +88,7 @@
   afterwards."
   [f & checks]
   (fn [{:keys [get-dom!]}]
-    (f js/ReactTestUtils.Simulate (get-dom!))
+    (f react-tu/Simulate (get-dom!))
     checks))
 
 (def no-check

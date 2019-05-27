@@ -4,9 +4,8 @@
             [reacl2.dom :as dom :include-macros true]
             ["react-dom/server" :as react-dom-server]
             ["react-dom/test-utils" :as react-tu]
-            [cljsjs.react.test-renderer] ;; TODO: named import after fix.
-            ;; TODO: cljsjs package is broken; should export ReactShallowRenderer (also externs?) [react-test-renderer-shallow :as ShallowRenderer]
-            [cljsjs.react.test-renderer.shallow]))
+            [react-test-renderer :as react-test-renderer]
+            ["react-test-renderer/shallow" :as react-tu-shallow]))
 
 (defn send-message!
   [comp msg]
@@ -123,7 +122,7 @@
 (defn render-shallowly
   "Render an element shallowly."
   ([element]
-     (render-shallowly element (js/ReactShallowRenderer.)))
+     (render-shallowly element (react-tu-shallow/createRenderer)))
   ([element renderer]
      (.render renderer element)
      (.getRenderOutput renderer)))
@@ -163,7 +162,7 @@
                       (vec (list* (keyword ttype) props ch))))
                   (recur (.find element (fn [ti]
                                           (string? (.-type ti)))))))))]
-    (recurse (.-root (js/ReactTestRenderer.create element)))))
+    (recurse (.-root (react-test-renderer/create element)))))
 
 (defn hiccup-matches?
   [pattern data]
@@ -241,7 +240,7 @@
 (defn create-renderer
   "Create a renderer for testing"
   [& [el]]
-  (js/ReactTestRenderer.create el))
+  (react-test-renderer/create el))
 
 (defn render!
   "Render an element into a renderer."

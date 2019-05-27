@@ -1,8 +1,6 @@
 (ns ^{:doc "Reacl core functionality."}
   reacl.core
-  (:require [reacl2.core :as reacl2]
-            [cljsjs.react]
-            [cljsjs.react.dom]))
+  (:require [reacl2.core :as reacl2]))
 
 (def ^:static no-reaction reacl2/no-reaction)
 

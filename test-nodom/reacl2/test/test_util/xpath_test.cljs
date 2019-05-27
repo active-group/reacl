@@ -109,3 +109,21 @@
   (is (= (xpath/comp xpath/all (xpath/where (xpath/attr :id)))
          (xpath/>> ** [:id])))
   )
+
+(deftest css-class-test
+  (is (xpath/css-class-match "ab cd ef" ["ab" "ef"]))
+  (is (not (xpath/css-class-match "ab cd ef" ["cd" "ab" "ef"])))
+  
+  (is (= (xpath/css-class? "ab cd")
+         (xpath/comp (xpath/attr :class)
+                     (xpath/is? xpath/css-class-match
+                                ["ab" "cd"]))))
+  (is (= (xpath/css-class? #{"ab" "cd"})
+         (xpath/comp (xpath/attr :class)
+                     (xpath/and (xpath/is? xpath/css-class-match
+                                           ["ab"])
+                                (xpath/is? xpath/css-class-match
+                                           ["cd"])))))
+  
+  (is (= (xpath/css-class? #{"ab"})
+         (xpath/css-class? "ab"))))

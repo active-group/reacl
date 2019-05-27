@@ -13,7 +13,7 @@
   [local-state]
   #js {:reacl_local_state local-state})
 
-(defn ^{:no-doc true} set-local-state!
+(defn- set-local-state!
   "Set Reacl local state of a component.
 
    For internal use."
@@ -847,7 +847,7 @@
                  local-state-map
                  queued-messages))))))
 
-(defn- handle-returned!
+(defn ^:no-doc handle-returned!
   "Handle all effects described and caused by a [[Returned]] object. This is the entry point into a Reacl update cycle.
 
   Assumes the actions in `ret` are for comp."

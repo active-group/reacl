@@ -1,6 +1,6 @@
 (ns reacl2.test.test-util.beta-test
-  (:require [reacl2.test-util.beta :as tu]
-            [reacl2.test-util.alpha :as alpha]
+  (:require [reacl2.test-util.beta :as tu :include-macros true]
+            [reacl2.test-util.xpath :as xpath :include-macros true]
             [reacl2.core :as reacl :include-macros true]
             [reacl2.dom :as dom :include-macros true]
             )
@@ -13,22 +13,23 @@
       (-write writer (str "\"" (.toString sym) "\""))))
 
 (deftest basics-test
-  (let [c (tu/test-class (reacl/class "test" this state []
-                                      component-did-mount
-                                      (fn []
-                                        (reacl/return :action [:mounted state]
-                                                      :app-state :mounted))
+  (let [c (tu/env
+           (reacl/class "test" this state []
+                        component-did-mount
+                        (fn []
+                          (reacl/return :action [:mounted state]
+                                        :app-state :mounted))
                                       
-                                      component-did-update
-                                      (fn []
-                                        (reacl/return :action [:updated state]))
+                        component-did-update
+                        (fn []
+                          (reacl/return :action [:updated state]))
 
-                                      component-will-unmount
-                                      (fn []
-                                        (reacl/return :action [:unmounted state]
-                                                      :app-state :unmounted))
+                        component-will-unmount
+                        (fn []
+                          (reacl/return :action [:unmounted state]
+                                        :app-state :unmounted))
 
-                                      render (dom/div)))]
+                        render (dom/div)))]
     (is (= (tu/mount! c :initial) (reacl/return :action [:mounted :initial]
                                                 :app-state :mounted)))
     ;; same if mounted twice
@@ -42,18 +43,19 @@
                                          :app-state :unmounted)))
 
     ;; throws if unmounted again.
-    (is (thrown-with-msg? js/Error #"Test component must be mounted to be unmounted."
+    (is (thrown-with-msg? js/Error #"Something must be mounted to be unmounted. Call mount! first."
                           (tu/unmount! c)))))
 
 (deftest messages-test
-  (let [c (tu/test-class (reacl/class "test" this state []
-                                      handle-message
-                                      (fn [msg]
-                                        (reacl/return :app-state (conj state msg)))
+  (let [c (tu/env
+           (reacl/class "test" this state []
+                        handle-message
+                        (fn [msg]
+                          (reacl/return :app-state (conj state msg)))
 
-                                      render (dom/div)))]
+                        render (dom/div)))]
     
-    (is (thrown-with-msg? js/Error #"Test component must be mounted to send a message to it."
+    (is (thrown-with-msg? js/Error #"Nothing mounted into the test environment. Call mount! first."
                           (tu/send-message! c :msg-0)))
     
     (tu/mount! c [])
@@ -67,23 +69,24 @@
     (is (= (tu/send-message! c :msg-2) (reacl/return :app-state [:msg-1 :msg-2])))
 
     (tu/unmount! c)
-    (is (thrown-with-msg? js/Error #"Test component must be mounted to send a message to it."
+    (is (thrown-with-msg? js/Error #"Nothing mounted into the test environment. Call mount! first."
                           (tu/send-message! c :msg-3)))))
 
 (deftest localstate-test
-  (let [c (tu/test-class (reacl/class "test" this [x]
-                                      local-state [state x]
+  (let [c (tu/env
+           (reacl/class "test" this [x]
+                        local-state [state x]
                                       
-                                      component-did-update
-                                      (fn []
-                                        (if (and x (not= x state))
-                                          (reacl/return :local-state x)
-                                          (reacl/return)))
+                        component-did-update
+                        (fn []
+                          (if (and x (not= x state))
+                            (reacl/return :local-state x)
+                            (reacl/return)))
 
-                                      render (dom/div)))]
-    (is (thrown-with-msg? js/Error #"Test component must be mounted to inspect the local-state."
+                        render (dom/div)))]
+    (is (thrown-with-msg? js/Error #"Nothing mounted into the test environment. Call mount! first."
                           (tu/inspect-local-state c)))
-    (is (thrown-with-msg? js/Error #"Test component must be mounted to inject a local-state."
+    (is (thrown-with-msg? js/Error #"Nothing mounted into the test environment. Call mount! first."
                           (tu/inject-local-state! c 7)))
 
     (tu/mount! c 4)
@@ -97,7 +100,7 @@
     (is (= (tu/inspect-local-state c) 17))
 
     (tu/unmount! c)
-    (is (thrown-with-msg? js/Error #"Test component must be mounted to inspect the local-state."
+    (is (thrown-with-msg? js/Error #"Nothing mounted into the test environment. Call mount! first."
                           (tu/inspect-local-state c)))))
 
 (deftest function-test
@@ -111,28 +114,54 @@
                             (fn []
                               (reacl/return :action [:updated arg])))
 
-        c (tu/test-fn (fn [foo]
-                        (dom/div {} (class1 foo))))]
+        c (tu/fn-env (fn [foo]
+                       (dom/div {} (class1 foo))))]
 
     (is (= (tu/mount! c :act1) (reacl/return :action [:mounted :act1])))
     
     (is (= (tu/update! c :act2) (reacl/return :action [:updated :act2])))))
 
-(deftest dom-inspect-test
-  (let [c (tu/test-class (reacl/class "test" this state [x]
+(deftest invoke-callback-test
+  (let [c (tu/mount
+           (reacl/class "test" this state [x]
 
-                                      handle-message
-                                      (fn [msg]
-                                        (reacl/return :app-state msg))
+                        handle-message
+                        (fn [msg]
+                          (reacl/return :app-state msg))
 
-                                      render (dom/div (dom/button {:onClick (fn [ev] (reacl/send-message! this x))}))))]
+                        render (dom/div (dom/button {:onClick (fn [ev] (reacl/send-message! this x))})))
+           nil :msg-1)]
 
-    (tu/mount! c nil :msg-1)
+    (is (= (tu/invoke-callback! (xpath/select-one c (xpath/>> ** "button"))
+                                :onclick :my-event)
+           (reacl/return :app-state :msg-1)))))
 
-    ;; TODO: testing with old things from alpha; to be replaced...
-    (is (= (tu/with-component-return c
-             (fn [comp]
-               (let [btn (alpha/descend-into-element comp [:div :button])]
-                 (alpha/invoke-callback btn :onclick :my-event))))
-           (reacl/return :app-state :msg-1)))
-    ))
+(deftest injection-test
+  (let [c2 (reacl/class "test2" this state []
+                        render (dom/div))
+        
+        c (tu/mount
+           (reacl/class "test" this state []
+
+                        handle-message
+                        (fn [msg]
+                          (reacl/return :app-state (inc msg)))
+
+                        render (c2 (reacl/opt :reaction (reacl/pass-through-reaction this))
+                                   nil))
+           0)]
+
+    (let [inner (xpath/select-one c (xpath/>> ** c2))
+          act ::act]
+      (is (tu/inject-return! inner (reacl/return :app-state 42 :action act))
+          (reacl/return :app-state 42 :action act)))))
+
+(def prov-x 11)
+
+(deftest provided-test
+  (tu/provided [prov-x 42]
+               (is (= prov-x 42)))
+
+  (tu/provided [reacl/send-message! (constantly 42)]
+               ;; Note: clojurescript will still complain about the arity, because that is in the metadata of the var (I guess) - but that's ok.
+               (is (= (reacl2.core/send-message! :a :b) 42))))

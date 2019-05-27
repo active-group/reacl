@@ -76,9 +76,8 @@
             (atom (reacl/return))))
 
 (defn fn-env
-  "Returns a test environment for tests on the given function (which
-  should return a dom element or class instance) or non-app-state
-  class."
+  "Returns a test environment for tests of the given function, which
+  must return a dom element or class instance."
   [f]
   (assert (or (not (reacl/reacl-class? f))
               (not (reacl/has-app-state? f))))
@@ -108,16 +107,15 @@
     (fn []
       (render env elem))))
 
-(defn mount!
-  ^{:arglists '([env app-state & args]
-                [env & args])
-    :doc "Does a fresh mount of the class from the given testing
-  environment with the given app-state and args, returning any
-  app-state changes and actions returned by the class in form of a
-  `reacl/return` value."}
-  [env & args]
-  (render env nil) ;; clean up to make it a mount even if called twice.
-  (render-return env (apply instantiate env args)))
+(def ^{:arglists '([env app-state & args]
+                   [env & args])
+       :doc "Does a fresh mount of the class from the given testing
+  environment with the given app-state and args, returning app-state
+  changes and actions returned by the class in form of a
+  `reacl/return` value."}  mount!
+  (fn [env & args]
+    (render env nil) ;; clean up to make it a mount even if called twice.
+    (render-return env (apply instantiate env args))))
 
 (defn is-mounted?
   "Returns if the given testing environment contains a mounted component (true between [[mount!]] and [[unmount!]])."
@@ -126,7 +124,9 @@
 
 (defn get-component
   "Return the component currently mounted in the given test
-  environment. Throws if it is not mounted."
+  environment. Throws if it is not mounted. Note that the returned
+  component becomes invalid after the next call to [[mount!]]
+  or [[unmount!]], but stays valid after an [[update!]]."
   [env]
   (or (find-component env)
       (throw (js/Error. "Nothing mounted into the test environment. Call mount! first."))))
@@ -151,34 +151,41 @@
         ret (apply mount! env args)]
     [ret (get-component* env)]))
 
-(defn mount
-  "Mounts an instance of the given class into a fresh test environment, and returns the component."
-  [class & args]
-  (let [[ret comp] (apply mount* class args)]
-    (when (not= ret (reacl/return))
-      (js/console.warn "Mounting the tested class %s returned (%o). Use mount-ignore, or env and mount! instead." (reacl/class-name class) ret))
-    comp))
+(def ^{:doc "Mounts an instance of the given class into a fresh test environment, and returns the component."
+       :arglists '([class app-state & args]
+                   [class & args])}
+  mount
+  (fn [class & args]
+    (let [[ret comp] (apply mount* class args)]
+      (when (not= ret (reacl/return))
+        (js/console.warn "Mounting the tested class %s returned (%o). Use mount-ignore, or env and mount! instead." (reacl/class-name class) ret))
+      comp)))
 
-(defn mount-ignore
-  "Mounts an instance of the given class into a fresh test
-  environment, and returns the component. This is the same
-  as [[mount]], but does not issue a warning when the class returned
-  something on mount."
-  [class & args]
-  (second (apply mount* class args)))
+(def ^{:doc "Like [[mount]], mounts an instance of the given class into a fresh
+  test environment, and returns the component, but does not issue a
+  warning when the class returned something on mount."
+       :arglists '([class app-state & args]
+                   [class & args])}
+  mount-ignore
+  (fn [class & args]
+    (second (apply mount* class args))))
 
-(defn ^{:arglists '([comp] [env])} with-component-return
-  "Calls `(f comp & args)` if called with a component, or if called
-  with a test environment, with the currently mounted toplevel class
-  instance. In any case, after `f` has been evaluated for its
+(def ^{:arglists '([comp] [env])
+       :doc "Calls `(f comp & args)` if called with a component, or if
+  called with a test environment, with the currently mounted toplevel
+  class instance. In any case, after `f` has been evaluated for its
   side-effects, this returns what has been returned from the tested
-  toplevel class in the form of a `reacl/return` value."
-  [c f & args]
-  (let [env (find-env c)]
-    (with-collect-return! env
-      (fn []
-        (apply f (get-component* c)
-               args)))))
+  toplevel class in the form of a `reacl/return` value.
+
+  Note that will usually not need to call this function directly; use
+  the various utilities from this module to interact with a
+  component."}  with-component-return
+  (fn [c f & args]
+    (let [env (find-env c)]
+      (with-collect-return! env
+        (fn []
+          (apply f (get-component* c)
+                 args))))))
 
 (defn- with-component-instance-return
   [c f & args]
@@ -198,28 +205,31 @@
       (assert (reacl/reacl-class? (reacl/component-class inst)))
       (apply f inst args))))
 
-(defn ^{:arglists '([comp] [env])} inspect-local-state
-  "Return the current local-state of a component, or if given a test
-  environment, of the toplevel component. Throws if it is not
-  mounted."
-  [c]
-  (reacl/extract-local-state (get-reacl-instance c)))
+(def ^{:arglists '([comp] [env])
+       :doc "Return the current local-state of a component, or if
+  given a test environment, of the toplevel component. Throws if it is
+  not mounted."}
+  inspect-local-state
+  (fn [c]
+    (reacl/extract-local-state (get-reacl-instance c))))
 
-(defn ^{:arglists '([comp] [env])} send-message!
-  "Sends the given message to the given component, or the component
+(def ^{:arglists '([comp] [env])
+       :doc "Sends the given message to the given component, or the component
   currently mounted in the given test environment. Returns a changed
   app-state and actions from the toplevel class, in the form of a
-  `reacl/return` value. Throws if it is not mounted."
-  [c msg]
-  (with-reacl-instance-return c
-    (fn [inst]
-      (reacl/send-message! inst msg))))
+  `reacl/return` value. Throws if it is not mounted."}
+  send-message!
+  (fn [c msg]
+    (with-reacl-instance-return c
+      (fn [inst]
+        (reacl/send-message! inst msg)))))
 
 (defn invoke-callback!
   "Invokes the function assiciated with the given `callback` of the
   given dom element (e.g. `:onclick`) with the given event object, and
   returns a changed app-state and actions from the toplevel class, in
-  the form of a `reacl/return` value.
+  the form of a `reacl/return` value. Typically, you will first search for
+  the element via [[xpath/select-one]].
 
   Note that this does not do a 'real' DOM event dispatching, e.g. no
   bubbling or canceling phase, and no default effects."
@@ -231,21 +241,21 @@
 
 ;; click-element? change-element? some very common event objects?
 
-(defn ^{:arglists '([comp app-state & args]
-                    [comp & args]
-                    [env app-state & args]
-                    [env & args])}
-  update!
-  "Performs an update of the given toplevel component, or the toplevel
+(def ^{:arglists '([comp app-state & args]
+                   [comp & args]
+                   [env app-state & args]
+                   [env & args])
+       :doc "Performs an update of the given toplevel component, or the toplevel
   component currently mounted in the given test environment. Returns a
   changed app-state and actions from the toplevel class, in the form
-  of a `reacl/return` value."
-  [c & args]
-  (let [env (get-env c)]
-    (render-return env (apply instantiate env args))))
+  of a `reacl/return` value."}
+  update!
+  (fn [c & args]
+    (let [env (get-env c)]
+      (render-return env (apply instantiate env args)))))
 
 (defn unmount!
-  "Performs an unmount of component mounted in the given test
+  "Performs an unmount of the component mounted in the given test
   environment. Returns a changed app-state and actions from the class,
   in the form of a `reacl/return` value."
   [env]
@@ -286,16 +296,18 @@
   [comp action]
   (inject-return! comp (reacl/return :action action)))
 
-(defn ^{:arglists '([comp state] [env state])} inject-local-state!
-  "Sets the local-state of a component, or the toplevel component
+(def ^{:arglists '([comp state] [env state])
+       :doc "Sets the local-state of a component, or the toplevel component
   currently mounted in the given test environment. Returns a changed
   app-state and actions returned from the toplevel class as a result,
   in the form of a `reacl/return` value. Throws if it is not mounted.
 
   Note that it is a bit dangerous to base tests on this, and should
   only be used with care, if the way to get to this state is otherwise
-  impossible in a unit test."
-  [c state]
-  ;; these should be equivalent:
-  #_(reacl/set-local-state! (get-reacl-instance tc) state)
-  (inject-return! (get-component* c) (reacl/return :local-state state)))
+  impossible in a unit test."}
+
+  inject-local-state!
+  (fn [c state]
+    ;; these should be equivalent:
+    #_(reacl/set-local-state! (get-reacl-instance tc) state)
+    (inject-return! (get-component* c) (reacl/return :local-state state))))

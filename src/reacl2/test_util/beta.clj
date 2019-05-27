@@ -7,7 +7,22 @@
                                        (partition 2 bindings)))
      (fn [] ~@body)))
 
-(defmacro provided [bindings & body]
+(defmacro provided
+  "This uses replaces the values bound to the given vars during the
+  evaluation of `body`, and sets them back to the previous values
+  afterwards. Example:
+
+  ```
+  (def x 42)
+  (provided [x 11]
+    (is (= (* x 2) 22)))
+  (is (= x 42))
+  ```
+
+  You can use this to isolate a test of one class from the
+  implementation of another class used in it, by replacing it with a mock.
+  Do this only if isolating the test via [[inject-return!]] is not enough."
+  [bindings & body]
   ;; Note: this will not work in async tests - can do something similar then?
   (let [pairs (partition 2 bindings)
         olds (gensym "olds")]

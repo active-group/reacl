@@ -12,8 +12,7 @@
   message or the livecycle method `from`. This marks the beginning of an update
   cycle."}  returned-trace ::returned-trece)
 
-(def ^{:doc "The given `class` was rendered as a toplevel with the
-  given `app-state` and `args`."}
+(def ^{:doc "The given `component` is being rendered."}
   render-component-trace ::render-component-trace)
 
 (def ^{:doc "The `component` had an action reducer attached, which
@@ -70,8 +69,8 @@
   (trigger-trace! returned-trace component ret from))
 
 (defn ^:no-doc trace-render-component!
-  [class app-state args]
-  (trigger-trace! render-component-trace class app-state args))
+  [component]
+  (trigger-trace! render-component-trace component))
 
 (defn ^:no-doc trace-reduced-action!
   [component action returned]
@@ -87,6 +86,7 @@
   "Returns the name of the class the given component was instantiated
   from."
   [comp]
+  ;; Note: comp may be the uber component (no reacl class)
   (.-displayName (.-constructor comp)))
 
 (defonce ^:private comp-ids (atom nil))
@@ -130,9 +130,9 @@
                                     (with-next-event-id state (fn [state ev-id]
                                                                 (update state :custom f ev-id component msg))))
                                   (= t render-component-trace)
-                                  (fn [state class app-state args]
+                                  (fn [state component]
                                     (with-next-event-id state (fn [state ev-id]
-                                                                (update state :custom f ev-id class app-state args))))
+                                                                (update state :custom f ev-id component))))
 
                                   (= t returned-trace)
                                   (fn [state component returned from]

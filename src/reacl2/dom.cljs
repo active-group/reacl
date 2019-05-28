@@ -11,7 +11,7 @@
   easy reference in an event handler."}
   reacl2.dom
   (:require-macros [reacl2.dom :refer [defdom]])
-  (:require [cljsjs.react]
+  (:require [react :as react]
             [clojure.string :as string]
             [reacl2.core :refer [IHasDom get-dom]])
   (:refer-clojure :exclude (meta map time use set symbol)))
@@ -402,7 +402,7 @@
   If `literally?` is not true, gensym the name."
   [n literally?]
   (DomBinding. nil 
-               (js/React.createRef)
+               (react/createRef)
                literally?))
 
 (defn dom-node
@@ -415,15 +415,12 @@
 (defn- set-dom-key
   "Attach a key property to a DOM object."
   [dom key]
-  (js/React.cloneElement dom #js {:key key}))
+  (react/cloneElement dom #js {:key key}))
 
 (defn keyed
   "Associate a key with a virtual DOM node."
   [key dom]
-  (if-let [ref (aget (.-props dom) "ref")]
-    (DomBinding. dom key false)
-    (DomBinding. (set-dom-key dom key)
-                 key false)))
+  (set-dom-key dom key))
 
 (defn- normalize-arg
   "Normalize the argument to a DOM-constructing function.
@@ -455,28 +452,28 @@
   [n]
   (fn
     ([]
-     (js/React.createElement n nil))
+     (react/createElement n nil))
     ([maybe]
      (if (attributes? maybe)
-       (js/React.createElement n (attributes maybe))
-       (js/React.createElement n nil (normalize-arg maybe))))
+       (react/createElement n (attributes maybe))
+       (react/createElement n nil (normalize-arg maybe))))
     ([maybe a1]
      (if (attributes? maybe)
-       (js/React.createElement n (attributes maybe) (normalize-arg a1))
-       (js/React.createElement n nil (normalize-arg maybe) (normalize-arg a1))))
+       (react/createElement n (attributes maybe) (normalize-arg a1))
+       (react/createElement n nil (normalize-arg maybe) (normalize-arg a1))))
     ([maybe a1 a2]
      (if (attributes? maybe)
-       (js/React.createElement n (attributes maybe) (normalize-arg a1) (normalize-arg a2))
-       (js/React.createElement n nil (normalize-arg maybe) (normalize-arg a1) (normalize-arg a2))))
+       (react/createElement n (attributes maybe) (normalize-arg a1) (normalize-arg a2))
+       (react/createElement n nil (normalize-arg maybe) (normalize-arg a1) (normalize-arg a2))))
     ([maybe a1 a2 a3]
      (if (attributes? maybe)
-       (js/React.createElement n (attributes maybe) (normalize-arg a1) (normalize-arg a2) (normalize-arg a3))
-       (js/React.createElement n nil (normalize-arg maybe) (normalize-arg a1) (normalize-arg a2) (normalize-arg a3))))
+       (react/createElement n (attributes maybe) (normalize-arg a1) (normalize-arg a2) (normalize-arg a3))
+       (react/createElement n nil (normalize-arg maybe) (normalize-arg a1) (normalize-arg a2) (normalize-arg a3))))
     ([maybe a1 a2 a3 a4 & rest]
      (let [args (cljs.core/map normalize-arg rest)]
        (if (attributes? maybe)
-         (apply js/React.createElement n (attributes maybe) (normalize-arg a1) (normalize-arg a2) (normalize-arg a3) (normalize-arg a4) args)
-         (apply js/React.createElement n nil (normalize-arg maybe) (normalize-arg a1) (normalize-arg a2) (normalize-arg a3) (normalize-arg a4) args))))))
+         (apply react/createElement n (attributes maybe) (normalize-arg a1) (normalize-arg a2) (normalize-arg a3) (normalize-arg a4) args)
+         (apply react/createElement n nil (normalize-arg maybe) (normalize-arg a1) (normalize-arg a2) (normalize-arg a3) (normalize-arg a4) args))))))
 
 (defn ^:no-doc set-dom-binding!
   "Internal function for use by `letdom'.
@@ -490,12 +487,12 @@
       (binding-set-ref! dn ref)
       (binding-set-dom! dn dom))
     (binding-set-dom! dn
-                      (js/React.cloneElement dom #js {:ref (binding-get-ref dn)}))))
+                      (react/cloneElement dom #js {:ref (binding-get-ref dn)}))))
 
 
 (defn strict [c]
   "Element which enables StrictMode, see https://reactjs.org/docs/strict-mode.html"
-  (js/React.createElement js/React.StrictMode nil c))
+  (react/createElement react/StrictMode nil c))
 
 ;; The following HTML elements are supported by react (http://facebook.github.io/react/docs/tags-and-attributes.html)
 (defdom a)

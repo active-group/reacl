@@ -2,11 +2,10 @@
   reacl2.test-util.alpha
   (:require [reacl2.core :as reacl :include-macros true]
             [reacl2.dom :as dom :include-macros true]
-            [cljsjs.react]
-            [cljsjs.react.dom.server]
-            [cljsjs.react.dom.test-utils]
-            [cljsjs.react.test-renderer]
-            [cljsjs.react.test-renderer.shallow]))
+            ["react-dom/server" :as react-dom-server]
+            ["react-dom/test-utils" :as react-tu]
+            [react-test-renderer :as react-test-renderer]
+            ["react-test-renderer/shallow" :as react-tu-shallow]))
 
 (defn send-message!
   [comp msg]
@@ -26,7 +25,7 @@
 
 (defn render-to-text
   [dom]
-  (js/ReactDOMServer.renderToStaticMarkup dom))
+  (react-dom-server/renderToStaticMarkup dom))
 
 ; see http://stackoverflow.com/questions/22463156/updating-react-component-state-in-jasmine-test
 (defn instantiate&mount
@@ -88,7 +87,7 @@
   afterwards."
   [f & checks]
   (fn [{:keys [get-dom!]}]
-    (f js/ReactTestUtils.Simulate (get-dom!))
+    (f react-tu/Simulate (get-dom!))
     checks))
 
 (def no-check
@@ -123,7 +122,7 @@
 (defn render-shallowly
   "Render an element shallowly."
   ([element]
-     (render-shallowly element (js/ReactShallowRenderer.)))
+     (render-shallowly element (react-tu-shallow/createRenderer)))
   ([element renderer]
      (.render renderer element)
      (.getRenderOutput renderer)))
@@ -163,7 +162,7 @@
                       (vec (list* (keyword ttype) props ch))))
                   (recur (.find element (fn [ti]
                                           (string? (.-type ti)))))))))]
-    (recurse (.-root (js/ReactTestRenderer.create element)))))
+    (recurse (.-root (react-test-renderer/create element)))))
 
 (defn hiccup-matches?
   [pattern data]
@@ -241,7 +240,7 @@
 (defn create-renderer
   "Create a renderer for testing"
   [& [el]]
-  (js/ReactTestRenderer.create el))
+  (react-test-renderer/create el))
 
 (defn render!
   "Render an element into a renderer."
@@ -339,7 +338,7 @@
     ;; FIXME: move Reacl guts exposed here back into the core
     (handle-message-internal nil
                              app-state local-state
-                             (reacl/compute-locals rcl app-state args)
+                             (reacl/-compute-locals cl app-state args)
                              args [] msg)))
 
 (defn handle-message->state

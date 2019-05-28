@@ -6,9 +6,8 @@
             [reacl.core :as reacl1 :include-macros true]
             [reacl.dom :as dom1 :include-macros true]
             [active.clojure.lens :as lens]
-            [cljsjs.react]
-            [cljsjs.react.test-renderer]
-            [cljsjs.react.dom.test-utils]
+            [react-test-renderer :as react-test-renderer]
+            ["react-dom/test-utils" :as react-tu]
             [cljs.test :as t])
   (:require-macros [cljs.test
                     :refer (is deftest run-tests testing async)]))
@@ -63,7 +62,7 @@
 
 (deftest to-do-message
   (let [e (reacl/instantiate-toplevel to-do-item (Todo. 42 "foo" true))
-        renderer (js/ReactTestRenderer.create e)]
+        renderer (react-test-renderer/create e)]
     (let [t (.-root renderer)]
       (let [input (test-util/descend-into-element t [:div :input])]
         (.onChange (.-props input) #js {:checked false})))
@@ -73,21 +72,21 @@
 
 (defn dom-with-tag
   [comp tag-name]
-  (js/ReactTestUtils.findRenderedDOMComponentWithTag comp tag-name))
+  (react-tu/findRenderedDOMComponentWithTag comp tag-name))
 
 (defn doms-with-tag
   [comp tag-name]
   (into []
-        (js/ReactTestUtils.scryRenderedDOMComponentsWithTag comp tag-name)))
+        (react-tu/scryRenderedDOMComponentsWithTag comp tag-name)))
 
 (defn dom-with-class
   [comp clazz]
-  (js/ReactTestUtils.findRenderedComponentWithType comp (reacl/react-class clazz)))
+  (react-tu/findRenderedComponentWithType comp (reacl/react-class clazz)))
 
 (defn doms-with-dom-class
   "Returns a list of all dom nodes with the given `:class? attributes rendered by `comp`."
   [comp clazz]
-  (js/ReactTestUtils.scryRenderedDOMComponentsWithClass comp clazz))
+  (react-tu/scryRenderedDOMComponentsWithClass comp clazz))
 
 (defn dom-content
   [comp]
@@ -371,7 +370,7 @@
                                                                        (apply str new-content (reverse (.-value (reacl/get-dom text-input)))))))
                                           "foo")
         dom (dom-with-tag item "input")]
-    (js/ReactTestUtils.Simulate.change dom)
+    (react-tu/Simulate.change dom)
     (is (= "foofoooof" (.-value dom)))))
 
 (deftest queued-messages-test
@@ -899,7 +898,7 @@
     (test-util/instantiate&mount c 42 21)
     (is @error?)))
 
-#_(deftest compose-reducers-test
+(deftest compose-reducers-test
   (let [r1 (fn [app-state action]
              (reacl/return :app-state (inc app-state)
                            :action action
@@ -982,3 +981,43 @@
     (is (= (test-util/extract-app-state e)
            {:middle {:inner 2} :outer 2})))
   )
+
+(deftest screwed-reactions-test
+  ;; with a lot of trickery, one can construct a broken 'reaction' with an invalid target.
+  ;; the messages of it will not be delivered. Maybe it could be, but probably it makes no sense:
+  (let [sent (atom false)
+        child-1 (reacl/class "child-1"
+                             this [parent]
+                             component-did-mount
+                             (fn []
+                               (reacl/return :message [parent this]))
+                             
+                             render
+                             (dom/div)
+
+                             handle-message
+                             (fn [msg]
+                               (reset! sent true)
+                               (reacl/return)))
+        child-2 (reacl/class "child-2"
+                             state this []
+                             handle-message (fn [msg] ;; = 42
+                                              (reacl/return :app-state :this-shall-not-be-sent))
+                             render (dom/div))
+        parent (reacl/class "parent"
+                            this []
+                            local-state [component-1 nil]
+                            handle-message (fn [comp-1]
+                                             (reacl/return :local-state comp-1))
+                            render (dom/div (if component-1
+                                              ;; make child-1 the reaction target of child-2:
+                                              (child-2 (reacl/opt :reaction (reacl/reaction component-1 identity))
+                                                       nil)
+                                              (dom/div))
+                                            (child-1 this)))]
+    ;; Note: a warning should be printed, at least.
+    (let [c (test-util/instantiate&mount parent)
+          comp-2 (dom-with-class c child-2)]
+      (test-util/send-message! comp-2 42)
+      (is (not @sent)))))
+

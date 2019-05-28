@@ -31,8 +31,9 @@
   
   (:require [reacl2.core :as reacl]
             [reacl2.dom :as dom]
-            [reacl2.test-util.alpha :as alpha]
-            cljsjs.react.test-renderer)
+            [clojure.string :as str]
+            [clojure.set :as set]
+            [reacl2.test-util.alpha :as alpha])
   (:refer-clojure :exclude [type comp range first last nth or and contains? key]))
 
 ;; Idea: an xpath is a concatenated sequence of selectors (>> sel1 sel2 ...) that can be
@@ -459,14 +460,53 @@
 (defn is? "Keeps the current node only if `(pred node & args)` returns truthy." [pred & args]
   (Is. pred args))
 
-(defn is= "Kepps the current node only if it is equal to `v`." [v]
+(defn is= "Keeps the current node only if it is equal to `v`." [v]
   (is? = v))
 
-(defn id= "Kepps the current node only if it has an attribute `id` equaling `v`." [v]
+(defn id= "Keeps the current node only if it has an attribute `id` equaling `v`." [v]
   (comp (attr :id) (is= v)))
 
 (defn- re-matches-rev [s re]
   (re-matches re s))
 
-(defn re-matches? "Kepps the current node only if it is matches the given `regex`." [regex]
+(defn re-matches? "Keeps the current node only if it is matches the given `regex`." [regex]
   (is? re-matches-rev regex))
+
+(defn- parse-css-classes [s]
+  (map str/trim (str/split s " ")))
+
+(defn- normalize-css [s]
+  (if (sequential? s)
+    (mapcat parse-css-classes s)
+    (parse-css-classes s)))
+
+(defn ^:no-doc css-class-match [comp-class cs]
+  (loop [classes (parse-css-classes comp-class)
+         cs cs]
+    (if (empty? cs)
+      true
+      (if (empty? classes)
+        false
+        (if (= (clojure.core/first cs)
+               (clojure.core/first classes))
+          (recur (rest classes) (rest cs))
+          (recur (rest classes) cs))))))
+
+(defn- is-css-class-match? [s]
+  (is? css-class-match (normalize-css s)))
+
+(defn css-class? "Keeps the current node only if it has a :class
+  matching with the given `s`. If `s` is a string or sequence, then
+  the node must have all those classes in the same order. If `s` is a
+  set of string, then it must have all those classes in any order."
+  [s]
+  (comp (attr :class)
+        (if (set? s)
+          (do (assert (every? string? s))
+              (if (= 1 (count s))
+                (is-css-class-match? (clojure.core/first s))
+                (reduce and (map is-css-class-match? s))))
+          (do (assert (or (string? s)
+                          (and (sequential? s)
+                               (every? string? s))))
+              (is-css-class-match? s)))))

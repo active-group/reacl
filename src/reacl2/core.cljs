@@ -25,8 +25,8 @@
 
    For internal use."
   [state]
-  ; otherweise Closure :advanced screws it up
-  (aget state "reacl_local_state"))
+  (when (some? state)
+    (aget state "reacl_local_state")))
 
 (defn ^:no-doc extract-local-state
   "Extract local state from a Reacl component.
@@ -997,24 +997,23 @@
             display-name
 
             "getInitialState"
-            (fn []
-              (this-as this
-                (let [app-state (extract-app-state this)
-                      locals (extract-locals this)
-                      args (extract-args this)]
-                  (make-local-state this (if initial-state
-                                           (initial-state this app-state locals args)
-                                           nil)))))
+            (when initial-state
+              (fn []
+                (this-as this
+                         (let [app-state (extract-app-state this)
+                               locals (extract-locals this)
+                               args (extract-args this)]
+                           (make-local-state this (initial-state this app-state locals args))))))
 
             "mixins"
             (when mixins
               (object-array mixins))
 
             "render"
-            (std (and render
-                      (fn [this app-state local-state locals args refs]
-                        (trace/trace-render-component! this)
-                        (render this app-state local-state locals args refs))))
+            (when render
+              (std (fn [this app-state local-state locals args refs]
+                     (trace/trace-render-component! this)
+                     (render this app-state local-state locals args refs))))
 
             ;; Note handle-message must always see the most recent
             ;; app-state, even if the component was not updated after
@@ -1137,7 +1136,7 @@
           (-make-refs [this]
             (make-refs))
           (-compute-locals [this app-state args]
-            (compute-locals app-state args))
+            (when compute-locals (compute-locals app-state args)))
           (-react-class [this] react-class))
         (reify
           IFn
@@ -1194,7 +1193,7 @@
           (-make-refs [this]
             (make-refs))
           (-compute-locals [this app-state args]
-            (compute-locals app-state args))
+            (when compute-locals (compute-locals app-state args)))
           (-react-class [this] react-class))))))
 
 (def ^:private mixin-methods #{:component-will-mount :component-did-mount

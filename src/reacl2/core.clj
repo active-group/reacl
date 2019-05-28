@@ -258,10 +258,11 @@
 
         ?ref-ids (get ?clause-map 'refs [])
         
-        [?local-state ?initial-state-expr] (if-let [local-state-clauses (get ?clause-map 'local-state)]
-                                             (do (assert (= (count local-state-clauses) 2) "The local-state clause must contain exactly one binding.")
-                                                 local-state-clauses)
-                                             [`local-state# nil])
+        [has-local-state? [?local-state ?initial-local-state-expr]]
+        (if-let [local-state-clauses (get ?clause-map 'local-state)]
+          (do (assert (= (count local-state-clauses) 2) "The local-state clause must contain exactly one binding.")
+              [true local-state-clauses])
+          [false [`local-state# nil]])
 
         ?render-fn (when-let [?expr (get ?clause-map 'render)]
                      `(fn [] ~?expr))
@@ -301,14 +302,13 @@
                             'render ?render-fn)
 
         ?wrapped-nlocal-state [['initial-state
-                                (if (some? ?initial-state-expr)
+                                (when has-local-state?
                                   (let [?locals `locals#]
                                     `(fn [~?component ~?app-state ~?locals [~@?args]]
                                        ;; every user misc fn is also visible; for v1 compat
-                                       ~(-> ?initial-state-expr
+                                       ~(-> ?initial-local-state-expr
                                             (wrap-misc)
-                                            (wrap-locals ?locals))))
-                                  `nil)]]
+                                            (wrap-locals ?locals)))))]]
 
         ?wrapped-std (map (fn [[?n ?f]] [?n (?wrap-std ?f)])
                           ?std-fns-map)
@@ -322,9 +322,10 @@
                         (translate-mixins ?args))
 
         ?compute-locals
-        `(fn [~?app-state [~@?args]]
-           (let ~?locals-clauses
-             [~@?locals-ids]))
+        (when-not (empty? ?locals-ids)
+          `(fn [~?app-state [~@?args]]
+             (let ~?locals-clauses
+               [~@?locals-ids])))
 
         ?validate (when-let [?validate-expr (get ?clause-map 'validate)]
                     `(fn [~?app-state & ~?args]

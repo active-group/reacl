@@ -778,6 +778,11 @@
 (defn- get-app-state [comp app-state-map]
   (second (get-app-state* comp app-state-map)))
 
+(defn- warning [& args]
+  (if (and js/console js/console.warn)
+    (apply js/console.warn args)
+    (apply println args)))
+
 (defn- handle-returned-1
   "Handle a single subcycle in a [[Returned]] object.
 
@@ -806,10 +811,16 @@
          (recur parent returned pending-messages
                 (update-state-map app-state-map parent (:app-state returned))
                 (update-state-map local-state-map parent (:local-state returned))))
-       (UpdateInfo. comp
-                    app-state
-                    app-state-map local-state-map
-                    queued-messages))))
+       (do
+         ;; little trick to remove this when asserts are elided:
+         (assert (do (when-let [actions (not-empty actions-for-parent)]
+                       (doseq [a actions]
+                         (warning "Action not handled:" a "- Add an action reducer to your call to render-component.")))
+                     true))
+         (UpdateInfo. comp
+                      app-state
+                      app-state-map local-state-map
+                      queued-messages)))))
 
 (defn- handle-returned
   "Execute a complete supercycle.

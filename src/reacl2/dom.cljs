@@ -420,10 +420,7 @@
 (defn keyed
   "Associate a key with a virtual DOM node."
   [key dom]
-  (if-let [ref (aget (.-props dom) "ref")]
-    (DomBinding. dom key false)
-    (DomBinding. (set-dom-key dom key)
-                 key false)))
+  (set-dom-key dom key))
 
 (defn- normalize-arg
   "Normalize the argument to a DOM-constructing function.

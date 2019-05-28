@@ -854,16 +854,16 @@
   [comp ^Returned ret from]
   (trace/trace-returned! comp ret from)
   (let [ui (handle-returned comp ret)
-        comp (:toplevel-component ui)
-        app-state (:toplevel-app-state ui)
-        uber (resolve-uber comp)]
+        app-state (:toplevel-app-state ui)]
     ;; after handle-returned, all messages must have been processed:
     (assert (empty? (:queued-messages ui)) "Internal invariant violation.")
     (trace/trace-cycle-done! app-state (:local-state-map ui))
     (doseq [[comp local-state] (:local-state-map ui)]
       (set-local-state! comp local-state))
     (when-not (keep-state? app-state)
-      (.setState uber #js {:reacl_uber_app_state app-state}))))
+      (let [comp (:toplevel-component ui)
+            uber (resolve-uber comp)]
+        (.setState uber #js {:reacl_uber_app_state app-state})))))
 
 
 (defn ^:no-doc resolve-component

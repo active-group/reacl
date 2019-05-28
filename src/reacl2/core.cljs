@@ -812,7 +812,11 @@
                 (update-state-map app-state-map parent (:app-state returned))
                 (update-state-map local-state-map parent (:local-state returned))))
        (do
-         ;; little trick to remove this when asserts are elided:
+         ;; little tricks here to remove this when asserts are elided:
+         (assert (do (when-let [messages (not-empty pending-messages)]
+                       (doseq [[target msg] messages]
+                         (warning "Reaction message " msg " with target" target " cannot not be delivered. Maybe you screwed up the reaction targets; those should always point 'upwards'.")))
+                     true))
          (assert (do (when-let [actions (not-empty actions-for-parent)]
                        (doseq [a actions]
                          (warning "Action not handled:" a "- Add an action reducer to your call to render-component.")))

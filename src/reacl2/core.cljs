@@ -827,17 +827,19 @@
   "Execute a complete supercycle.
 
   Returns `UpdateInfo` object."
-  [comp ^Returned ret]
+  [comp ^Returned ret from]
   (loop [comp comp
          ^Returned ret ret
          app-state-map {}
          local-state-map {}
-         queued-messages #queue []]
+         queued-messages #queue []
+         from from]
     ;; process this Returned, resulting in updated states, and maybe more messages.
     (let [ui (handle-returned-1 comp ret nil app-state-map local-state-map)
           app-state-map (:app-state-map ui)
           local-state-map (:local-state-map ui)
           queued-messages (reduce conj queued-messages (:queued-messages ui))]
+      (trace/trace-returned! comp ret from)
       (if (empty? queued-messages)
         ui
         ;; process the next message, resulting in a new 'Returned', then recur.
@@ -857,19 +859,19 @@
           (recur dest ret
                  app-state-map
                  local-state-map
-                 queued-messages))))))
+                 queued-messages
+                 'handle-message))))))
 
 (defn ^:no-doc handle-returned!
   "Handle all effects described and caused by a [[Returned]] object. This is the entry point into a Reacl update cycle.
 
   Assumes the actions in `ret` are for comp."
   [comp ^Returned ret from]
-  (trace/trace-returned! comp ret from)
-  (let [ui (handle-returned comp ret)
+  (let [ui (handle-returned comp ret from)
         app-state (:toplevel-app-state ui)]
     ;; after handle-returned, all messages must have been processed:
     (assert (empty? (:queued-messages ui)) "Internal invariant violation.")
-    (trace/trace-cycle-done! app-state (:local-state-map ui))
+    (trace/trace-commit! app-state (:local-state-map ui))
     (doseq [[comp local-state] (:local-state-map ui)]
       (set-local-state! comp local-state))
     (when-not (keep-state? app-state)

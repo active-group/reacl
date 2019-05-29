@@ -76,7 +76,7 @@
   [component action returned]
   (trigger-trace! reduced-action-trace component action returned))
 
-(defn ^:no-doc trace-cycle-done!
+(defn ^:no-doc trace-commit!
   [global-app-state local-state-map]
   (trigger-trace! commit-trace global-app-state local-state-map))
 
@@ -138,9 +138,7 @@
                                   (fn [state component returned from]
                                     (with-next-event-id state
                                       (fn [state ev-id]
-                                        ;; and this starts a new cycle.
                                         (-> state
-                                            (update :cycle-id inc)
                                             (update :custom f ev-id (inc (:cycle-id state)) component returned from)))))
 
                                   (= t reduced-action-trace)
@@ -151,7 +149,8 @@
                                   (= t commit-trace)
                                   (fn [state global-app-state local-state-map]
                                     (-> state
-                                        (update :custom f (:cycle-id state) global-app-state local-state-map)))
+                                        (update :custom f (:cycle-id state) global-app-state local-state-map)
+                                        (update :cycle-id inc)))
 
                                   :else (assert false t))])
                            tracer-map))))))

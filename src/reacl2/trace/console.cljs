@@ -210,15 +210,12 @@
 
      trace/render-component-trace
      (fn [state event-id component]
-       (when (pred component)
-         (log! (opt-label label) (interp rendering (show-comp component))))
-       state)
+       (cond-> state
+         (pred component) (log-in-group! (opt-label label) (interp rendering (show-comp component)))))
 
      trace/returned-trace
      (fn [state event-id cycle-id component ret from]
-       ;; Note: one must look at the previous event (another cycle, a message or a rendering)
-       ;; to see why this cycle triggered (but hardly no other way...?)
-       (cond-> (mark-group-start state (multi (opt-label label) "cycle #" cycle-id) #_(str "event #" event-id " cycle #" cycle-id))
+       (cond-> state
          (pred component) (log-in-group! (interp (marker returned-color (str from)) (returned-styled "of") (show-comp component) (returned-styled "returned") (show-ret ret)))))
                       
      trace/reduced-action-trace
@@ -240,7 +237,9 @@
                         (log-group-end!)))
                  state)
                state)
-             (end-group))))})))
+             (end-group)
+             ;; mark to start next cycle... first log-in-group that follows actually opens.
+             (mark-group-start (multi (opt-label label) "cycle #" (inc cycle-id))))))})))
 
 (defonce ^{:doc "A tracer that logs everything that causes and happens during a Reacl rendering cycle."} console-tracer
   (component-tracer nil (constantly true)))

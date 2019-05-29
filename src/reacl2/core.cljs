@@ -450,29 +450,29 @@
     (f elem)
     ;; for dom elements (or native React components), we map over the children, looking for components there.
     (do
-      (let [cs (js/React.Children.map (.-children (.-props elem))
-                                      (fn [e]
-                                        ;; child can be a string - keep them as is
-                                        (if (.hasOwnProperty e "props")
-                                          (map-over-components e f)
-                                          e)))]
-        (js/React.cloneElement elem nil cs)))))
+      (let [cs (react/Children.map (.-children (.-props elem))
+                                   (fn [e]
+                                     ;; child can be a string - keep them as is
+                                     (if (.hasOwnProperty e "props")
+                                       (map-over-components e f)
+                                       e)))]
+        (react/cloneElement elem nil cs)))))
 
 (defn redirect-actions [elem target]
   (map-over-components
    elem
    (fn [comp]
-     (js/React.cloneElement comp #js {:reacl_parent target}))))
+     (react/cloneElement comp #js {:reacl_parent target}))))
 
 (defn reactive [app-state reaction]
   (opt :app-state app-state
        :reaction reaction))
 
 (defn refer [elem ref]
-  (js/React.cloneElement elem #js {:ref ref}))
+  (react/cloneElement elem #js {:ref ref}))
 
-;; (defn keyed [elem key]
-;;   (js/React.cloneElement elem #js {:key key}))
+(defn keyed [elem key]
+  (react/cloneElement elem #js {:key key}))
 
 (defn- deconstruct-opt
   [rst]
@@ -1103,9 +1103,9 @@
   (map-over-components
    elem
    (fn [comp]
-     (js/React.cloneElement comp #js {:reacl_reduce_action (if-let [prev (action-reducer comp)] ;; Note: will usually have one: the default-action-reducer.
-                                                             (compose-reducers prev f)
-                                                             f)}))))
+     (react/cloneElement comp #js {:reacl_reduce_action (if-let [prev (action-reducer comp)] ;; Note: will usually have one: the default-action-reducer.
+                                                          (compose-reducers prev f)
+                                                          f)}))))
 
 (defn map-action [elem f]
   (reduce-action elem (fn [app-state action]

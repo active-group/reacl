@@ -26,8 +26,8 @@
               (multi? a) (let [[fmt2 args2] (parse-log-args (:args a))]
                            [(str fmt-str fmt2) (vec (concat args args2))])
               (obj? a) [(str fmt-str "%o") (conj args (:value a))]
-              (or (float? a) (double? a)) [(str fmt-str "%f") (conj args a)]
-              (number? a) [(str fmt-str "%d") (conj args a)]
+              (integer? a) [(str fmt-str "%d") (conj args a)]
+              (number? a) [(str fmt-str "%f") (conj args a)]
               (styled? a) (let [[fmt2 args2] (parse-log-args (:args a))
                                 st (:style a)]
                             ;; Note: styling has to be 'turned on' and 'turned off' again. (cannot nest them)

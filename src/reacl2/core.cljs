@@ -790,10 +790,7 @@
 
   Returns `UpdateInfo` value."
   [comp ^Returned ret pending-messages app-state-map local-state-map]
-  (let [app-state (right-state
-                   (get-app-state comp app-state-map)
-                   (:app-state ret))
-        [app-state local-state actions-for-parent queued-messages] (reduce-returned-actions comp app-state ret)
+  (let [[app-state local-state actions-for-parent queued-messages] (reduce-returned-actions comp (get-app-state comp app-state-map) ret)
         app-state-map (update-state-map app-state-map comp app-state)
         local-state-map (update-state-map local-state-map comp local-state)]
 
@@ -822,7 +819,7 @@
                          (warning "Action not handled:" a "- Add an action reducer to your call to render-component.")))
                      true))
          (UpdateInfo. comp
-                      app-state
+                      (right-state (get app-state-map comp keep-state) app-state)
                       app-state-map local-state-map
                       queued-messages)))))
 

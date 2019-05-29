@@ -170,7 +170,7 @@
   (fn [class & args]
     (second (apply mount* class args))))
 
-(def ^{:arglists '([comp] [env])
+(def ^{:arglists '(c f & args)
        :doc "Calls `(f comp & args)` if called with a component, or if
   called with a test environment, with the currently mounted toplevel
   class instance. In any case, after `f` has been evaluated for its
@@ -205,7 +205,7 @@
       (assert (reacl/reacl-class? (reacl/component-class inst)))
       (apply f inst args))))
 
-(def ^{:arglists '([comp] [env])
+(def ^{:arglists '(c)
        :doc "Return the current local-state of a component, or if
   given a test environment, of the toplevel component. Throws if it is
   not mounted."}
@@ -213,7 +213,7 @@
   (fn [c]
     (reacl/extract-local-state (get-reacl-instance c))))
 
-(def ^{:arglists '([comp] [env])
+(def ^{:arglists '(c msg)
        :doc "Sends the given message to the given component, or the component
   currently mounted in the given test environment. Returns a changed
   app-state and actions from the toplevel class, in the form of a

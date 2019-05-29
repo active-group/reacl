@@ -8,7 +8,7 @@
      (fn [] ~@body)))
 
 (defmacro provided
-  "This uses replaces the values bound to the given vars during the
+  "This replaces the values bound to the given vars during the
   evaluation of `body`, and sets them back to the previous values
   afterwards. Example:
 

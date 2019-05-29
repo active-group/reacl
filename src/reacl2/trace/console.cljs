@@ -236,7 +236,8 @@
                       (finally
                         (log-group-end!)))
                  state)
-               state)
+               (do (log! (interp commit (styled "font-style: italic" "no changes")))
+                   state))
              (end-group)
              ;; mark to start next cycle... first log-in-group that follows actually opens.
              (mark-group-start (multi (opt-label label) "cycle #" (inc cycle-id))))))})))

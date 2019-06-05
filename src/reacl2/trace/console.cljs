@@ -167,7 +167,11 @@
 (def ^:private commit-color "brown")
 
 (defn- marker [color & content]
-  (apply styled (str "color: " color "; padding: 1px 2px 1px 2px; border-radius: 4px; border: 1px solid " color ";") content))
+  (apply styled (str "color: " color
+                     "; padding: 1px 2px 1px 2px"
+                     "; border-radius: 4px; border: 1px solid " color ";"
+                     )
+         content))
 
 (def ^:private rendering (marker rendering-color "rendering"))
 (defn- message-styled [& content] (apply styled (str "color: " message-color) content))
@@ -230,7 +234,7 @@
                      (not (empty? local-state-map)))
                (let [state (realize-marked-group! state)]
                  (log-group-start! commit)
-                 (try (log! (interp (commit-styled "global app-state") (global global-app-state)))
+                 (try (log! (interp (commit-styled "toplevel app-state") (global global-app-state)))
                       (doseq [[component local-state] local-state-map]
                         (log! (interp (commit-styled "local-state of") (show-comp component) (commit-styled "set to") (show-value local-state))))
                       (finally

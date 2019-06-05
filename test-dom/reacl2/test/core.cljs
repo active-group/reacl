@@ -56,7 +56,7 @@
       (is (= app-state (Todo. 42 "foo" true))))))
 
 (deftest to-do-elements
-  (let [e (to-do-item (Todo. 42 "foo" true))]
+  (let [e (to-do-item (reacl/opt :reaction reacl/no-reaction) (Todo. 42 "foo" true))]
     (is (test-util/hiccup-matches? [:div [:input {:type "checkbox", :value true, :onchange fn?}] "foo"]
                                    (test-util/render->hiccup e)))))
 
@@ -143,7 +143,7 @@
   (let [foo (reacl/class "foo"
                          this bam []
                          render (dom/span))
-        e (foo 42)]
+        e (foo (reacl/opt :reaction reacl/no-reaction) 42)]
     (is (= 42 (test-util/extract-app-state e)))))
 
 (deftest extract-args-test
@@ -200,7 +200,7 @@
 (reacl/defclass blaz2
   this app-state []
   render
-  (blam (* 2 app-state))
+  (blam (reacl/opt :reaction reacl/no-reaction) (* 2 app-state))
   handle-message
   (fn [new]
     (reacl/return :app-state new)))
@@ -361,7 +361,7 @@
         queued-super (reacl/class "queued-super"
                                   this app-state []
                                   render
-                                  (dom/div (queued-sub app-state this))
+                                  (dom/div (queued-sub (reacl/opt :reaction reacl/no-reaction) app-state this))
                                   handle-message
                                   (fn [msg]
                                     (reacl/return :app-state (str app-state msg))))
@@ -487,7 +487,7 @@
 
 (deftest action-to-message-test
   ;; Basic test that covers (return :message) as an option to handle actions
-  (let [button (reacl/class "button" this [action]
+  (let [button (reacl/class "button" this st [action]
                  render (dom/div)
                  handle-message
                  (fn [msg]
@@ -495,12 +495,12 @@
                                  :action action)))
 
         form (reacl/class "form" this state []
-               render (button (reacl/opt :reaction (reacl/reaction this identity)
+               render (button (reacl/opt :reaction (reacl/pass-through-reaction this)
                                          :reduce-action
                                          (fn [_ action]
-                                           (assert (= action :action1))
+                                           (assert (= action :action1) (pr-str action))
                                            (reacl/return :message [this :msg1])))
-                              :action1)
+                              nil :action1)
                handle-message
                (fn [msg]
                  (reacl/return :app-state (cons msg state))))]
@@ -510,7 +510,7 @@
              [:msg1 :action-sent-app])))))
 
 (deftest action-async-message-test
-  (let [button (reacl/class "button" this [action]
+  (let [button (reacl/class "button" this st [action]
                             render (dom/div)
                             handle-message
                             (fn [msg]
@@ -554,7 +554,7 @@
                             render (container (reacl/opt :reaction (reacl/reaction this #(vector :container-app-state %)))
                                               nil
                                               (fn [state]
-                                                (child state)))
+                                                (child (reacl/opt :reaction reacl/no-reaction) state)))
                             handle-message (fn [msg]
                                              (reacl/return :local-state msg
                                                            :app-state :baz)))

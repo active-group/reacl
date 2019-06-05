@@ -715,7 +715,7 @@
                                 msg)]
         (if (returned? ret)
           ret
-          (do (assert (= false true) (str "A 'reacl/return' value was expected, but a handle-message returned: " (pr-str ret)))
+          (do (assert (= false true) (str "A 'reacl/return' value was expected, but handle-message of " (.-displayName (.-constructor comp)) " returned: " (pr-str ret)))
               returned-nil))))))
 
 (defn ^:no-doc handle-message

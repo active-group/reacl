@@ -128,7 +128,7 @@
 ;; Tests
 
 (deftest string-display-test
-  (let [e (string-display "Hello, Mike")
+  (let [e (string-display (reacl/opt :reaction reacl/no-reaction) "Hello, Mike")
         renderer (reacl-test/create-renderer e)]
     (let [t (reacl-test/render-output renderer)]
       (is (reacl-test/render-output=dom? t (dom/h1 "Hello, Mike")))
@@ -149,7 +149,7 @@
           (is (reacl-test/element-has-type? c :li)))))))
 
 (deftest hiccup-test
-  (let [e (string-display "Hello, Mike")]
+  (let [e (string-display (reacl/opt :reaction reacl/no-reaction) "Hello, Mike")]
     (is (= [:h1 "Hello, Mike"]
            (reacl-test/render->hiccup e)))))
 

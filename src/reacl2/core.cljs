@@ -461,11 +461,11 @@
   (let [[opts app-state args] (deconstruct-opt+app-state has-app-state? rst)
         rclazz (react-class clazz)]
     (assert (not (and (:reaction opts) (:embed-app-state opts)))) ; FIXME: assertion to catch FIXME in internal-reaction
-    (when-not (and (-has-app-state? clazz)
-                   (not (or (contains? opts :reaction) (:embed-app-state opts))))
+    (when (and (-has-app-state? clazz)
+               (not (or (contains? opts :reaction) (:embed-app-state opts))))
       (warning "Instantiating class" (class-name clazz) "without reacting to its app-state changes. Specify 'no-reaction' if you intended to do this."))
-    (when-not (and (not (-has-app-state? clazz))
-                   (or (contains? opts :reaction) (:embed-app-state opts)))
+    (when (and (not (-has-app-state? clazz))
+               (or (contains? opts :reaction) (:embed-app-state opts)))
       (warning "Instantiating class" (class-name clazz) "with reacting to app-state changes, but it does not have an app-state."))
     (-validate! clazz app-state args)
     (react/createElement rclazz

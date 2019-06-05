@@ -6,6 +6,11 @@
             [prop-types :as ptypes]
             [reacl2.trace.core :as trace]))
 
+(defn- warning [& args]
+  (if (and js/console js/console.warn)
+    (apply js/console.warn args)
+    (apply println args)))
+
 (defn- local-state-state
   "Set Reacl local state in the given state object.
 
@@ -456,6 +461,12 @@
   (let [[opts app-state args] (deconstruct-opt+app-state has-app-state? rst)
         rclazz (react-class clazz)]
     (assert (not (and (:reaction opts) (:embed-app-state opts)))) ; FIXME: assertion to catch FIXME in internal-reaction
+    (when-not (and (-has-app-state? clazz)
+                   (not (or (contains? opts :reaction) (:embed-app-state opts))))
+      (warning "Instantiating class" clazz "without reacting to its app-state changes. Specify 'no-reaction' if you intended to do this."))
+    (when-not (and (not (-has-app-state? clazz))
+                   (or (contains? opts :reaction) (:embed-app-state opts)))
+      (warning "Instantiating class" clazz "with reacting to app-state changes, but it does not have an app-state."))
     (-validate! clazz app-state args)
     (react/createElement rclazz
                          #js {:reacl_app_state app-state
@@ -777,11 +788,6 @@
 
 (defn- get-app-state [comp app-state-map]
   (second (get-app-state* comp app-state-map)))
-
-(defn- warning [& args]
-  (if (and js/console js/console.warn)
-    (apply js/console.warn args)
-    (apply println args)))
 
 (defn- handle-returned-1
   "Handle a single subcycle in a [[Returned]] object.

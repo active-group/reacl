@@ -611,10 +611,10 @@
         rclazz (react-class clazz)]
     (when-not (and (-has-app-state? clazz)
                    (not (contains? opts :reaction)))
-      (warning "Instantiating class" clazz "without reacting to its app-state changes. Specify 'no-reaction' if you intended to do this."))
+      (warning "Instantiating class" (class-name clazz) "without reacting to its app-state changes. Specify 'no-reaction' if you intended to do this."))
     (when-not (and (not (-has-app-state? clazz))
                    (contains? opts :reaction))
-      (warning "Instantiating class" clazz "with reacting to app-state changes, but it does not have an app-state."))
+      (warning "Instantiating class" (class-name clazz) "with reacting to app-state changes, but it does not have an app-state."))
     (-validate! clazz app-state args)
     (react/createElement rclazz
                          #js {:reacl_app_state app-state

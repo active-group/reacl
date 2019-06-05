@@ -26,8 +26,8 @@
               (multi? a) (let [[fmt2 args2] (parse-log-args (:args a))]
                            [(str fmt-str fmt2) (vec (concat args args2))])
               (obj? a) [(str fmt-str "%o") (conj args (:value a))]
-              (or (float? a) (double? a)) [(str fmt-str "%f") (conj args a)]
-              (number? a) [(str fmt-str "%d") (conj args a)]
+              (integer? a) [(str fmt-str "%d") (conj args a)]
+              (number? a) [(str fmt-str "%f") (conj args a)]
               (styled? a) (let [[fmt2 args2] (parse-log-args (:args a))
                                 st (:style a)]
                             ;; Note: styling has to be 'turned on' and 'turned off' again. (cannot nest them)
@@ -167,7 +167,11 @@
 (def ^:private commit-color "brown")
 
 (defn- marker [color & content]
-  (apply styled (str "color: " color "; padding: 1px 2px 1px 2px; border-radius: 4px; border: 1px solid " color ";") content))
+  (apply styled (str "color: " color
+                     "; padding: 1px 2px 1px 2px"
+                     "; border-radius: 4px; border: 1px solid " color ";"
+                     )
+         content))
 
 (def ^:private rendering (marker rendering-color "rendering"))
 (defn- message-styled [& content] (apply styled (str "color: " message-color) content))
@@ -210,15 +214,12 @@
 
      trace/render-component-trace
      (fn [state event-id component]
-       (when (pred component)
-         (log! (opt-label label) (interp rendering (show-comp component))))
-       state)
+       (cond-> state
+         (pred component) (log-in-group! (opt-label label) (interp rendering (show-comp component)))))
 
      trace/returned-trace
      (fn [state event-id cycle-id component ret from]
-       ;; Note: one must look at the previous event (another cycle, a message or a rendering)
-       ;; to see why this cycle triggered (but hardly no other way...?)
-       (cond-> (mark-group-start state (multi (opt-label label) "cycle #" cycle-id) #_(str "event #" event-id " cycle #" cycle-id))
+       (cond-> state
          (pred component) (log-in-group! (interp (marker returned-color (str from)) (returned-styled "of") (show-comp component) (returned-styled "returned") (show-ret ret)))))
                       
      trace/reduced-action-trace
@@ -233,14 +234,17 @@
                      (not (empty? local-state-map)))
                (let [state (realize-marked-group! state)]
                  (log-group-start! commit)
-                 (try (log! (interp (commit-styled "global app-state") (global global-app-state)))
+                 (try (log! (interp (commit-styled "toplevel app-state") (global global-app-state)))
                       (doseq [[component local-state] local-state-map]
                         (log! (interp (commit-styled "local-state of") (show-comp component) (commit-styled "set to") (show-value local-state))))
                       (finally
                         (log-group-end!)))
                  state)
-               state)
-             (end-group))))})))
+               (do (log! (interp commit (styled "font-style: italic" "no changes")))
+                   state))
+             (end-group)
+             ;; mark to start next cycle... first log-in-group that follows actually opens.
+             (mark-group-start (multi (opt-label label) "cycle #" (inc cycle-id))))))})))
 
 (defonce ^{:doc "A tracer that logs everything that causes and happens during a Reacl rendering cycle."} console-tracer
   (component-tracer nil (constantly true)))

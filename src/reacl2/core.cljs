@@ -6,6 +6,11 @@
             [prop-types :as ptypes]
             [reacl2.trace.core :as trace]))
 
+(defn- warning [& args]
+  (if (and js/console js/console.warn)
+    (apply js/console.warn args)
+    (apply println args)))
+
 (defn- local-state-state
   "Set Reacl local state in the given state object.
 
@@ -604,6 +609,12 @@
   [clazz has-app-state? rst]
   (let [[opts app-state args] (deconstruct-opt+app-state has-app-state? rst)
         rclazz (react-class clazz)]
+    (when-not (and (-has-app-state? clazz)
+                   (not (contains? opts :reaction)))
+      (warning "Instantiating class" clazz "without reacting to its app-state changes. Specify 'no-reaction' if you intended to do this."))
+    (when-not (and (not (-has-app-state? clazz))
+                   (contains? opts :reaction))
+      (warning "Instantiating class" clazz "with reacting to app-state changes, but it does not have an app-state."))
     (-validate! clazz app-state args)
     (react/createElement rclazz
                          #js {:reacl_app_state app-state
@@ -855,7 +866,7 @@
                                 msg)]
         (if (returned? ret)
           ret
-          (do (assert (= false true) (str "A 'reacl/return' value was expected, but a handle-message returned: " (pr-str ret)))
+          (do (assert (= false true) (str "A 'reacl/return' value was expected, but handle-message of " (.-displayName (.-constructor comp)) " returned: " (pr-str ret)))
               returned-nil))))))
 
 (defn ^:no-doc handle-message
@@ -929,11 +940,6 @@
 (defn- get-app-state [comp app-state-map]
   (second (get-app-state* comp app-state-map)))
 
-(defn- warning [& args]
-  (if (and js/console js/console.warn)
-    (apply js/console.warn args)
-    (apply println args)))
-
 (defn- handle-returned-1
   "Handle a single subcycle in a [[Returned]] object.
 
@@ -941,10 +947,7 @@
 
   Returns `UpdateInfo` value."
   [comp ^Returned ret pending-messages app-state-map local-state-map]
-  (let [app-state (right-state
-                   (get-app-state comp app-state-map)
-                   (:app-state ret))
-        [app-state local-state actions-for-parent queued-messages] (reduce-returned-actions comp app-state ret)
+  (let [[app-state local-state actions-for-parent queued-messages] (reduce-returned-actions comp (get-app-state comp app-state-map) ret)
         app-state-map (update-state-map app-state-map comp app-state)
         local-state-map (update-state-map local-state-map comp local-state)]
 
@@ -973,7 +976,7 @@
                          (warning "Action not handled:" a "- Add an action reducer to your call to render-component.")))
                      true))
          (UpdateInfo. comp
-                      app-state
+                      (right-state (get app-state-map comp keep-state) app-state)
                       app-state-map local-state-map
                       queued-messages)))))
 
@@ -981,17 +984,19 @@
   "Execute a complete supercycle.
 
   Returns `UpdateInfo` object."
-  [comp ^Returned ret]
+  [comp ^Returned ret from]
   (loop [comp comp
          ^Returned ret ret
          app-state-map {}
          local-state-map {}
-         queued-messages #queue []]
+         queued-messages #queue []
+         from from]
     ;; process this Returned, resulting in updated states, and maybe more messages.
     (let [ui (handle-returned-1 comp ret nil app-state-map local-state-map)
           app-state-map (:app-state-map ui)
           local-state-map (:local-state-map ui)
           queued-messages (reduce conj queued-messages (:queued-messages ui))]
+      (trace/trace-returned! comp ret from)
       (if (empty? queued-messages)
         ui
         ;; process the next message, resulting in a new 'Returned', then recur.
@@ -1011,19 +1016,19 @@
           (recur dest ret
                  app-state-map
                  local-state-map
-                 queued-messages))))))
+                 queued-messages
+                 'handle-message))))))
 
 (defn ^:no-doc handle-returned!
   "Handle all effects described and caused by a [[Returned]] object. This is the entry point into a Reacl update cycle.
 
   Assumes the actions in `ret` are for comp."
   [comp ^Returned ret from]
-  (trace/trace-returned! comp ret from)
-  (let [ui (handle-returned comp ret)
+  (let [ui (handle-returned comp ret from)
         app-state (:toplevel-app-state ui)]
     ;; after handle-returned, all messages must have been processed:
     (assert (empty? (:queued-messages ui)) "Internal invariant violation.")
-    (trace/trace-cycle-done! app-state (:local-state-map ui))
+    (trace/trace-commit! app-state (:local-state-map ui))
     (doseq [[comp local-state] (:local-state-map ui)]
       (set-local-state! comp local-state))
     (when-not (keep-state? app-state)

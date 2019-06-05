@@ -1023,3 +1023,17 @@
       (test-util/send-message! comp-2 42)
       (is (not @sent)))))
 
+(deftest app-state-preservation
+  ;; With two messages in once cycle, where the first changes the
+  ;; app-state it got lost if the second is not changing it
+  (let [class1 (reacl/class "class1" this state []
+                            render (dom/div)
+                            handle-message
+                            (fn [msg]
+                              (if (= :start msg)
+                                (reacl/return :message [this :msg2]
+                                              :app-state (inc state))
+                                (reacl/return))))]
+    (let [c (test-util/instantiate&mount class1 0)]
+      (test-util/send-message! c :start)
+      (is (= 1 (test-util/extract-app-state c))))))

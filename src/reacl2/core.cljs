@@ -431,7 +431,7 @@
                 (update :reaction
                         (fn [prev-reaction]
                           (when-not (contains? mp :app-state)
-                            (throw (new js/Error "To focus a reaction, it must include the app-state. Use 'bind', 'bind-locally', 'fixed' or 'reactive'.")))
+                            (throw (new js/Error "To focus a reaction, it must include the app-state. Use 'bind', 'bind-locally', 'static' or 'reactive'.")))
                           (Reaction. (:component prev-reaction)
                                      focus-make-message
                                      (cons (:make-message prev-reaction) (cons lens (cons (:app-state mp) (:args prev-reaction)))))))
@@ -611,7 +611,7 @@
         rclazz (react-class clazz)]
     (when-not (and (-has-app-state? clazz)
                    (not (contains? opts :reaction)))
-      (warning "Instantiating class" (class-name clazz) "without reacting to its app-state changes. Specify 'no-reaction' if you intended to do this."))
+      (warning "Instantiating class" (class-name clazz) "without reacting to its app-state changes. Use 'static' if you intended to do this."))
     (when-not (and (not (-has-app-state? clazz))
                    (contains? opts :reaction))
       (warning "Instantiating class" (class-name clazz) "with reacting to app-state changes, but it does not have an app-state."))

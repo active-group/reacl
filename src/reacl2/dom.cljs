@@ -415,7 +415,7 @@
 (defn- set-dom-key
   "Attach a key property to a DOM object."
   [dom key]
-  (react/cloneElement dom #js {:key key}))
+  (react/cloneAndReplaceKey dom key))
 
 (defn keyed
   "Associate a key with a virtual DOM node."

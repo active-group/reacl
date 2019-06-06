@@ -387,7 +387,7 @@
   ([v] v)
   ([_ v] v))
 
-(defrecord LensComp [l1 l2]
+(defrecord ^:private LensComp [l1 l2]
   IFn
   (-invoke [_ d]
     (l2 (l1 d)))
@@ -420,7 +420,13 @@
 (defn- focus-make-message [inner-app-state prev-make-message lens original-app-state & args]
   (apply prev-make-message (lens original-app-state inner-app-state) args))
 
-(defn focus [opt lens]
+(defn focus
+  "Further restrict the value returned
+  by [[bind]], [[bind-locally]], [[static]] or [[reactive]], so that
+  the subcomponents app-state is taken from and merged into a part of
+  the previous value, as defined by the given lens."
+  [opt lens]
+  ;; Note: we could also define this over an element instead of an opt?
   (assert (opt? opt))
   (let [lens (lift-lens lens)]
     (update opt :map

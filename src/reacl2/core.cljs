@@ -485,7 +485,7 @@
   (react/cloneElement elem #js {:ref ref}))
 
 (defn keyed [elem key]
-  (react/cloneAndReplaceKey element key))
+  (react/cloneAndReplaceKey elem key))
 
 (defn- deconstruct-opt
   [rst]

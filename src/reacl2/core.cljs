@@ -302,6 +302,26 @@
 (defn- embed-locally-f [app-state local-state child-app-state f]
   [keep-state (f local-state child-app-state)])
 
+;; TODO: use active-clojure lens utils?
+
+(defn- id-lens
+  ([v] v)
+  ([_ v] v))
+
+(defrecord ^:private LensComp [l1 l2]
+  IFn
+  (-invoke [_ d]
+    (l2 (l1 d)))
+  (-invoke [_ d v]
+    (l1 d (l2 (l1 d) v))))
+
+(defn- lens-comp [l1 l2]
+  (cond
+    (= l1 id-lens) l2
+    (= l2 id-lens) l1
+    :else
+    (LensComp. l1 l2)))
+
 (defrecord ^:private KeywordLens [k]
   IFn
   (-invoke [this v] (get v k))
@@ -334,18 +354,18 @@
         ;; Note that extract-app-state and extract-local-state only work as expected during rendering (we could try to verify that?)
         ;; If someone should instantiate components during handle-message, he shall be doomed (or has to adjust :app-state manually).
         :embed :>>
-        (fn [[comp f]]
+        (fn [comp]
           (assert (not (or (:reaction opts) (:embed-app-state opts) (:embed-locally opts))) reaction-invariant-msg)
           (when-not (-has-app-state? (component-class comp))
             (throw (ex-info (str "Cannot bind to the app-state, as the class does not have an app-state. Maybe use bind-locally instead.") {:class (component-class comp)})))
           (cond-> (assoc opts
-                         :reaction (reaction comp ->EmbedState embed-app-state-f [(lift-lens f)]))
+                         :reaction (reaction comp ->EmbedState embed-app-state-f [id-lens]))
             (not (contains? opts :app-state)) (assoc :app-state (extract-app-state comp))))
         :embed-locally :>>
-        (fn [[comp f]]
+        (fn [comp]
           (assert (not (or (:reaction opts) (:embed-app-state opts) (:embed opts))) reaction-invariant-msg)
           (cond-> (assoc opts
-                         :reaction (reaction comp ->EmbedState embed-locally-f [(lift-lens f)]))
+                         :reaction (reaction comp ->EmbedState embed-locally-f [id-lens]))
             (not (contains? opts :app-state)) (assoc :app-state (extract-local-state comp))))
         ;; else
         (assoc opts :reaction no-reaction))
@@ -381,38 +401,6 @@
                  mp)]}
   (Options. (internal-opt mp)))
 
-;; TODO: use active-clojure lens utils?
-
-(defn- id-lens
-  ([v] v)
-  ([_ v] v))
-
-(defrecord ^:private LensComp [l1 l2]
-  IFn
-  (-invoke [_ d]
-    (l2 (l1 d)))
-  (-invoke [_ d v]
-    (l1 d (l2 (l1 d) v))))
-
-(defn- lens-comp [l1 l2]
-  (cond
-    (= l1 id-lens) l2
-    (= l2 id-lens) l1
-    :else
-    (LensComp. l1 l2)))
-
-
-(defn bind
-  ([parent] (bind parent id-lens))
-  ([parent lens]
-   (assert (component? parent))
-   (opt :embed [parent lens])))
-
-(defn bind-locally
-  ([parent] (bind-locally parent id-lens))
-  ([parent lens]
-   (assert (component? parent))
-   (opt :embed-locally [parent lens])))
 
 (defn static [app-state]
   (opt :app-state app-state))
@@ -428,27 +416,43 @@
   [opt lens]
   ;; Note: we could also define this over an element instead of an opt?
   (assert (opt? opt))
-  (let [lens (lift-lens lens)]
-    (update opt :map
-            (fn [mp]
-              (cond-> mp
-                (contains? mp :app-state)
-                (assoc :app-state (lens (:app-state mp)))
+  (if (= lens id-lens)
+    opt
+    (let [lens (lift-lens lens)]
+      (update opt :map
+              (fn [mp]
+                (cond-> mp
+                  (contains? mp :app-state)
+                  (assoc :app-state (lens (:app-state mp)))
 
-                (instance? Reaction (:reaction mp))
-                (update :reaction
-                        (fn [prev-reaction]
-                          (when-not (contains? mp :app-state)
-                            (throw (new js/Error "To focus a reaction, it must include the app-state. Use 'bind', 'bind-locally', 'static' or 'reactive'.")))
-                          (Reaction. (:component prev-reaction)
-                                     focus-make-message
-                                     (cons (:make-message prev-reaction) (cons lens (cons (:app-state mp) (:args prev-reaction)))))))
+                  (instance? Reaction (:reaction mp))
+                  (update :reaction
+                          (fn [prev-reaction]
+                            (when-not (contains? mp :app-state)
+                              (throw (new js/Error "To focus a reaction, it must include the app-state. Use 'bind', 'bind-locally', 'static' or 'reactive'.")))
+                            (Reaction. (:component prev-reaction)
+                                       focus-make-message
+                                       (cons (:make-message prev-reaction) (cons lens (cons (:app-state mp) (:args prev-reaction)))))))
 
-                ;; Note: no-reaction = nil can be skipped here.
-                (not (or (nil? (:reaction mp))
-                         (instance? Reaction (:reaction mp))))
-                ;; something 'manually' implemented? all built-in reactions should be covered.
-                (do (throw (new js/Error "Cannot focus over the reaction in these opts."))))))))
+                  ;; Note: no-reaction = nil can be skipped here.
+                  (not (or (nil? (:reaction mp))
+                           (instance? Reaction (:reaction mp))))
+                  ;; something 'manually' implemented? all built-in reactions should be covered.
+                  (do (throw (new js/Error "Cannot focus over the reaction in these opts.")))))))))
+
+(defn bind
+  ([parent] (bind parent id-lens))
+  ([parent lens]
+   (assert (component? parent))
+   (-> (opt :embed parent)
+       (focus lens))))
+
+(defn bind-locally
+  ([parent] (bind-locally parent id-lens))
+  ([parent lens]
+   (assert (component? parent))
+   (-> (opt :embed-locally parent)
+       (focus lens))))
 
 (defn reveal [opts]
   (assert (opt? opts))

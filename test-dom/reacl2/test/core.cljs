@@ -196,33 +196,6 @@
       (is (= ["13"]
              (map dom-content (doms-with-tag item "div")))))))
 
-(deftest local-app-state-full-embed-lens
-  (let [blam-state-lens :blam-state
-        blam-state-lens-alt  (fn
-                               ([parent] (:blam-state parent))
-                               ([parent child] (assoc parent :blam-state child)))
-        blaz (reacl/class "blaz"
-                          this app-state []
-                          render
-                          (dom/span (blam (reacl/opt :embed [this blam-state-lens]))))]
-    (let [item (test-util/instantiate&mount blaz {:blam-state 5})
-          embedded (dom-with-class item blam)]
-      (test-util/send-message! embedded 6)
-      (is (= (test-util/extract-app-state item)
-             {:blam-state 6})))))
-
-(deftest local-app-state-full-embed-locally-lens
-  (let [blaz (reacl/class "blaz"
-                          this [init]
-                          local-state [st {:blam-state init}]
-                          render
-                          (dom/span (blam (reacl/opt :embed-locally [this :blam-state]))))]
-    (let [item (test-util/instantiate&mount blaz 5)
-          embedded (dom-with-class item blam)]
-      (test-util/send-message! embedded 6)
-      (is (= (test-util/extract-local-state item)
-             {:blam-state 6})))))
-
 (reacl/defclass blaz2
   this app-state []
   render

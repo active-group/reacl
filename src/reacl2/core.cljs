@@ -321,9 +321,11 @@
   "Translates the 'user facing api' of using [[opt]] into a simplified form."
   [opts]
   (-> (condp geti opts
-        :reaction
-        (do (assert (not (or (:embed-app-state opts) (:embed opts) (:embed-locally opts))) reaction-invariant-msg)
-            opts)
+        :reaction :>>
+        (fn [r]
+          (do (assert (not (or (:embed-app-state opts) (:embed opts) (:embed-locally opts))) reaction-invariant-msg)
+              (assert (or (nil? r) (instance? Reaction r)) (str "Invalid reaction: " (pr-str r)))
+              opts))
         :embed-app-state :>>
         (fn [f]
           (assert (not (or (:reaction opts) (:embed opts) (:embed-locally opts))) reaction-invariant-msg)

@@ -149,7 +149,6 @@
   Common specialized reactions are [[no-reaction]] and [[pass-through-reaction]]."
   [component make-message & args]
   (when-not (or (component? component) (= :parent component))
-    (js/console.log component)
     (throw (ex-info (str "Expected a component, not: " component) {:value component})))
   (when-not (ifn? make-message)
     (throw (ex-info (str "Expected a function, not: " make-message) {:value make-message})))
@@ -333,6 +332,11 @@
     (keyword? v) (KeywordLens. v)
     :else v))
 
+(defrecord ^:private BoundFn0 [f args]
+  IFn
+  (-invoke [this]
+    (apply f args)))
+
 (def ^:private reaction-invariant-msg "Only one of :reaction, :embed-app-state, :embed and :embed-locally may be given in an opts value.")
 
 (defn- geti [k m] (get m k))
@@ -341,6 +345,11 @@
   "Translates the 'user facing api' of using [[opt]] into a simplified form."
   [opts]
   (-> (condp geti opts
+        :app-state :>>
+        (fn [state]
+          (-> opts
+              (dissoc :app-state)
+              (assoc :app-state-fn (BoundFn0. identity [state]))))
         :reaction :>>
         (fn [r]
           (do (assert (not (or (:embed-app-state opts) (:embed opts) (:embed-locally opts))) reaction-invariant-msg)
@@ -360,15 +369,17 @@
             (throw (ex-info (str "Cannot bind to the app-state, as the class does not have an app-state. Maybe use bind-locally instead.") {:class (component-class comp)})))
           (cond-> (assoc opts
                          :reaction (reaction comp ->EmbedState embed-app-state-f [id-lens]))
-            (not (contains? opts :app-state)) (assoc :app-state (extract-app-state comp))))
+            (not (contains? opts :app-state-fn))
+            (assoc :app-state-fn (BoundFn0. extract-app-state [comp]))))
         :embed-locally :>>
         (fn [comp]
           (assert (not (or (:reaction opts) (:embed-app-state opts) (:embed opts))) reaction-invariant-msg)
           (cond-> (assoc opts
                          :reaction (reaction comp ->EmbedState embed-locally-f [id-lens]))
-            (not (contains? opts :app-state)) (assoc :app-state (extract-local-state comp))))
-        ;; else
-        (assoc opts :reaction no-reaction))
+            (not (contains? opts :app-state-fn))
+            (assoc :app-state-fn (BoundFn0. extract-local-state [comp]))))
+        ;; else do nothing
+        opts)
       (dissoc :embed-app-state :embed :embed-locally)))
 
 (defn opt
@@ -403,10 +414,16 @@
 
 
 (defn static [app-state]
-  (opt :app-state app-state))
+  (opt :app-state app-state
+       :reaction no-reaction))
 
-(defn- focus-make-message [inner-app-state prev-make-message lens original-app-state & args]
-  (apply prev-make-message (lens original-app-state inner-app-state) args))
+(defn- focus-make-message [inner-app-state prev-make-message lens original-app-state-fn & args]
+  ;; FIXME: replace 'extract-app-state' and extract-local-state inside original-app-state-fn (if used there) with the current (virtual) app-state from handle-message
+  (let [original-app-state (original-app-state-fn)]
+    (apply prev-make-message (lens original-app-state inner-app-state) args)))
+
+(defn- focused-app-state-fn [prev lens]
+  (lens (prev)))
 
 (defn focus
   "Further restrict the value returned
@@ -422,17 +439,17 @@
       (update opt :map
               (fn [mp]
                 (cond-> mp
-                  (contains? mp :app-state)
-                  (assoc :app-state (lens (:app-state mp)))
+                  (contains? mp :app-state-fn)
+                  (assoc :app-state-fn (BoundFn0. focused-app-state-fn [(:app-state-fn mp) lens]))
 
                   (instance? Reaction (:reaction mp))
                   (update :reaction
                           (fn [prev-reaction]
-                            (when-not (contains? mp :app-state)
+                            (when-not (contains? mp :app-state-fn)
                               (throw (new js/Error "To focus a reaction, it must include the app-state. Use 'bind', 'bind-locally', 'static' or 'reactive'.")))
                             (Reaction. (:component prev-reaction)
                                        focus-make-message
-                                       (cons (:make-message prev-reaction) (cons lens (cons (:app-state mp) (:args prev-reaction)))))))
+                                       (cons (:make-message prev-reaction) (cons lens (cons (:app-state-fn mp) (:args prev-reaction)))))))
 
                   ;; Note: no-reaction = nil can be skipped here.
                   (not (or (nil? (:reaction mp))
@@ -455,11 +472,12 @@
        (focus lens))))
 
 (defn reveal [opts]
+  ;; maybe be side effectful, but is constant during the same rendering.
   (assert (opt? opts))
   (let [mp (:map opts)]
-    (if (contains? mp :app-state)
-      (:app-state mp)
-      (throw (new js/Error "Cannot reveal the app-state from these opts; must be 'static', 'bind' or 'bind-locally' opts.")))))
+    (if-let [f (:app-state-fn mp)]
+      (f)
+      (throw (new js/Error "Cannot reveal the app-state from these opts; must be 'static', 'reactive', 'bind' or 'bind-locally' opts.")))))
 
 (defn- map-over-components [elem f]
   (assert (.hasOwnProperty elem "props"))
@@ -504,8 +522,9 @@
   [has-app-state? rst]
   (let [[opts rst] (deconstruct-opt rst)
         [app-state args] (if has-app-state?
-                           (if (contains? opts :app-state)
-                             [(:app-state opts) rst]
+                           (if-let [f (:app-state-fn opts)]
+                             [(f) rst]
+                             ;; legacy variant, where app-state is the first arg after the opts:
                              [(first rst) (rest rst)])
                            [nil rst])]
     [opts app-state args]))
@@ -539,7 +558,7 @@
                                               :reacl_args (vec args)
                                               :reacl_refs (-make-refs clazz)
                                               :reacl_class clazz
-                                              :reacl_reaction (:reaction opts)
+                                              :reacl_reaction (or (:reaction opts) no-reaction) 
                                               :reacl_reduce_action (or (:reduce-action opts)
                                                                        default-reduce-action)}))))
 
@@ -635,7 +654,7 @@
                               :reacl_args args
                               :reacl_refs (-make-refs clazz)
                               :reacl_class clazz
-                              :reacl_reaction (:reaction opts)
+                              :reacl_reaction (or (:reaction opts) no-reaction)
                               :reacl_parent (:parent opts)
                               :reacl_reduce_action (or (:reduce-action opts)
                                                        default-reduce-action)})))

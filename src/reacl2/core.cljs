@@ -868,7 +868,7 @@
 (declare get-app-state)
 
 (defn- reaction->pending-message
-  [component as ^Reaction reaction app-state-map]
+  [component as ^Reaction reaction]
   (let [target (:component reaction)
         real-target (case target
                       :parent
@@ -986,7 +986,7 @@
        (let [pending-messages
              (if-let [reaction (and (not (keep-state? app-state))
                                     (props-extract-reaction (.-props comp)))]
-               (cons (reaction->pending-message comp app-state reaction app-state-map) pending-messages)
+               (cons (reaction->pending-message comp app-state reaction) pending-messages)
                pending-messages)
              [pending-messages returned] (process-reactions parent
                                                             (get-app-state parent app-state-map)

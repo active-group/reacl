@@ -418,7 +418,6 @@
        :reaction no-reaction))
 
 (defn- focus-make-message [inner-app-state prev-make-message lens original-app-state-fn & args]
-  ;; FIXME: replace 'extract-app-state' and extract-local-state inside original-app-state-fn (if used there) with the current (virtual) app-state from handle-message
   (let [original-app-state (original-app-state-fn)]
     (apply prev-make-message (lens original-app-state inner-app-state) args)))
 
@@ -431,7 +430,6 @@
   the subcomponents app-state is taken from and merged into a part of
   the previous value, as defined by the given lens."
   [opt lens]
-  ;; Note: we could also define this over an element instead of an opt?
   (assert (opt? opt))
   (if (= lens id-lens)
     opt
@@ -447,9 +445,20 @@
                           (fn [prev-reaction]
                             (when-not (contains? mp :app-state-fn)
                               (throw (new js/Error "To focus a reaction, it must include the app-state. Use 'bind', 'bind-locally', 'static' or 'reactive'.")))
-                            (Reaction. (:component prev-reaction)
-                                       focus-make-message
-                                       (cons (:make-message prev-reaction) (cons lens (cons (:app-state-fn mp) (:args prev-reaction)))))))
+                            (cond
+                              ;; simplified special case for embed (current states get passed in process-message anyway):
+                              (= ->EmbedState (:make-message prev-reaction))
+                              (update prev-reaction :args
+                                      (fn [[embed [lens1]]]
+                                        [embed [(lens-comp lens1 lens)]]))
+
+                              :else
+                              ;; it's a bit dangerous for general reactions (via [[reactive]]), because it then captures more of some state
+                              ;; than is actually edited by a component. So other changes in the outer part will race with this.
+                              (apply reaction
+                                     (:component prev-reaction)
+                                     focus-make-message
+                                     (cons (:make-message prev-reaction) (cons lens (cons (:app-state-fn mp) (:args prev-reaction))))))))
 
                   ;; Note: no-reaction = nil can be skipped here.
                   (not (or (nil? (:reaction mp))

@@ -63,3 +63,33 @@
     (is (= (tu/send-message! (xpath/select c (xpath/>> / msg-to-state))
                              ::state)
            (reacl/return :app-state {:sub {:subsub ::state}})))))
+
+;; not sure if this is well-defined at all, and can/should be possible:
+#_(deftest double-state-change-test
+  ;; covers a rather obscure edge case, where a two state changes in are triggered in one cycle:
+  (let [msgs (reacl/class "msgs" this [parent gparent]
+                          render (dom/div)
+                          handle-message
+                          (fn [msg]
+                            (reacl/return :message [gparent ::msg1]
+                                          :message [parent ::msg2]
+                                          )))
+
+        msg-to-state1 (reacl/class "msg-to-state1" this state [parent]
+                                   render (msgs this parent)
+                                   handle-message
+                                   (fn [msg]
+                                     (reacl/return :app-state (conj state msg))))
+        sub (fn
+              ([m] (first (:sub m)))
+              ([m v] (update m :sub conj v)))
+        
+        c (tu/mount (reacl/class "class" this state []
+                                 render (msg-to-state1 (reacl/bind this :sub) this)
+                                 handle-message
+                                 (fn [msg]
+                                   (reacl/return :app-state (update state :sub conj msg))))
+                    {:sub []})]
+    (is (= (reacl/return :app-state {:sub [::msg1 ::msg2]})
+           (tu/send-message! (xpath/select c (xpath/>> ** msgs))
+                             ::dummy)))))

@@ -413,7 +413,7 @@
   (Options. (internal-opt mp)))
 
 
-(defn static [app-state]
+(defn fixed [app-state]
   (opt :app-state app-state
        :reaction no-reaction))
 
@@ -426,7 +426,7 @@
 
 (defn focus
   "Further restrict the value returned
-  by [[bind]], [[bind-locally]], [[static]] or [[reactive]], so that
+  by [[bind]], [[bind-locally]], [[fixed]] or [[reactive]], so that
   the subcomponents app-state is taken from and merged into a part of
   the previous value, as defined by the given lens."
   [opt lens]
@@ -444,7 +444,7 @@
                   (update :reaction
                           (fn [prev-reaction]
                             (when-not (contains? mp :app-state-fn)
-                              (throw (new js/Error "To focus a reaction, it must include the app-state. Use 'bind', 'bind-locally', 'static' or 'reactive'.")))
+                              (throw (new js/Error "To focus a reaction, it must include the app-state. Use 'bind', 'bind-locally', 'fixed' or 'reactive'.")))
                             (cond
                               ;; simplified special case for embed (current states get passed in process-message anyway):
                               (= ->EmbedState (:make-message prev-reaction))
@@ -486,7 +486,7 @@
   (let [mp (:map opts)]
     (if-let [f (:app-state-fn mp)]
       (f)
-      (throw (new js/Error "Cannot reveal the app-state from these opts; must be 'static', 'reactive', 'bind' or 'bind-locally' opts.")))))
+      (throw (new js/Error "Cannot reveal the app-state from these opts; must be 'fixed', 'reactive', 'bind' or 'bind-locally' opts.")))))
 
 (defn- map-over-components [elem f]
   (assert (.hasOwnProperty elem "props"))
@@ -651,7 +651,7 @@
         rclazz (react-class clazz)]
     (when (and (-has-app-state? clazz)
                (not (contains? opts :reaction)))
-      (warning "Instantiating class" (class-name clazz) "without reacting to its app-state changes. Use 'static' if you intended to do this."))
+      (warning "Instantiating class" (class-name clazz) "without reacting to its app-state changes. Use 'fixed' if you intended to do this."))
     (when (and (not (-has-app-state? clazz))
                (contains? opts :reaction))
       (warning "Instantiating class" (class-name clazz) "with reacting to app-state changes, but it does not have an app-state."))

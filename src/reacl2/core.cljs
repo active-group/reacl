@@ -512,7 +512,7 @@
   (opt :app-state app-state
        :reaction reaction))
 
-(defn refer [elem ref]
+(defn refer-as [elem ref]
   (react/cloneElement elem #js {:ref ref}))
 
 (defn keyed [elem key]

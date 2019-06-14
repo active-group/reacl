@@ -304,7 +304,12 @@ To finally render a class to the DOM use [[render-component]].
   [v]
   (instance? Options v))
 
-(defn opt-map
+(defn binding?
+  "Returns true if v is a binding."
+  [v]
+  (opt? v))
+
+(defn ^:no-doc opt-map
   "For a value created by [[opt]], returns a map with the arguments that were passed to it."
   [v]
   (assert (opt? v))
@@ -643,68 +648,70 @@ To finally render a class to the DOM use [[render-component]].
                             :reacl_toplevel_args args
                             :reacl_app_state app-state}))
 
-(defn- instantiate-toplevel-internal
-  "Internal function to instantiate a Reacl component.
+(def ^{:arglists '([clazz opts app-state & args]
+                   [clazz app-state & args]
+                   [clazz opts & args]
+                   [clazz & args])
+       :private true
+       :doc "Internal function to instantiate a Reacl component.
 
   - `clazz` is the Reacl class
   - `opts` is an object created with [[opt]]
   - `app-state` is the application state
-  - `args` is a seq of class arguments"
-  {:arglists '([clazz opts app-state & args]
-               [clazz app-state & args]
-               [clazz opts & args]
-               [clazz & args])}
-  [clazz has-app-state? rst]
-  (when-not (reacl-class? clazz)
-    (throw (ex-info (str "Expected a Reacl class as the first argument, but got: " clazz) {:value clazz})))
-  (let [[opts app-state args] (deconstruct-opt+app-state has-app-state? rst)]
-    (make-uber-component clazz opts args app-state)))
+  - `args` is a seq of class arguments"}
+  instantiate-toplevel-internal
+  (fn [clazz has-app-state? rst]
+    (when-not (reacl-class? clazz)
+      (throw (ex-info (str "Expected a Reacl class as the first argument, but got: " clazz) {:value clazz})))
+    (let [[opts app-state args] (deconstruct-opt+app-state has-app-state? rst)]
+      (make-uber-component clazz opts args app-state))))
 
-(defn instantiate-toplevel
-  "Creates an instance (a React component) of the given class. For testing purposes mostly."
-  {:arglists '([clazz opts app-state & args]
-               [clazz app-state & args]
-               [clazz opts & args]
-               [clazz & args])}
-  [clazz & rst]
-  (instantiate-toplevel-internal clazz (has-app-state? clazz) rst))
+(def ^{:arglists '([clazz opts app-state & args]
+                   [clazz app-state & args]
+                   [clazz opts & args]
+                   [clazz & args])
+       :doc "Creates an instance (a React component) of the given class. For testing purposes mostly."}
+  instantiate-toplevel
+  (fn [clazz & rst]
+    (instantiate-toplevel-internal clazz (has-app-state? clazz) rst)))
 
 (defn- action-reducer
   [this]
   (aget (.-props this) "reacl_reduce_action"))
 
-(defn- instantiate-embedded-internal
-  "Internal function to instantiate an embedded Reacl component.
+(def ^{:arglists '([clazz opts app-state & args]
+                   [clazz app-state & args]
+                   [clazz opts & args]
+                   [& args])
+       :private true
+       :doc "Internal function to instantiate an embedded Reacl component.
 
   - `clazz` is the Reacl class
   - `opts` is an object created with [[opt]]
   - `app-state` is the application state
-  - `args` is a seq of class arguments"
-  {:arglists '([clazz opts app-state & args]
-               [clazz app-state & args]
-               [clazz opts & args]
-               [& args])}
-  [clazz has-app-state? rst]
-  (let [[opts app-state args] (deconstruct-opt+app-state has-app-state? rst)
-        rclazz (react-class clazz)]
-    (when (and (-has-app-state? clazz)
-               (not (contains? opts :reaction)))
-      (warning "Instantiating class" (class-name clazz) "without reacting to its app-state changes. Use 'fixed' if you intended to do this."))
-    (when (and (not (-has-app-state? clazz))
-               (contains? opts :reaction))
-      (warning "Instantiating class" (class-name clazz) "with reacting to app-state changes, but it does not have an app-state."))
-    (-validate! clazz app-state args)
-    (react/createElement rclazz
-                         #js {:reacl_app_state app-state
-                              :ref (:ref opts)
-                              :reacl_locals (-compute-locals clazz app-state args)
-                              :reacl_args args
-                              :reacl_refs (-make-refs clazz)
-                              :reacl_class clazz
-                              :reacl_reaction (or (:reaction opts) no-reaction)
-                              :reacl_parent (:parent opts)
-                              :reacl_reduce_action (or (:reduce-action opts)
-                                                       default-reduce-action)})))
+  - `args` is a seq of class arguments"}
+  instantiate-embedded-internal
+  (fn [clazz has-app-state? rst]
+    (let [[opts app-state args] (deconstruct-opt+app-state has-app-state? rst)
+          rclazz (react-class clazz)]
+      (when (and (-has-app-state? clazz)
+                 (not (contains? opts :reaction)))
+        (warning "Instantiating class" (class-name clazz) "without reacting to its app-state changes. Use 'fixed' if you intended to do this."))
+      (when (and (not (-has-app-state? clazz))
+                 (contains? opts :reaction))
+        (warning "Instantiating class" (class-name clazz) "with reacting to app-state changes, but it does not have an app-state."))
+      (-validate! clazz app-state args)
+      (react/createElement rclazz
+                           #js {:reacl_app_state app-state
+                                :ref (:ref opts)
+                                :reacl_locals (-compute-locals clazz app-state args)
+                                :reacl_args args
+                                :reacl_refs (-make-refs clazz)
+                                :reacl_class clazz
+                                :reacl_reaction (or (:reaction opts) no-reaction)
+                                :reacl_parent (:parent opts)
+                                :reacl_reduce_action (or (:reduce-action opts)
+                                                         default-reduce-action)}))))
 
 (defn- instantiate-embedded-internal-v1
   [clazz app-state reaction args]
@@ -717,22 +724,23 @@ To finally render a class to the DOM use [[render-component]].
                               :reacl_reaction reaction
                               :reacl_reduce_action default-reduce-action})))
 
-(defn render-component
-  "Instantiate and render a component into the DOM.
+(def ^{:arglists '([element clazz opts app-state & args]
+                   [element clazz app-state & args]
+                   [element clazz opts & args]
+                   [element clazz & args])
+       :doc "Instantiate and render a component into the DOM.
 
   - `element` is the DOM element
   - `clazz` is the Reacl class
   - `opts` is an object created with [[opt]]
-  - `app-state` is the application state
-  - `args` is a seq of class arguments"
-  {:arglists '([element clazz opts app-state & args]
-               [element clazz app-state & args]
-               [element clazz opts & args]
-               [element clazz & args])}
-  [element clazz & rst]
-  (react-dom/render
-   (-instantiate-toplevel-internal clazz rst)
-   element))
+  - `app-state` is the initial application state
+  - `args` is a seq of class arguments"}
+  render-component
+  ;; TODO: for opts, only an action handler makes any sense...?!
+  (fn [element clazz & rst]
+    (react-dom/render
+     (-instantiate-toplevel-internal clazz rst)
+     element)))
 
 (defrecord ^{:doc "Type of a unique value to distinguish nil from no change of state.
             For internal use in [[reacl.core/return]]."
@@ -823,7 +831,9 @@ To finally render a class to the DOM use [[render-component]].
                      messages)))
 
 (defn merge-returned
-  "Merge the given return values from left to right. Actions and messages are appended, states are replaced unless they are [[keep-state]."
+  "Merge the given return values from left to right. Actions and
+  messages are appended, states are replaced unless they
+  are [[keep-state]]."
   [& rets]
   (assert (every? returned? rets) "All arguments must be [[return]] values.")
   (reduce (fn [r1 r2]

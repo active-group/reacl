@@ -1,3 +1,6 @@
 ^{:auto-testing true
-  :watch-dirs ["src" "test-nodom" "test-dom"]}
+  :extra-main-files {:todo {:main examples.todo.core}
+                     :products {:main examples.products.core}
+                     :todo-reacl1 {:main examples.todo-reacl1.core}}
+  :watch-dirs ["src" "test-nodom" "test-dom" "examples"]}
 {:main reacl2.test.runner}

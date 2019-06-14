@@ -1,6 +1,6 @@
 ; For testing Reacl v1 compatibility.
 
-(ns examples.todo.core
+(ns examples.todo-reacl1.core
   (:require [reacl.core :as reacl :include-macros true]
             [reacl.dom :as dom :include-macros true]))
 
@@ -126,6 +126,6 @@
     (reacl/return :local-state state)))
 
 (reacl/render-component
- (.getElementById js/document "content")
+ (.getElementById js/document "app-todo-reacl1")
  demo)
 

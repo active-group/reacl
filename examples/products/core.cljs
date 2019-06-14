@@ -106,5 +106,5 @@
    {:category "Electronics" :price "$199.99" :stocked true :name "Nexus 7"}])
 
 (reacl/render-component
- (.getElementById js/document "content")
+ (.getElementById js/document "app-products")
  filterable-product-table products)

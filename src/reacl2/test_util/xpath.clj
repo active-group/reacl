@@ -1,5 +1,6 @@
-(ns reacl2.test-util.xpath
-  (:require [reacl2.test-util.xpath :as xpath]))
+(ns reacl2.test-util.xpath)
+
+(alias 'xpath 'reacl2.test-util.xpath)
 
 ;; convenience macro
 

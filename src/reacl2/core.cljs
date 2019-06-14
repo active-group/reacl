@@ -559,7 +559,8 @@ To finally render a class to the DOM use [[render-component]].
   "Returns an element identical to the given `elem`, but replacing its
   `key` property."
   [elem key]
-  (react/cloneAndReplaceKey elem key))
+  ;; Note: some version of react has cloneAndReplaceKey
+  (react/cloneElement elem #js {:key key}))
 
 (defn- deconstruct-opt
   [rst]

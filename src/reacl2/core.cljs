@@ -1,5 +1,22 @@
-(ns ^{:doc "Reacl core functionality."}
-  reacl2.core
+(ns reacl2.core
+  "This namespace contains the Reacl core functionality.
+
+Define classes with the macros [[defclass]] or [[class]].
+
+Create return values for a message handler or livecycle method with [[return]] and [[merge-returned]].
+The auxiliary functions for return values [[returned-actions]], [[returned-app-state]],
+[[returned-local-state]], [[returned-messages]], [[returned?]] will usually only be needed in unit tests.
+
+In event handlers, you will usually need to call [[send-message!]].
+
+To instantiate classes that have app-state, you need to create bindings with [[bind]],
+[[bind-locally]], [[reactive]] or [[fixed]], and sometimes reactions with [[reaction]] or [[pass-through-reaction]].
+
+Sometimes modifications of the created elements are needed via [[keyed]], [[refer-as]],
+[[redirect-actions]], [[reduce-action]] or [[map-action]].
+
+To finally render a class to the DOM use [[render-component]].
+"
   (:require [react :as react]
             [react-dom :as react-dom]
             [create-react-class :as createReactClass] ;; Note: function import, not a namespace.
@@ -425,16 +442,15 @@
   (lens (prev)))
 
 (defn focus
-  "Further restrict the value returned
-  by [[bind]], [[bind-locally]], [[fixed]] or [[reactive]], so that
-  the subcomponents app-state is taken from and merged into a part of
-  the previous value, as defined by the given lens."
-  [opt lens]
-  (assert (opt? opt))
+  "Returns a binding that appends the given `lens` to the given
+  `binding`, so that a child component only uses a smaller part of the
+  bound value as its app-state."
+  [binding lens]
+  (assert (opt? binding))
   (if (= lens id-lens)
-    opt
+    binding
     (let [lens (lift-lens lens)]
-      (update opt :map
+      (update binding :map
               (fn [mp]
                 (cond-> mp
                   (contains? mp :app-state-fn)
@@ -467,6 +483,9 @@
                   (do (throw (new js/Error "Cannot focus over the reaction in these opts.")))))))))
 
 (defn bind
+  "Returns a binding that embeds a child's app-state into the
+  app-state of the given `parent` component using the given `lens`,
+  which defaults to the identity lens."
   ([parent] (bind parent id-lens))
   ([parent lens]
    (assert (component? parent))
@@ -474,19 +493,32 @@
        (focus lens))))
 
 (defn bind-locally
+  "Returns a binding that embeds a child's app-state into the
+  local-state of the given `parent` component using the given `lens`,
+  which defaults to the identity lens."
   ([parent] (bind-locally parent id-lens))
   ([parent lens]
    (assert (component? parent))
    (-> (opt :embed-locally parent)
        (focus lens))))
 
-(defn reveal [opts]
-  ;; maybe be side effectful, but is constant during the same rendering.
-  (assert (opt? opts))
-  (let [mp (:map opts)]
+(defn reactive
+  "Returns a binding the uses the given value `app-state` as the
+  child's app-state, and triggers the given `reaction` when the child
+  wants to update it. See [[reaction]] for creating reactions."
+  [app-state reaction]
+  (opt :app-state app-state
+       :reaction reaction))
+
+(defn reveal
+  "Returns the value provided by the given `binding` to be used as the app-state of a child component."
+  [binding]
+  ;; may be be side effectful, but is constant during the same rendering.
+  (assert (opt? binding))
+  (let [mp (:map binding)]
     (if-let [f (:app-state-fn mp)]
       (f)
-      (throw (new js/Error "Cannot reveal the app-state from these opts; must be 'fixed', 'reactive', 'bind' or 'bind-locally' opts.")))))
+      (throw (new js/Error "Cannot reveal the app-state of this binding; must created via 'fixed', 'reactive', 'bind' or 'bind-locally'.")))))
 
 (defn- map-over-components [elem f]
   (assert (.hasOwnProperty elem "props"))
@@ -502,20 +534,26 @@
                                        e)))]
         (react/cloneElement elem nil cs)))))
 
-(defn redirect-actions [elem target]
+(defn redirect-actions
+  #_"TODO Changes the ...
+  Use this if you have to render an element at a different "
+  [elem target]
   (map-over-components
    elem
    (fn [comp]
      (react/cloneElement comp #js {:reacl_parent target}))))
 
-(defn reactive [app-state reaction]
-  (opt :app-state app-state
-       :reaction reaction))
-
-(defn refer-as [elem ref]
+(defn refer-as
+  "Returns an element identical to the given `elem`, but replacing its
+  `ref` property, so that the given ref reflects the dom element
+  created for it."
+  [elem ref]
   (react/cloneElement elem #js {:ref ref}))
 
-(defn keyed [elem key]
+(defn keyed
+  "Returns an element identical to the given `elem`, but replacing its
+  `key` property."
+  [elem key]
   (react/cloneAndReplaceKey elem key))
 
 (defn- deconstruct-opt
@@ -798,7 +836,7 @@
           rets))
 
 (defn return
-  "Return state from a Reacl event handler.
+  "Return state from a Reacl message handler or livecycle methods.
 
    Has optional keyword arguments:
 

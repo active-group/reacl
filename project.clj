@@ -18,7 +18,7 @@
 
   :plugins [[lein-cljsbuild "1.1.7"]
             [lein-doo "0.1.10"]
-            [lein-codox "0.9.3"]
+            [lein-codox "0.10.5"]
             [lein-auto "0.1.3"]]
 
   :profiles {:dev {:dependencies [[active-clojure "0.11.0" :exclusions [org.clojure/clojure]]

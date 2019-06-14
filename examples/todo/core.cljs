@@ -114,7 +114,7 @@
                                (:todos app-state))))))))
 
 (reacl/render-component
- (.getElementById js/document "content")
+ (.getElementById js/document "app-todo")
  to-do-app
  (TodosApp. 0 []))
 

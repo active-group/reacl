@@ -85,5 +85,9 @@
       (-instantiate-toplevel-internal [this rst]
         (reacl2/instantiate-toplevel-internal this false rst))
       (-react-class [this] react-class)
+      (-compute-locals [this app-state args]
+        nil)
+      (-validate! [this app-state args]
+        nil)
       (-make-refs [this] nil)
       )))

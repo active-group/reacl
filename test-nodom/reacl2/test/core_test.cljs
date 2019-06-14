@@ -294,3 +294,7 @@
       (is (= :new-app-state @*parent-atom* )))))
       
     
+(deftest keyed-test
+  (is (= (str ::test)
+         (.-key (dom/keyed ::test
+                           (dom/div))))))

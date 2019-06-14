@@ -6,19 +6,19 @@
 
 ;; small log dsl, for easier abstractions
 
-(defrecord LogMulti [args])
-(defn multi [& args] (LogMulti. args))
-(defn multi? [v] (instance? LogMulti v))
+(defrecord ^:private LogMulti [args])
+(defn ^:no-doc multi [& args] (LogMulti. args))
+(defn ^:no-doc multi? [v] (instance? LogMulti v))
 
-(defrecord LogObj [value])
-(defn obj [v] (LogObj. v))
-(defn obj? [v] (instance? LogObj v))
+(defrecord ^:private LogObj [value])
+(defn ^:no-doc obj [v] (LogObj. v))
+(defn ^:no-doc obj? [v] (instance? LogObj v))
 
-(defrecord Styled [style args])
-(defn styled [style & args] (Styled. style args))
-(defn styled? [v] (instance? Styled v))
+(defrecord ^:private Styled [style args])
+(defn ^:no-doc styled [style & args] (Styled. style args))
+(defn ^:no-doc styled? [v] (instance? Styled v))
 
-(defn interp [& args] (apply multi (interpose " " (remove #(and (multi? %) (empty? (:args %))) args))))
+(defn ^:no-doc interp [& args] (apply multi (interpose " " (remove #(and (multi? %) (empty? (:args %))) args))))
 
 (defn- parse-log-args [args]
   (reduce (fn [[fmt-str args] a]
@@ -37,25 +37,25 @@
           ["" []]
           args))
 
-(defn- log! [& args]
+(defn ^:no-doc log! [& args]
   (let [[fmt-str args] (parse-log-args args)]
     (apply js/console.log fmt-str args)))
 
-(defn- log-table! [records & [columns]]
+(defn ^:no-doc log-table! [records & [columns]]
   (if (some? columns)
     (js/console.table (clj->js records) (clj->js columns))
     (js/console.table (clj->js records))))
 
-(defn log-group-start! [& args]
+(defn ^:no-doc log-group-start! [& args]
   (let [[fmt args] (parse-log-args args)]
     (apply js/console.group fmt args)))
 
-(defn log-group-end! []
+(defn ^:no-doc log-group-end! []
   (js/console.groupEnd))
 
 (declare show-comp)
 
-(defn show-value [a]
+(defn- show-value [a]
   (cond
     (string? a) (obj a)
     (number? a) a
@@ -68,7 +68,7 @@
     ;; TODO: also nicer dom elements!?
     :else (show-value a)))
 
-(def log-native-component? false)
+(def ^:private log-native-component? false)
 
 (defn- comp-id [comp]
   (multi (styled "color: blue" (trace/component-class-name comp))
@@ -153,7 +153,7 @@
     (some? (:marked-group state)) (as-> $ (apply start-group $ (:marked-group state)))
     true (dissoc :marked-group)))
 
-(defn log-in-group! [state & args]
+(defn- log-in-group! [state & args]
   (let [state (realize-marked-group! state)]
     (apply log! args)
     state))

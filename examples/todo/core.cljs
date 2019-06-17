@@ -71,67 +71,67 @@
 (reacl/defclass to-do-item-list this todos [make-delete-item-action]
   render
   (dom/div 
-   (map (fn [todo]
-          (-> (to-do-item (reacl/bind this (item-by-id (:id todo)))
+   (map (fn [id]
+          (-> (to-do-item (reacl/bind this (item-by-id id))
                           (->Delete))
-              (reacl/keyed (str (:id todo)))
+              (reacl/keyed (str id))
               (reacl/map-action 
                (fn [act]
                  (cond
-                   (instance? Delete act) (make-delete-item-action (:id todo))
+                   (instance? Delete act) (make-delete-item-action id)
                    :else act)))))
-        todos)))
+        (map :id todos))))
 
-(reacl/defclass add-item-form this text [submit-action next-id]
+(defrecord Submit [])
+
+(reacl/defclass add-item-form this [add-action]
+  local-state [text ""]
+
   render
-  (form submit-action
-        (textbox (reacl/bind this))
-        (dom/button {:type "submit"}
-                    (str "Add #" next-id))))
+  (-> (form (->Submit)
+            (textbox (reacl/bind-locally this))
+            (dom/button {:type "submit"} "Add"))
+      (reacl/handle-actions this))
+
+  handle-message
+  (fn [msg]
+    (cond
+      (instance? Submit msg) (reacl/return :action (add-action text)
+                                           :local-state ""))))
 
 (defrecord TodosApp [next-id todos])
 
 (defrecord Todo [id text done?])
 
-(defrecord Submit [])
+(defrecord AddItem [text])
 (defrecord DeleteItem [id])
 
 (reacl/defclass to-do-app this app-state []
-
-  local-state [next-text ""]
 
   render
   (-> (dom/div {}
                (dom/h3 "TODO")
                (to-do-item-list (reacl/bind this :todos) ->DeleteItem)
-               (add-item-form (reacl/bind-locally this)
-                              (->Submit) (:next-id app-state)))
-      (reacl/reduce-action (fn [_ act]
-                             (cond
-                               (instance? Submit act) (reacl/return :message [this act])
-                               (instance? DeleteItem act) (reacl/return :message [this act])
-                               :else (reacl/return :action act)))))
+               (add-item-form ->AddItem))
+      (reacl/handle-actions this))
 
   handle-message
   (fn [msg]
     (cond
-      (instance? Submit msg)
-      (let [next-id (:next-id app-state)]
-        (reacl/return :local-state ""
-                      :app-state
-                      (assoc app-state
-                             :todos
-                             (concat (:todos app-state)
-                                     [(->Todo next-id next-text false)])
-                             :next-id (+ 1 next-id))))
+      (instance? AddItem msg)
+      (let [next-id (:next-id app-state)
+            next-text (:text msg)]
+        (reacl/return :app-state
+                      (-> app-state
+                          (update :todos concat [(->Todo next-id next-text false)])
+                          (update :next-id inc))))
 
       (instance? DeleteItem msg)
       (let [id (:id msg)]
         (reacl/return :app-state
-                      (assoc app-state
-                             :todos 
-                             (remove (fn [todo] (= id (:id todo)))
-                                     (:todos app-state))))))))
+                      (-> app-state
+                          (update :todos #(remove (fn [todo] (= id (:id todo)))
+                                                  %))))))))
 
 (reacl/render-component
  (.getElementById js/document "app-todo")

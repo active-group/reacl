@@ -16,7 +16,7 @@
     f))
 
 (defmacro >>
-  "Compose the given xpath selector forms to a combined selector, where from left to right, the selectors restrict the filter further. Special selector forms are: \n
+  "Compose the given xpath selector forms to a combined selector, where from left to right, the selectors restrict the selection further. Special selector forms are: \n
    - `/` selects the the immediate children.
    - `.` selects/keeps the current node (will only rarely be needed).
    - `..` selects the parent node.

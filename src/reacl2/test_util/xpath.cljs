@@ -5,25 +5,33 @@
 
   The functions [[select]], [[select-all]], [[select-one]]
   and [[contains?]] apply that filter, starting from a specific
-  context node.
+  _context node_.
 
   For example:
 
-  `(require [reacl2.test-util.xpath :as xp :include-macros true])`
+```
+(require [reacl2.test-util.xpath :as xp :include-macros true])
 
-  `(>> / ** \"div\" [xp/text (xp/is= \"Hello\")])`
+(>> / ** \"div\" [xp/text (xp/is= \"Hello\")])
+```
 
   matches on all `div` elements anywhere below the context node, that have a text content equal to `\"Hello\"`.
 
-  `(>> / my-class / \"span\" [:id (xp/is= \"foo\")])`
+```
+(>> / my-class / \"span\" [:id (xp/is= \"foo\")])
+```
 
   matches on all `span` children of instances of the class `my-class` below the context node, that have the id `\"foo\"`.
 
-  `(>> my-class [xp/args (xp/is? = [42])])`
+```
+(>> my-class [xp/args (xp/is? = [42])])
+```
 
   matches the context node, if it is an instance of `my-class` and if its argument vector equals `[42]`.
 
-  `(>> / \"span\" [xp/first])`
+```
+(>> / \"span\" [xp/first])
+```
 
   matches the first span element below the context node.
 
@@ -350,7 +358,7 @@
 (def ^{:doc "Selects only those nodes that are a virtual dom element of the given string `type`."
        :arglists '([type])}
   tag type)
-(def ^{:doc "Selects only those nodes that are a class instance given Reacl `c`."
+(def ^{:doc "Selects only those nodes that are an instance of the given Reacl `c`."
        :arglists '([c])}
   class type)
 
@@ -423,7 +431,9 @@
   `to` (exclusive). Both `from` and `to` can be negative meaning a
   position from the end of the children list. A 0 in `from` means the
   start of the list, but a 0 in `to` stands for the end of list,
-  resp. one behind. So `(range 0 0)` means the full list."
+  resp. one behind. So `(range 0 0)` selects the full list of
+  children, `(range 1 -1)` selects all but the first and the
+  last and `(range -1 0)` only the last child."
   [from to]
   (Position. from to))
 
@@ -495,10 +505,10 @@
 (defn- is-css-class-match? [s]
   (is? css-class-match (normalize-css s)))
 
-(defn css-class? "Keeps the current node only if it has a :class
+(defn css-class? "Keeps the current node only if it has a `:class` attribute
   matching with the given `s`. If `s` is a string or sequence, then
   the node must have all those classes in the same order. If `s` is a
-  set of string, then it must have all those classes in any order."
+  set of strings, then it must have all those classes in any order."
   [s]
   (comp (attr :class)
         (if (set? s)

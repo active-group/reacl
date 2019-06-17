@@ -4,114 +4,135 @@
 
 (enable-console-print!)
 
+;; reusable utilities:
+
+(reacl/defclass checkbox this checked? []
+  render
+  (dom/input {:type "checkbox"
+              :checked checked?
+              :onchange (fn [e]
+                          (reacl/send-message! this
+                                               (.. e -target -checked)))})
+  handle-message
+  (fn [checked?]
+    (reacl/return :app-state checked?)))
+
+(reacl/defclass textbox this value []
+  render
+  (dom/input {:type "text"
+              :value value
+              :onchange (fn [e]
+                          (reacl/send-message! this
+                                               (.. e -target -value)))})
+  handle-message
+  (fn [text]
+    (reacl/return :app-state text)))
+
+(reacl/defclass button this [label action]
+  render
+  (dom/button {:onclick
+               (fn [_]
+                 (reacl/send-message! this ::click))}
+              label)
+  handle-message
+  (fn [_]
+    (reacl/return :action action)))
+
+(reacl/defclass form this [submit-action & content]
+  render
+  (apply dom/form
+         {:onsubmit (fn [e]
+                      (.preventDefault e)
+                      (reacl/send-message! this ::submit))}
+         content)
+  handle-message
+  (fn [_]
+    (reacl/return :action submit-action)))
+
+;; Specific for this app:
+
+(defrecord Delete [])
+
+(reacl/defclass to-do-item this todo []
+  render
+  (dom/div (checkbox (reacl/bind this :done?))
+           (button "Zap" (->Delete))
+           (:text todo)))
+
+(defrecord ItemById [id]
+  IFn
+  (-invoke [_ todos]
+    (some #(when (= (:id %) id) %) todos))
+  (-invoke [_ todos v]
+    (map #(if (= (:id %) id) v %) todos)))
+
+(defn item-by-id [id] (ItemById. id))
+
+(defrecord DeleteItem [id])
+
+(reacl/defclass to-do-item-list this todos []
+  render
+  (dom/div 
+   (map (fn [todo]
+          (-> (to-do-item (reacl/bind this (item-by-id (:id todo))))
+              (reacl/keyed (str (:id todo)))
+              (reacl/map-action 
+               (fn [act]
+                 (cond
+                   (instance? Delete act) (->DeleteItem (:id todo))
+                   :else act)))))
+        todos)))
+
+(reacl/defclass add-item-form this text [submit-action next-id]
+  render
+  (form submit-action
+        (textbox (reacl/bind this))
+        (dom/button {:type "submit"}
+                    (str "Add #" next-id))))
+
 (defrecord TodosApp [next-id todos])
 
 (defrecord Todo [id text done?])
 
-(defrecord Delete [todo])
-
-(def mix
-  (reacl/mixin foo app-state local-state 
-    [parent]
-    component-did-mount (fn []
-                          (println "DID MOUNT!" parent foo app-state local-state))
-    component-will-update (fn [next-app-state next-local-state]
-                            (println "WILL UPDATE!" next-app-state next-local-state))
-    component-did-update (fn [previous-app-state previous-local-state]
-                           (println "DID UPDATE!" previous-app-state previous-local-state))))
-               
-               
-
-(reacl/defclass to-do-item
-  this todo [parent]
-  mixins [(mix parent)]
-  render
-  (dom/div (dom/input
-            {:type "checkbox"
-             :value (:done? todo)
-             :onchange (fn [e]
-                         (reacl/send-message! this
-                                              (.. e -target -checked)))})
-           (dom/button
-            {:onclick
-             (fn [_]
-               (reacl/send-message! parent (->Delete todo)))}
-            "Zap")
-           (:text todo))
-  handle-message
-  (fn [checked?]
-    (reacl/return :app-state
-                  (assoc todo :done? checked?))))
-
-(defrecord NewText [text])
 (defrecord Submit [])
 
-;; Note this needs to be a top-level function as not to ruin update checks
+(reacl/defclass to-do-app this app-state []
 
-(defn embed-changed-todo
-  [app-state changed-todo]
-  (let [changed-id (:id changed-todo)]
-    (assoc app-state
-           :todos (map (fn [todo]
-                         (if (= changed-id (:id todo) )
-                           changed-todo
-                           todo))
-                       (:todos app-state)))))
-
-(reacl/defclass to-do-app
-  this app-state []
-
-  local-state [local-state ""]
+  local-state [next-text ""]
 
   render
-  (dom/div
-   (dom/h3 "TODO")
-   (dom/div 
-    (map (fn [todo]
-           (dom/keyed (str (:id todo))
-                      (to-do-item
-                       (reacl/opt :embed-app-state embed-changed-todo)
-                       todo
-                       this)))
-         (:todos app-state)))
-   (dom/form
-    {:onsubmit (fn [e]
-                  (.preventDefault e)
-                  (reacl/send-message! this (->Submit)))}
-    (dom/input {:onchange 
-                (fn [e]
-                  (reacl/send-message!
-                   this
-                   (->NewText (.. e -target -value))))
-                :value local-state})
-    (dom/button
-     (str "Add #" (:next-id app-state)))))
-
+  (-> (dom/div {}
+               (dom/h3 "TODO")
+               (to-do-item-list (reacl/bind this :todos))
+               
+               (add-item-form (reacl/bind-locally this)
+                              (->Submit) (:next-id app-state)))
+      (reacl/reduce-action (fn [_ act]
+                             (cond
+                               (instance? Submit act) (reacl/return :message [this act])
+                               (instance? DeleteItem act) (reacl/return :message [this act])
+                               :else (reacl/return :action act)))))
 
   handle-message
   (fn [msg]
     (cond
-     (instance? NewText msg)
-     (reacl/return :local-state (:text msg))
-     
-     (instance? Submit msg)
-     (let [next-id (:next-id app-state)]
-       (reacl/return
-        :local-state ""
-        :app-state
-        (assoc app-state
-               :todos
-               (concat (:todos app-state)
-                       [(->Todo next-id local-state false)])
-               :next-id (+ 1 next-id))))
+      (instance? Submit msg)
+      (let [next-id (:next-id app-state)]
+        (reacl/return :local-state ""
+                      :app-state
+                      (assoc app-state
+                             :todos
+                             (concat (:todos app-state)
+                                     [(->Todo next-id next-text false)])
+                             :next-id (+ 1 next-id))))
 
-     (instance? Delete msg)
-     (let [id (:id (:todo msg))]
-       (reacl/return :app-state
-                     (assoc app-state
-                       :todos 
-                       (remove (fn [todo] (= id (:id todo)))
-                               (:todos app-state))))))))
+      (instance? DeleteItem msg)
+      (let [id (:id msg)]
+        (reacl/return :app-state
+                      (assoc app-state
+                             :todos 
+                             (remove (fn [todo] (= id (:id todo)))
+                                     (:todos app-state))))))))
 
 (reacl/render-component
  (.getElementById js/document "app-todo")

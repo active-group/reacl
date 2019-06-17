@@ -77,178 +77,12 @@
 
   The syntax is
 
-      (reacl.core/class <name> [<this-name> [<app-state-name>]] [<param> ...]
+      (reacl2.core/class <name> <this-name> [<app-state-name>] [<param> ...]
         <clause> ...)
 
   `<name>` is a name for the class, for debugging purposes.
 
-  Each `<clause>` has the format `<clause-name> <clause-arg>`.  More specifically,
-  it can be one of the following:
-
-       render <renderer-exp>
-       local [<local-name> <local-expr>] ...]
-       local-state [<local-state-name> <initial-state-exp>]
-       refs [<ref-name> ...]
-       handle-message <messager-handler-exp>]
-       <lifecycle-method-name> <lifecycle-method-exp> ...])
-
-  Of these, the `render` clause is mandatory, the others ar eall optional.
-  
-  A number of names are bound in the various expressions in the body
-  of `reacl.core/class`:
-
-  - `<this-name>` is bound to the component object itself
-  - `<app-state-name>` is bound to the global application state
-  - the `<param>` ... names are the explicit arguments of instantiations
-  - the `<local-name>` names are bound to the values of the
-    `<local-expr>` expressions, which can refer to the variables above
-  - `<local-state-name>` is bound to the component-local state
-    if there is a `local-state` clause
-
-  A `local` clause allows binding additional local variables upon
-  instantiation.  The syntax is analogous to `let`.
-
-  A `local-state` clause allows specifying a variable for the
-  component's local state, along with an expression for the value of
-  its initial value.
-
-  A `refs` clause specifies names for references to sub-components,
-  which can be associated with components via `ref` attributes in the
-  `render` expression.
-  
-  `<renderer-exp>` is an expression that renders the component, and
-  hence must return a virtual dom node.
-
-  The `handle-message` function accepts a message sent to the
-  component via [[reacl.core/send-message!]].  It's expected to
-  return a value specifying a new application state and/or
-  component-local state, via [[reacl.core/return]].
-
-  A class can be invoked to yield a component as a function as follows:
-
-  `(<class> <app-state> <reaction> <arg> ...)`
-
-  In this invocation, the value of `<app-state>` will be the initial app
-  state, `<reaction>` must evaluate to a *reaction* (see
-  [[reacl.core.reaction]]) that gets invoked when the component's app
-  state changes, and the `<arg>`s get evaluated to the `<param>`s.
-
-  A lifecycle method can be one of:
-
-    `component-will-mount` `component-did-mount`
-    `component-will-receive-args` `should-component-update?`
-    `component-will-update` `component-did-update` `component-will-unmount`
-
-  These correspond to React's lifecycle methods, see
-  here:
-
-  http://facebook.github.io/react/docs/component-specs.html
-
-  (`component-will-receive-args` is similar to `componentWillReceiveProps`.)
-
-  Each right-hand-side `<lifecycle-method-exp>`s should evaluate to a
-  function. The arguments, which slightly differ from the
-  corresponding React methods, can be seen in the following list:
-
-  `(component-will-mount)` The component can send itself messages in
-  this method, or optionally return a new state
-  via [[reacl.core/return]]. If that changes the state, the component
-  will only render once.
-
-  `(component-did-mount)` The component can update its DOM in this
-  method.  It can also return a new state via [[reacl.core/return]].
-
-  `(component-will-receive-args next-arg1 next-arg2 ...)` The
-  component has the chance to update its local state in this method
-  by sending itself a message or optionally return a new state
-  via [[reacl.core/return]].
-
-  `(should-component-update? next-app-state next-local-state next-arg1
-  next-arg2 ...)` This method should return if the given new values
-  should cause an update of the component (if render should be
-  evaluated again). If it's not specified, a default implementation
-  will do a (=) comparison with the current values. Implement this, if
-  you want to prevent an update on every app-state change for example.
-
-  `(component-will-update next-app-state next-local-state next-arg1 next-arg2 ...)`
-  Called immediately before an update.
-  
-  `(component-did-update prev-app-state prev-local-state prev-arg1 prev-arg2 ...)`
-  Called immediately after an update. The component can update its DOM here.
-  
-  `(component-will-unmount)`
-  The component can cleanup it's DOM here for example.
-
-  Example:
-
-  ```
-    (defrecord New-text [text])
-    (defrecord Submit [])
-    (defrecord Change [todo])
-
-    (reacl/defclass to-do-app
-      this app-state []
-
-      local-state [local-state \"\"]
-
-      render
-      (dom/div
-       (dom/h3 \"TODO\")
-       (dom/div (map (fn [todo]
-                       (dom/keyed (str (:id todo))
-                                  (to-do-item
-                                   todo
-                                   (reacl/reaction this ->Change)
-                                   this)))
-                     (:todos app-state)))
-       (dom/form
-        {:onsubmit (fn [e _]
-                     (.preventDefault e)
-                     (reacl/send-message! this (Submit.)))}
-        (dom/input {:onchange 
-                    (fn [e]
-                      (reacl/send-message!
-                       this
-                       (New-text. (.. e -target -value))))
-                    :value local-state})
-        (dom/button
-         (str \"Add #\" (:next-id app-state)))))
-
-      handle-message
-      (fn [msg]
-        (cond
-         (instance? New-text msg)
-         (reacl/return :local-state (:text msg))
-
-         (instance? Submit msg)
-         (let [next-id (:next-id app-state)]
-           (reacl/return :local-state \"\"
-                         :app-state
-                         (assoc app-state
-                           :todos
-                           (concat (:todos app-state)
-                                   [(Todo. next-id local-state false)])
-                           :next-id (+ 1 next-id))))
-
-         (instance? Delete msg)
-         (let [id (:id (:todo msg))]
-           (reacl/return :app-state
-                         (assoc app-state
-                           :todos 
-                           (remove (fn [todo] (= id (:id todo)))
-                                   (:todos app-state)))))
-
-         (instance? Change msg)
-         (let [changed-todo (:todo msg)
-               changed-id (:id changed-todo)]
-           (reacl/return :app-state
-                         (assoc app-state
-                           :todos (mapv (fn [todo]
-                                          (if (= changed-id (:id todo) )
-                                            changed-todo
-                                            todo))
-                                        (:todos app-state))))))))
-  ```"
+  This is equivalent to [[defclass]] but without binding the new class to a name."
   [?name & ?stuff]
 
   (let [[?component ?app-state has-app-state? ?args ?clause-map] (analyze-stuff ?stuff)
@@ -335,28 +169,199 @@
     `(reacl2.core/create-class ~?name ~compat-v1? ~(if ?mixins `[~@?mixins] `nil) ~has-app-state? ~?compute-locals ~?validate ~(count ?ref-ids) ~?fns)))
 
 (defmacro defclass
-  "Define a Reacl class, see [[class]] for documentation.
+  "Defines a Reacl class.
 
   The syntax is
 
-      (reacl.core/defclass <name> [<this-name> [<app-state-name> [<local-state-name>]]] [<param> ...]
-        render <renderer-exp>
-        [initial-state <initial-state-exp>]
-        [<lifecycle-method-name> <lifecycle-method-exp> ...]
-        [handle-message <messager-handler-exp>]
+      (defclass <name> <this-name> [<app-state-name>] [<param> ...]
+        <clause> ...)
 
-        <event-handler-name> <event-handler-exp> ...)
+  `<name>` is the symbol the class is bound to, and is used together with the
+  current namespace as the _display name_ of the class for debugging purposes.
 
-  This expands to this:
+  The presence of `app-state-name` determines if the class has an app-state or not.
 
-      (def <name>
-        (reacl.core/class <name with namespace> [<this-name> [<app-state-name> [<local-state-name>]]] [<param> ...]
-          render <renderer-exp>
-          [initial-state <initial-state-exp>]
-          [<lifecycle-method-name> <lifecycle-method-exp> ...]
-          [handle-message <messager-handler-exp>]
+  Each `<clause>` has the format `<clause-name> <clause-arg>`.  More specifically,
+  it can be one of the following:
 
-          <event-handler-name> <event-handler-exp> ...))"
+       render <renderer-exp>
+       local [<local-name> <local-expr>] ...]
+       local-state [<local-state-name> <initial-state-exp>]
+       refs [<ref-name> ...]
+       validate <validation-expr>
+       handle-message <messager-handler-exp>
+       <lifecycle-method-name> <lifecycle-method-exp>
+
+  Of these, only the `render` clause is mandatory, all the others are optional.
+  
+  A number of names are bound in the various clauses:
+
+  - `<this-name>` is bound to the component object itself
+  - `<app-state-name>` is bound to the app-state of the component
+  - the `<param>` ... names are the explicit arguments of instantiations
+  - the `<local-name>` names are bound to the values of the
+    `<local-expr>` expressions, which can refer to the variables above
+  - `<local-state-name>` is bound to the component-local state
+    if there is a `local-state` clause
+
+  A `local` clause allows binding additional local variables upon
+  instantiation.  The syntax is analogous to `let`.
+
+  A `local-state` clause allows specifying a variable for the
+  component's local state, along with an expression for the value of
+  its initial value.
+
+  A `refs` clause specifies names for references to sub-components,
+  which can be associated with components via `ref` attributes or [[refer-as]]
+  in the `render` expression.
+  
+  `<renderer-exp>` is an expression that renders the component, and
+  hence must return a virtual dom node.
+
+  `<validation-exp>` is evaluated on each instantiation of the class
+  for its side-effects, which may be raising an error or an assertion,
+  if the app-state or the arguments violate some invariant.
+
+  The `handle-message` function accepts a message sent to the
+  component via [[reacl.core/send-message!]] or [[return]].  It's expected to
+  return a value specifying a new application state, a new
+  component-local state, actions or new messages, or a combination there of, via [[return]].
+
+  A class can be invoked as a function to yield a component. If the
+  class does not have an app-state, it just takes values for the
+  paramters, like ordinary function applications:
+
+  `(<class> <arg> ...)`
+
+  If the class has an app-state, then a _binding_ has to be specified
+  as the first argument, followed by values for the paramters:
+
+  `(<class> <binding> <arg> ...)`
+
+  The binding specifies what the app-state of the component will be,
+  as well as how to handle changes to the app-state by that component.
+  Bindings are created with [[bind]], [[bind-locally]]
+  and [[reactive]], and rarely with [[fixed]].
+
+  A lifecycle method can be one of:
+
+    `component-will-mount` `component-did-mount`
+    `component-will-receive-args` `should-component-update?`
+    `component-will-update` `component-did-update` `component-will-unmount`
+
+  These correspond to React's lifecycle methods, see
+  here:
+
+  http://facebook.github.io/react/docs/component-specs.html
+
+  (`component-will-receive-args` is similar to `componentWillReceiveProps`.)
+
+  Each right-hand-side `<lifecycle-method-exp>`s should evaluate to a
+  function. The arguments, which slightly differ from the
+  corresponding React methods, can be seen in the following list:
+
+  `(component-will-mount)` The component can send itself messages in
+  this method, or optionally return a new state
+  via [[reacl.core/return]]. If that changes the state, the component
+  will only render once.
+
+  `(component-did-mount)` The component can update its DOM in this
+  method.  It can also return a new state via [[reacl.core/return]],
+  but you should take extra care to not create an endless loop of
+  updates here.
+
+  `(component-will-receive-args next-arg1 next-arg2 ...)` The
+  component has the chance to update its local state in this method
+  by sending itself a message or optionally return a new state
+  via [[reacl.core/return]].
+
+  `(should-component-update? next-app-state next-local-state next-arg1
+  next-arg2 ...)` This method should return if the given new values
+  should cause an update of the component (if render should be
+  evaluated again). If it's not specified, a default implementation
+  will do a (=) comparison with the current values. Implement this, if
+  you want to prevent an update on every app-state change for example.
+
+  `(component-will-update next-app-state next-local-state next-arg1 next-arg2 ...)`
+  Called immediately before an update.
+  
+  `(component-did-update prev-app-state prev-local-state prev-arg1 prev-arg2 ...)`
+  Called immediately after an update. The component can update its DOM here.
+  
+  `(component-will-unmount)`
+  The component can cleanup it's DOM here for example.
+
+  Note that for classes that don't have an app-state or local-state,
+  the corresponding arguments to these livecycle methods will simply be
+  `nil`.
+
+  Example:
+
+  ```
+    (defrecord New-text [text])
+    (defrecord Submit [])
+    (defrecord Change [todo])
+
+    (reacl/defclass to-do-app
+      this app-state []
+
+      local-state [local-state \"\"]
+
+      render
+      (dom/div
+       (dom/h3 \"TODO\")
+       (dom/div (map (fn [todo]
+                       (-> (to-do-item (reacl/reactive todo (reacl/reaction this ->Change) this)
+                           (reacl/keyed (str (:id todo)))))
+                     (:todos app-state)))
+       (dom/form
+        {:onsubmit (fn [e _]
+                     (.preventDefault e)
+                     (reacl/send-message! this (Submit.)))}
+        (dom/input {:onchange 
+                    (fn [e]
+                      (reacl/send-message!
+                       this
+                       (New-text. (.. e -target -value))))
+                    :value local-state})
+        (dom/button
+         (str \"Add #\" (:next-id app-state)))))
+
+      handle-message
+      (fn [msg]
+        (cond
+         (instance? New-text msg)
+         (reacl/return :local-state (:text msg))
+
+         (instance? Submit msg)
+         (let [next-id (:next-id app-state)]
+           (reacl/return :local-state \"\"
+                         :app-state
+                         (assoc app-state
+                           :todos
+                           (concat (:todos app-state)
+                                   [(Todo. next-id local-state false)])
+                           :next-id (+ 1 next-id))))
+
+         (instance? Delete msg)
+         (let [id (:id (:todo msg))]
+           (reacl/return :app-state
+                         (assoc app-state
+                           :todos 
+                           (remove (fn [todo] (= id (:id todo)))
+                                   (:todos app-state)))))
+
+         (instance? Change msg)
+         (let [changed-todo (:todo msg)
+               changed-id (:id changed-todo)]
+           (reacl/return :app-state
+                         (assoc app-state
+                           :todos (mapv (fn [todo]
+                                          (if (= changed-id (:id todo) )
+                                            changed-todo
+                                            todo))
+                                        (:todos app-state))))))))
+  ```"
   [?name & ?stuff]
   `(def ~?name (reacl2.core/class ~(str *ns* "/" ?name) ~@?stuff)))
 

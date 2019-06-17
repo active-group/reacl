@@ -435,7 +435,10 @@ To finally render a class to the DOM use [[render-component]] and [[handle-tople
   (Options. (internal-opt mp)))
 
 
-(defn fixed [app-state]
+(defn fixed
+  "Returns a binding that sets the app-state of a child component to
+  the given value, ignoring all updates the child component returns."
+  [app-state]
   (opt :app-state app-state
        :reaction no-reaction))
 
@@ -540,8 +543,12 @@ To finally render a class to the DOM use [[render-component]] and [[handle-tople
         (react/cloneElement elem nil cs)))))
 
 (defn redirect-actions
-  #_"TODO Changes the ...
-  Use this if you have to render an element at a different "
+  "Clones the given element, but replacing the target of all actions
+  flowing out of child components. By default, actions that are not
+  _reduced_ or _handled_, are passed to the first component higher in
+  the rendering tree (its _rendering parent_). In rare situations you
+  may want to render a component at one place in the tree, while still
+  redirect actions returned by it to some other component."
   [elem target]
   (map-over-components
    elem
@@ -762,13 +769,13 @@ component (like the result of an Ajax request).
      element)))
 
 (defrecord ^{:doc "Type of a unique value to distinguish nil from no change of state.
-            For internal use in [[reacl.core/return]]."
+            For internal use in [[return]]."
              :private true} 
     KeepState
   [])
 
 (def ^{:doc "Single value of type KeepState.
-             Can be used in reacl.core/return to indicate no (application or local)
+             Can be used in [[return]] to indicate no (application or local)
              state change, which is different from setting it to nil."}
   keep-state (KeepState.))
 
@@ -875,7 +882,7 @@ component (like the result of an Ajax request).
    - `:message` is for a tuple `[target message]` to be queued (may be present multiple times)
 
    A state can be set to nil. To keep a state unchanged, do not specify
-  that option, or specify the value [[reacl.core/keep-state]]."
+  that option, or specify the value [[keep-state]]."
   [& args]
   (assert (even? (count args)) "Expected an even number of arguments.")
   (loop [args (seq args)

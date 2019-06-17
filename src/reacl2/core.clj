@@ -77,7 +77,7 @@
 
   The syntax is
 
-      (reacl2.core/class <name> <this-name> [<app-state-name>] [<param> ...]
+      (class <name> <this-name> [<app-state-name>] [<param> ...]
         <clause> ...)
 
   `<name>` is a name for the class, for debugging purposes.
@@ -223,7 +223,7 @@
   if the app-state or the arguments violate some invariant.
 
   The `handle-message` function accepts a message sent to the
-  component via [[reacl.core/send-message!]] or [[return]].  It's expected to
+  component via [[send-message!]] or [[return]].  It's expected to
   return a value specifying a new application state, a new
   component-local state, actions or new messages, or a combination there of, via [[return]].
 
@@ -262,18 +262,18 @@
 
   `(component-will-mount)` The component can send itself messages in
   this method, or optionally return a new state
-  via [[reacl.core/return]]. If that changes the state, the component
+  via [[return]]. If that changes the state, the component
   will only render once.
 
   `(component-did-mount)` The component can update its DOM in this
-  method.  It can also return a new state via [[reacl.core/return]],
+  method.  It can also return a new state via [[return]],
   but you should take extra care to not create an endless loop of
   updates here.
 
   `(component-will-receive-args next-arg1 next-arg2 ...)` The
   component has the chance to update its local state in this method
   by sending itself a message or optionally return a new state
-  via [[reacl.core/return]].
+  via [[return]].
 
   `(should-component-update? next-app-state next-local-state next-arg1
   next-arg2 ...)` This method should return if the given new values
@@ -375,12 +375,12 @@
   
   The syntax is
   
-      (reacl.core/mixin [<this> [<app-state> [<local-state>]]] [<param> ...]
+      (mixin [<this> [<app-state> [<local-state>]]] [<param> ...]
         [<lifecycle-method-name> <lifecycle-method-exp> ...])
   
   In order to use the mixin you can use the `mixins` clause in `defclass`
 
-      (reacl.core/defclass foo ...
+      (defclass foo ...
         mixins [(<your-mixin-var> [<param> ...])]
         ...)
 

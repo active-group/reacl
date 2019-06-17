@@ -7,15 +7,15 @@ Create return values for a message handler or livecycle method with [[return]] a
 The auxiliary functions for return values [[returned-actions]], [[returned-app-state]],
 [[returned-local-state]], [[returned-messages]], [[returned?]] will usually only be needed in unit tests.
 
-In event handlers, you will usually need to call [[send-message!]].
+In event handlers you will usually need to call [[send-message!]].
 
-To instantiate classes that have app-state, you need to create bindings with [[bind]],
+To instantiate classes that have app-state you need to create bindings with [[bind]],
 [[bind-locally]], [[reactive]] or [[fixed]], and sometimes reactions with [[reaction]] or [[pass-through-reaction]].
 
 Sometimes modifications of the created elements are needed via [[keyed]], [[refer-as]],
-[[redirect-actions]], [[reduce-action]] or [[map-action]].
+[[redirect-actions]], [[reduce-action]], [[handle-actions]] or [[map-action]].
 
-To finally render a class to the DOM use [[render-component]].
+To finally render a class to the DOM use [[render-component]] and [[handle-toplevel-actions]].
 "
   (:require [react :as react]
             [react-dom :as react-dom]
@@ -245,9 +245,9 @@ To finally render a class to the DOM use [[render-component]].
   (-react-class clazz))
 
 (defn has-app-state?
-  "Returns if the given class if an app-state class or not."
-  [c]
-  (-has-app-state? c))
+  "Returns if the given class has an app-state class or not."
+  [class]
+  (-has-app-state? class))
 
 (defn ^:no-doc component?
   "Returns if `v` is a value bound to the 'this' part in a class at runtime."
@@ -725,6 +725,25 @@ To finally render a class to the DOM use [[render-component]].
                               :reacl_reaction reaction
                               :reacl_reduce_action default-reduce-action})))
 
+(defn handle-toplevel-actions
+  "Returns a value to be passed to [[render-component]], which
+  specifies how to handle toplevel actions, which will usually be
+  actions interacting with some global entity like the browser or a server.
+
+  All actions reaching the toplevel, are passed to `(f app-state action)`:
+ 
+- with the current state of the application, where
+- `f` may have a side effect on the browser or initiate some Ajax request, and 
+- must use [[return]] to return a modified application state, or send some message to a component below.
+
+Note that you must only use [[return]] so send a message
+_immediately_ to a component (like the id of an Ajax request), and
+only [[send-message!]] to send a message later, from an _asynchronous_ context, to a
+component (like the result of an Ajax request).
+"
+  [f]
+  (opt :reduce-action f))
+
 (def ^{:arglists '([element clazz opts app-state & args]
                    [element clazz app-state & args]
                    [element clazz opts & args]
@@ -733,11 +752,10 @@ To finally render a class to the DOM use [[render-component]].
 
   - `element` is the DOM element
   - `clazz` is the Reacl class
-  - `opts` is an object created with [[opt]]
+  - `opts` is an object created with [[handle-toplevel-action]] or [[opt]]
   - `app-state` is the initial application state
   - `args` is a seq of class arguments"}
   render-component
-  ;; TODO: for opts, only an action handler makes any sense...?!
   (fn [element clazz & rst]
     (react-dom/render
      (-instantiate-toplevel-internal clazz rst)

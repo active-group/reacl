@@ -205,17 +205,19 @@
   [label pred & args]
   (trace/map-event-cycle-ids
    (trace/tracer
-    {:group-open false}
+    (-> {:group-open false}
+        (mark-group-start (multi (opt-label label) "cycle #" 0)))
     {trace/send-message-trace
      (fn [state event-id component msg]
-       (when (pred component)
-         (log! (opt-label label) (interp sending (show-value msg) (message-styled "to") (show-comp component))))
-       state)
+       (cond-> state
+         (pred component)
+         (log-in-group! (opt-label label) (interp sending (show-value msg) (message-styled "to") (show-comp component)))))
 
      trace/render-component-trace
      (fn [state event-id component]
-       (cond-> state
-         (pred component) (log-in-group! (opt-label label) (interp rendering (show-comp component)))))
+       (when (pred component)
+         (log! (opt-label label) (interp rendering (show-comp component))))
+       state)
 
      trace/returned-trace
      (fn [state event-id cycle-id component ret from]

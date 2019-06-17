@@ -840,12 +840,12 @@
          local-state-map {}
          queued-messages #queue []
          from from]
+    (trace/trace-returned! comp ret from)
     ;; process this Returned, resulting in updated states, and maybe more messages.
     (let [ui (handle-returned-1 comp ret nil app-state-map local-state-map)
           app-state-map (:app-state-map ui)
           local-state-map (:local-state-map ui)
           queued-messages (reduce conj queued-messages (:queued-messages ui))]
-      (trace/trace-returned! comp ret from)
       (if (empty? queued-messages)
         ui
         ;; process the next message, resulting in a new 'Returned', then recur.

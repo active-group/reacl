@@ -66,20 +66,14 @@
 
 (defn item-by-id [id] (ItemById. id))
 
-(defrecord Delete [])
 
 (reacl/defclass to-do-item-list this todos [make-delete-item-action]
   render
   (dom/div 
    (map (fn [id]
           (-> (to-do-item (reacl/bind this (item-by-id id))
-                          (->Delete))
-              (reacl/keyed (str id))
-              (reacl/map-action 
-               (fn [act]
-                 (cond
-                   (instance? Delete act) (make-delete-item-action id)
-                   :else act)))))
+                          (make-delete-item-action id))
+              (reacl/keyed (str id))))
         (map :id todos))))
 
 (defrecord Submit [])

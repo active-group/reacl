@@ -51,12 +51,10 @@
 
 ;; Specific for this app:
 
-(defrecord Delete [])
-
-(reacl/defclass to-do-item this todo []
+(reacl/defclass to-do-item this todo [delete-action]
   render
   (dom/div (checkbox (reacl/bind this :done?))
-           (button "Zap" (->Delete))
+           (button "Zap" delete-action)
            (:text todo)))
 
 (defrecord ItemById [id]
@@ -68,18 +66,19 @@
 
 (defn item-by-id [id] (ItemById. id))
 
-(defrecord DeleteItem [id])
+(defrecord Delete [])
 
-(reacl/defclass to-do-item-list this todos []
+(reacl/defclass to-do-item-list this todos [make-delete-item-action]
   render
   (dom/div 
    (map (fn [todo]
-          (-> (to-do-item (reacl/bind this (item-by-id (:id todo))))
+          (-> (to-do-item (reacl/bind this (item-by-id (:id todo)))
+                          (->Delete))
               (reacl/keyed (str (:id todo)))
               (reacl/map-action 
                (fn [act]
                  (cond
-                   (instance? Delete act) (->DeleteItem (:id todo))
+                   (instance? Delete act) (make-delete-item-action (:id todo))
                    :else act)))))
         todos)))
 
@@ -95,6 +94,7 @@
 (defrecord Todo [id text done?])
 
 (defrecord Submit [])
+(defrecord DeleteItem [id])
 
 (reacl/defclass to-do-app this app-state []
 
@@ -103,8 +103,7 @@
   render
   (-> (dom/div {}
                (dom/h3 "TODO")
-               (to-do-item-list (reacl/bind this :todos))
-               
+               (to-do-item-list (reacl/bind this :todos) ->DeleteItem)
                (add-item-form (reacl/bind-locally this)
                               (->Submit) (:next-id app-state)))
       (reacl/reduce-action (fn [_ act]

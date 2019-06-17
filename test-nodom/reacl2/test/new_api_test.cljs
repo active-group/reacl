@@ -51,6 +51,23 @@
                              ::state)
            (reacl/return :app-state {:sub ::state})))))
 
+(deftest reactive-update-test
+  ;; mount with a wrong 'sel' value:
+  (let [c (tu/mount (reacl/class "class" this state [sel]
+                                 render (msg-to-state (reacl/reactive (sel state)
+                                                                      (reacl/reaction this identity)))
+                                 handle-message
+                                 (fn [sub-state]
+                                   (reacl/return :app-state (assoc state :sub sub-state))))
+                    {:sub nil}
+                    :dummy)]
+    ;; update the 'sel' argument
+    (tu/update! c {:sub nil} :sub)
+    ;; then try the message to update something
+    (is (= (tu/send-message! (xpath/select c (xpath/>> / msg-to-state))
+                             ::state)
+           (reacl/return :app-state {:sub ::state})))))
+
 (deftest reactive-focus-test
   (let [c (tu/mount (reacl/class "class" this state []
                                  render (msg-to-state (-> (reacl/reactive (:sub state)

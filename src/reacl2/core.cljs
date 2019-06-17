@@ -1191,7 +1191,8 @@ To finally render a class to the DOM use [[render-component]].
                 actions)))))
 
 (defn reduce-action
-  "Clone the given element, wrapping (composing) its action reducer with the given action reducer `f`."
+  "Clone the given element, wrapping (composing) its action reducer
+  with the given action reducer `f`."
   [elem f]
   (assert f)
   (map-over-components
@@ -1201,10 +1202,27 @@ To finally render a class to the DOM use [[render-component]].
                                                           (compose-reducers prev f)
                                                           f)}))))
 
-(defn map-action [elem f]
+(defn map-action
+  "Clones the given element, applying a transformation function `f` to
+  all actions 'coming out' of components below it."
+  [elem f]
   (reduce-action elem (fn [app-state action]
                         ;; TODO: allow a 'ignore-action'/nil?
                         (return :action (f action)))))
+
+(def ^:private const-true (constantly true))
+
+(defn handle-actions
+  "Clones the given element, but 'redirects' all actions matching
+  `pred` (or all actions if not specified), as a message sent to
+  `target`."
+  ([elem target] (handle-actions elem target const-true))
+  ([elem target pred]
+   (reduce-action elem (fn [_ action]
+                         (if (pred action)
+                           (return :message [target action])
+                           (return :action action))))))
+
 
 ;; Attention: duplicate definition for macro in core.clj
 (def ^:private specials #{:render :initial-state :handle-message

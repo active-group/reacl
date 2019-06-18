@@ -51,6 +51,28 @@
                              ::state)
            (reacl/return :app-state {:sub ::state})))))
 
+(deftest falsy-app-states
+  (let [msg-to-state2 (reacl/class "msg-to-state2" this state [arg1 arg2]
+                                   render (dom/div)
+                                   handle-message
+                                   (fn [msg]
+                                     ;; additional check that args don't get messed up with the app-state:
+                                     (reacl/return :app-state (if (= arg1 (* 2 arg2))
+                                                                msg
+                                                                ::fail))))
+        
+        c (tu/mount (reacl/class "class" this state []
+                                 render (msg-to-state2 (reacl/reactive (:sub state)
+                                                                       (reacl/reaction this identity))
+                                                       42 21)
+                                 handle-message
+                                 (fn [sub-state]
+                                   (reacl/return :app-state (assoc state :sub sub-state))))
+                    {:sub nil})]
+    (is (= (tu/send-message! (xpath/select c (xpath/>> / msg-to-state2))
+                             false)
+           (reacl/return :app-state {:sub false})))))
+
 (deftest reactive-update-test
   ;; mount with a wrong 'sel' value:
   (let [c (tu/mount (reacl/class "class" this state [sel]

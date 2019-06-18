@@ -366,43 +366,42 @@ To finally render a class to the DOM use [[render-component]] and [[handle-tople
 (defn- internal-opt
   "Translates the 'user facing api' of using [[opt]] into a simplified form."
   [opts]
-  (-> (condp geti opts
-        :app-state :>>
-        (fn [state]
-          (-> opts
-              (dissoc :app-state)
-              (assoc :app-state-fn (BoundFn0. identity [state]))))
-        :reaction :>>
-        (fn [r]
-          (do (assert (not (or (:embed-app-state opts) (:embed opts) (:embed-locally opts))) reaction-invariant-msg)
-              (assert (or (nil? r) (instance? Reaction r)) (str "Invalid reaction: " (pr-str r)))
-              opts))
-        :embed-app-state :>>
-        (fn [f]
-          (assert (not (or (:reaction opts) (:embed opts) (:embed-locally opts))) reaction-invariant-msg)
-          (assoc opts
-                 :reaction (reaction :parent ->EmbedState embed-app-state-f [(lift-lens f)])))
-        ;; Note that extract-app-state and extract-local-state only work as expected during rendering (we could try to verify that?)
-        ;; If someone should instantiate components during handle-message, he shall be doomed (or has to adjust :app-state manually).
-        :embed :>>
-        (fn [comp]
-          (assert (not (or (:reaction opts) (:embed-app-state opts) (:embed-locally opts))) reaction-invariant-msg)
-          (when-not (-has-app-state? (component-class comp))
-            (throw (ex-info (str "Cannot bind to the app-state, as the class does not have an app-state. Maybe use bind-locally instead.") {:class (component-class comp)})))
-          (cond-> (assoc opts
-                         :reaction (reaction comp ->EmbedState embed-app-state-f [id-lens]))
-            (not (contains? opts :app-state-fn))
-            (assoc :app-state-fn (BoundFn0. extract-app-state [comp]))))
-        :embed-locally :>>
-        (fn [comp]
-          (assert (not (or (:reaction opts) (:embed-app-state opts) (:embed opts))) reaction-invariant-msg)
-          (cond-> (assoc opts
-                         :reaction (reaction comp ->EmbedState embed-locally-f [id-lens]))
-            (not (contains? opts :app-state-fn))
-            (assoc :app-state-fn (BoundFn0. extract-local-state [comp]))))
-        ;; else do nothing
-        opts)
-      (dissoc :embed-app-state :embed :embed-locally)))
+  (let [opts (cond-> opts
+               (contains? opts :app-state) ;; Note: false/nil are valid.
+               (-> (dissoc :app-state)
+                   (assoc :app-state-fn (BoundFn0. identity [(:app-state opts)]))))]
+    (-> (condp geti opts
+          :reaction :>>
+          (fn [r]
+            (do (assert (not (or (:embed-app-state opts) (:embed opts) (:embed-locally opts))) reaction-invariant-msg)
+                (assert (or (nil? r) (instance? Reaction r)) (str "Invalid reaction: " (pr-str r)))
+                opts))
+          :embed-app-state :>>
+          (fn [f]
+            (assert (not (or (:reaction opts) (:embed opts) (:embed-locally opts))) reaction-invariant-msg)
+            (assoc opts
+                   :reaction (reaction :parent ->EmbedState embed-app-state-f [(lift-lens f)])))
+          ;; Note that extract-app-state and extract-local-state only work as expected during rendering (we could try to verify that?)
+          ;; If someone should instantiate components during handle-message, he shall be doomed (or has to adjust :app-state manually).
+          :embed :>>
+          (fn [comp]
+            (assert (not (or (:reaction opts) (:embed-app-state opts) (:embed-locally opts))) reaction-invariant-msg)
+            (when-not (-has-app-state? (component-class comp))
+              (throw (ex-info (str "Cannot bind to the app-state, as the class does not have an app-state. Maybe use bind-locally instead.") {:class (component-class comp)})))
+            (cond-> (assoc opts
+                           :reaction (reaction comp ->EmbedState embed-app-state-f [id-lens]))
+              (not (contains? opts :app-state-fn))
+              (assoc :app-state-fn (BoundFn0. extract-app-state [comp]))))
+          :embed-locally :>>
+          (fn [comp]
+            (assert (not (or (:reaction opts) (:embed-app-state opts) (:embed opts))) reaction-invariant-msg)
+            (cond-> (assoc opts
+                           :reaction (reaction comp ->EmbedState embed-locally-f [id-lens]))
+              (not (contains? opts :app-state-fn))
+              (assoc :app-state-fn (BoundFn0. extract-local-state [comp]))))
+          ;; else do nothing
+          opts)
+        (dissoc :embed-app-state :embed :embed-locally))))
 
 (defn opt
   "Create options for component instantiation.

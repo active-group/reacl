@@ -7,6 +7,8 @@
 ;; reusable utilities:
 
 (reacl/defclass checkbox this checked? []
+  validate (assert (boolean? checked?))
+  
   render
   (dom/input {:type "checkbox"
               :checked checked?
@@ -18,6 +20,8 @@
     (reacl/return :app-state checked?)))
 
 (reacl/defclass textbox this value []
+  validate (assert (string? value))
+
   render
   (dom/input {:type "text"
               :value value
@@ -52,6 +56,9 @@
 ;; Specific for this app:
 
 (reacl/defclass to-do-item this todo [delete-action]
+  validate (do (assert (contains? todo :done?))
+               (assert (contains? todo :text)))
+  
   render
   (dom/div (checkbox (reacl/bind this :done?))
            (button "Zap" delete-action)
@@ -68,6 +75,10 @@
 
 
 (reacl/defclass to-do-item-list this todos [make-delete-item-action]
+  validate (do (assert (sequential? todos))
+               (assert (every? #(contains? % :id) todos))
+               (assert (= (distinct todos) todos)))
+  
   render
   (dom/div 
    (map (fn [id]
@@ -101,6 +112,8 @@
 (defrecord DeleteItem [id])
 
 (reacl/defclass to-do-app this app-state []
+  validate
+  (assert (instance? TodosApp app-state))
 
   render
   (-> (dom/div {}

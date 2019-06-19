@@ -905,10 +905,18 @@
                                                        nil)
                                               (dom/div))
                                             (child-1 this)))]
-    ;; Note: a warning should be printed, at least.
     (let [c (test-util/instantiate&mount parent)
-          comp-2 (dom-with-class c child-2)]
-      (test-util/send-message! comp-2 42)
+          comp-2 (dom-with-class c child-2)
+
+          pre reacl/warning
+          warning-args (atom nil)]
+      (try
+        (set! reacl/warning (fn [& args] (reset! warning-args args)))
+        (test-util/send-message! comp-2 42)
+        (finally
+          (set! reacl/warning pre)))
+      (is (= (second @warning-args)
+             :this-shall-not-be-sent))
       (is (not @sent)))))
 
 (deftest app-state-preservation

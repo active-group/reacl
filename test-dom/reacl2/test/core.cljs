@@ -768,7 +768,21 @@
                         (if (= :error local-state)
                           (c1 false)
                           (c1 true)))]
-    (let [d (test-util/instantiate&mount c2 nil)]
+    (let [d (do
+              ;; React does some fancy things with the browsers error
+              ;; handler in DEV, and respects 'default prevented' in
+              ;; that it does not log the error then (or is it the browser?)
+              (let [eh (fn [ev]
+                         (.preventDefault ev))]
+                (js/window.addEventListener "error" eh)
+                ;; and this suppressed the 'The above error occurred' log msg from React.
+                (let [pre js/console.error]
+                  (set! js/console.error (fn [& args] nil))
+                  (try (test-util/instantiate&mount c2 nil)
+                       (finally
+                         (set! js/console.error pre)
+                         (js/window.removeEventListener "error" eh)))))
+              )]
       (is (some? @catched))
       (is (instance? js/Error (first @catched)))
       (is (= (test-util/extract-local-state d)
@@ -990,10 +1004,18 @@
                                                        nil)
                                               (dom/div))
                                             (child-1 this)))]
-    ;; Note: a warning should be printed, at least.
     (let [c (test-util/instantiate&mount parent)
-          comp-2 (dom-with-class c child-2)]
-      (test-util/send-message! comp-2 42)
+          comp-2 (dom-with-class c child-2)
+
+          pre reacl/warning
+          warning-args (atom nil)]
+      (try
+        (set! reacl/warning (fn [& args] (reset! warning-args args)))
+        (test-util/send-message! comp-2 42)
+        (finally
+          (set! reacl/warning pre)))
+      (is (= (second @warning-args)
+             :this-shall-not-be-sent))
       (is (not @sent)))))
 
 (deftest app-state-preservation

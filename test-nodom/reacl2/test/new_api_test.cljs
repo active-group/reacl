@@ -76,12 +76,11 @@
 (deftest reactive-update-test
   ;; mount with a wrong 'sel' value:
   (let [c (tu/mount (reacl/class "class" this state [sel]
-                                 render (msg-to-state (reacl/reactive (sel state)
-                                                                      (reacl/reaction this identity)))
+                                 render (msg-to-state (reacl/reactive 42 (reacl/reaction this vector sel)))
                                  handle-message
-                                 (fn [sub-state]
-                                   (reacl/return :app-state (assoc state :sub sub-state))))
-                    {:sub nil}
+                                 (fn [[st sel]]
+                                   (reacl/return :app-state (assoc state sel st))))
+                    {:sub :init}
                     :dummy)]
     ;; update the 'sel' argument
     (tu/update! c {:sub nil} :sub)

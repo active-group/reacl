@@ -1387,19 +1387,7 @@ component (like the result of an Ajax request).
             (std+state component-did-mount 'component-did-mount)
 
             "shouldComponentUpdate"
-            (let [f (with-state-and-args should-component-update?)]
-              (fn [next-props next-state]
-                ;; have to check the reaction for embedded
-                ;; components for changes - though this will mostly
-                ;; force an update!
-                (this-as this
-                         (or (and (let [callback-now (props-extract-reaction (.-props this))
-                                        callback-next (props-extract-reaction next-props)]
-                                    (and (or callback-now callback-next)
-                                         (not= callback-now callback-next))))
-                             (if f
-                               (.call f this next-props next-state)
-                               true)))))
+            (with-state-and-args should-component-update?)
 
             "componentWillUpdate"
             (with-state-and-args component-will-update)

@@ -5,7 +5,8 @@
             [reacl2.dom :as dom :include-macros true]))
 
 (core/defclass 
-  ^{:doc 
+  ^{:deprecated "2.2"
+    :doc 
     "A reacl class that delays `clazz`'s state change for `delay`
      milliseconds.
 
@@ -65,14 +66,14 @@
        (core/return :app-state
                      (:st local-state))))))
 
-(defn values-of-child-nodes
+(defn ^{:deprecated "2.2"} values-of-child-nodes
   "Returns a list of values of all child nodes of a parent dom object."
   [this parent]
   (let [children (.-childNodes (dom/dom-node this parent))]
     (map #(.-value %)
          (map #(.item children %) (range (.-length children))))))
 
-(defn make-datalist
+(defn ^{:deprecated "2.2"} make-datalist
   "Map a list of options to a datalist."
   [id & [options]]
   (apply dom/datalist 

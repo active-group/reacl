@@ -90,13 +90,6 @@
                           :output-dir "target/comments/out"
                           :source-map "target/comments/main.map"
                           :optimizations :whitespace
-                          :parallel-build true}}
-              {:id "delayed"
-               :source-paths ["src" "examples/delayed"]
-               :compiler {:output-to "target/delayed/main.js"
-                          :output-dir "target/delayed/out"
-                          :source-map "target/delayed/main.map"
-                          :optimizations :whitespace
                           :parallel-build true}}]}
 
   )

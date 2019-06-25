@@ -15,7 +15,7 @@ To instantiate classes that have app-state you need to create bindings with [[bi
 Sometimes modifications of the created elements are needed via [[keyed]], [[refer-as]],
 [[redirect-actions]], [[reduce-action]], [[handle-actions]] or [[map-action]].
 
-To finally render a class to the DOM use [[render-component]] and [[handle-toplevel-actions]].
+To finally render a class to the DOM use [[render-component]] and [[handle-toplevel-action]].
 "
   (:require [react :as react]
             [react-dom :as react-dom]
@@ -731,7 +731,7 @@ To finally render a class to the DOM use [[render-component]] and [[handle-tople
                               :reacl_reaction reaction
                               :reacl_reduce_action default-reduce-action})))
 
-(defn handle-toplevel-actions
+(defn handle-toplevel-action
   "Returns a value to be passed to [[render-component]], which
   specifies how to handle toplevel actions, which will usually be
   actions interacting with some global entity like the browser or a server.

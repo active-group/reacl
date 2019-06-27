@@ -332,7 +332,7 @@
   "Cache for style names encountered."
   #js {})
 
-(defn- reacl->react-style-name
+(defn ^:no-doc reacl->react-style-name
   "Convert Reacl style name (keyword) to React name (string)."
   [reacl-name]
   (let [reacl-name (name reacl-name)]

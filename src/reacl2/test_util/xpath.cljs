@@ -510,3 +510,18 @@
                                  (and (sequential? s)
                                       (every? string? s))))
                      (is-css-class-match? s))))))
+
+(defn- style-match [m sub]
+  ;; Note: m will be a translated style; as a js object; sub a untranslated clojure map.
+  (every? (fn [[k v]]
+            (let [p (dom/reacl->react-style-name k)]
+              (and (.hasOwnProperty m p)
+                   (= v (aget m p)))))
+          sub))
+
+(defn style? "Keeps the current node only if it has a `:style`
+  attribute, with matches with all styles given in the map `style`. Note
+  that it's ok if it has more styles."
+  [style]
+  (where (comp (attr :style)
+               (is? style-match style))))

@@ -1236,14 +1236,22 @@ component (like the result of an Ajax request).
 
 (def ^:private const-true (constantly true))
 
+(defn- pred-or-type [action pt]
+  (and (if (ifn? pt)
+         (pt action)
+         (instance? pt action))
+       true))
+
 (defn handle-actions
-  "Clones the given element, but 'redirects' all actions matching
-  `pred` (or all actions if not specified), as a message sent to
-  `target`."
+  "Clones the given element, but 'redirects' all actions matching the
+  `pred` function (or all actions if not specified), as a message sent
+  to `target`. Alternatively `pred` and all remaining functions can be
+  record types, which are then used as in an instance check against
+  the action."
   ([elem target] (handle-actions elem target const-true))
-  ([elem target pred]
+  ([elem target pred & types]
    (reduce-action elem (fn [_ action]
-                         (if (pred action)
+                         (if (some (partial pred-or-type action) (cons pred types))
                            (return :message [target action])
                            (return :action action))))))
 

@@ -464,7 +464,7 @@
   (is? = v))
 
 (defn id= "Keeps the current node only if it has an attribute `id` equaling `v`." [v]
-  (comp (attr :id) (is= v)))
+  (where (comp (attr :id) (is= v))))
 
 (defn- re-matches-rev [s re]
   (re-matches re s))
@@ -500,13 +500,13 @@
   the node must have all those classes in the same order. If `s` is a
   set of string, then it must have all those classes in any order."
   [s]
-  (comp (attr :class)
-        (if (set? s)
-          (do (assert (every? string? s))
-              (if (= 1 (count s))
-                (is-css-class-match? (clojure.core/first s))
-                (reduce and (map is-css-class-match? s))))
-          (do (assert (or (string? s)
-                          (and (sequential? s)
-                               (every? string? s))))
-              (is-css-class-match? s)))))
+  (where (comp (attr :class)
+               (if (set? s)
+                 (do (assert (every? string? s))
+                     (if (= 1 (count s))
+                       (is-css-class-match? (clojure.core/first s))
+                       (reduce and (map is-css-class-match? s))))
+                 (do (assert (or (string? s)
+                                 (and (sequential? s)
+                                      (every? string? s))))
+                     (is-css-class-match? s))))))

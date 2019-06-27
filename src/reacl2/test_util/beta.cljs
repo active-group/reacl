@@ -70,26 +70,33 @@
           (assert (instance? TestEnv env))
           env)))))
 
-(defn- test* [class has-app-state?]
+(defn- test* [class has-app-state? options]
   (TestEnv. class has-app-state?
-            (react-test-renderer/create nil nil)
+            (react-test-renderer/create nil (clj->js (into {} (map (fn [[k v]]
+                                                                     [(if (= k :create-node-mock)
+                                                                        :createNodeMock
+                                                                        k) v])
+                                                                   options))))
             (atom (reacl/return))))
 
 (defn fn-env
   "Returns a test environment for tests of the given function, which
-  must return a dom element or class instance."
-  [f]
+  must return a dom element or class instance. For `options` see [[env]]."
+  [f & [options]]
   (assert (or (not (reacl/reacl-class? f))
               (not (reacl/has-app-state? f))))
-  (test* f false))
+  (test* f false options))
 
 (defn env
-  "Returns a fresh test environment for testing the given class."
-  [class]
+  "Returns a fresh test environment for testing the given class. An
+  `options` map may include a `:create-node-mock` function that is
+  called with a React test renderer instance and may return a value
+  that is then used for [[reacl2.core/get-dom]] on references."
+  [class & [options]]
   (if (and (reacl/reacl-class? class)
            (not (reacl/has-app-state? class)))
     (fn-env class)
-    (test* class true)))
+    (test* class true options)))
 
 (defn- with-collect-return! [env f]
   (assert (instance? TestEnv env))

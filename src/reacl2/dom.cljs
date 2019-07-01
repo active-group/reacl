@@ -353,13 +353,20 @@
              #js {}
              mp))
 
+(defn- attribute-name->react [k]
+  (let [s (name k)]
+    (if-let [react-name (aget reacl->react-attribute-names s)]
+      react-name
+      s)))
+
+(defn- attribute-value->react [k v]
+  (case k
+    :style (styles->react v)
+    v))
+
 (defn- aset-attribute [obj k0 v0]
-  (let [k (if-let [react-name (aget reacl->react-attribute-names (name k0))]
-            react-name
-            (name k0))
-        v (case k0
-            :style (styles->react v0)
-            v0)]
+  (let [k (attribute-name->react k0)
+        v (attribute-value->react k0 v0)]
     (aset obj k v)
     obj))
 
@@ -475,6 +482,11 @@
        (if (attributes? maybe)
          (apply react/createElement n (attributes maybe) (normalize-arg a1) (normalize-arg a2) (normalize-arg a3) (normalize-arg a4) args)
          (apply react/createElement n nil (normalize-arg maybe) (normalize-arg a1) (normalize-arg a2) (normalize-arg a3) (normalize-arg a4) args))))))
+
+(def ^{:arglists '([type attrs & children]
+                   [type & children])
+       :doc "Generic function to create virtual dom elements. `(element \"div\" ...)` is then same as `(div ...)`."}
+  element dom-function)
 
 (defn ^:no-doc set-dom-binding!
   "Internal function for use by `letdom'.

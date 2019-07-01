@@ -903,7 +903,7 @@ component (like the result of an Ajax request).
                              (recur nxt app-state arg actions messages))
           (:action) (recur nxt app-state local-state (conj! actions arg) messages)
           (:message) (recur nxt app-state local-state actions (conj messages arg))
-          (do (assert (= false true) (str "Invalid argument " (first args) " to reacl/return."))
+          (do (assert (contains? #{:app-state :local-state :action :message} (first args)) (str "Invalid argument " (first args) " to reacl/return."))
               (recur nxt app-state local-state actions messages)))))))
 
 (defn- action-effect

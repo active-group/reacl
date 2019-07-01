@@ -298,3 +298,7 @@
   (is (= (str ::test)
          (.-key (dom/keyed ::test
                            (dom/div))))))
+
+(deftest element-test
+  (= (.-type (dom/element "div"))
+     (.-type (dom/div))))

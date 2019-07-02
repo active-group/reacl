@@ -568,7 +568,7 @@ To finally render a class to the DOM use [[render-component]] and [[handle-tople
   ;; Note: some version of react has cloneAndReplaceKey
   (react/cloneElement elem #js {:key key}))
 
-(defn- deconstruct-opt
+(defn- extract-opt
   [rst]
   (if (empty? rst)
     [{} rst]
@@ -577,9 +577,9 @@ To finally render a class to the DOM use [[render-component]] and [[handle-tople
         [(:map frst) (rest rst)]
         [{} rst]))))
 
-(defn- deconstruct-opt+app-state
+(defn ^:no-doc extract-opt+app-state
   [has-app-state? rst]
-  (let [[opts rst] (deconstruct-opt rst)
+  (let [[opts rst] (extract-opt rst)
         [app-state args] (if has-app-state?
                            (if-let [f (:app-state-fn opts)]
                              [(f) rst]
@@ -670,8 +670,8 @@ To finally render a class to the DOM use [[render-component]] and [[handle-tople
   (fn [clazz has-app-state? rst]
     (when-not (reacl-class? clazz)
       (throw (ex-info (str "Expected a Reacl class as the first argument, but got: " clazz) {:value clazz})))
-    (let [[opts app-state args] (deconstruct-opt+app-state has-app-state? rst)]
       (make-uber-component clazz opts args app-state))))
+    (let [[opts app-state args] (extract-opt+app-state has-app-state? rst)]
 
 (def ^{:arglists '([clazz opts app-state & args]
                    [clazz app-state & args]
@@ -699,7 +699,7 @@ To finally render a class to the DOM use [[render-component]] and [[handle-tople
   - `args` is a seq of class arguments"}
   instantiate-embedded-internal
   (fn [clazz has-app-state? rst]
-    (let [[opts app-state args] (deconstruct-opt+app-state has-app-state? rst)
+    (let [[opts app-state args] (extract-opt+app-state has-app-state? rst)
           rclazz (react-class clazz)]
       (when (and (-has-app-state? clazz)
                  (not (contains? opts :reaction)))

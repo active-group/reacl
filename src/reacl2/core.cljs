@@ -354,11 +354,6 @@ To finally render a class to the DOM use [[render-component]] and [[handle-tople
     (keyword? v) (KeywordLens. v)
     :else v))
 
-(defrecord ^:private BoundFn0 [f args]
-  IFn
-  (-invoke [this]
-    (apply f args)))
-
 (def ^:private reaction-invariant-msg "Only one of :reaction, :embed-app-state, :embed and :embed-locally may be given in an opts value.")
 
 (defn- geti [k m] (get m k))
@@ -366,42 +361,38 @@ To finally render a class to the DOM use [[render-component]] and [[handle-tople
 (defn- internal-opt
   "Translates the 'user facing api' of using [[opt]] into a simplified form."
   [opts]
-  (let [opts (cond-> opts
-               (contains? opts :app-state) ;; Note: false/nil are valid.
-               (-> (dissoc :app-state)
-                   (assoc :app-state-fn (BoundFn0. identity [(:app-state opts)]))))]
-    (-> (condp geti opts
-          :reaction :>>
-          (fn [r]
-            (do (assert (not (or (:embed-app-state opts) (:embed opts) (:embed-locally opts))) reaction-invariant-msg)
-                (assert (or (nil? r) (instance? Reaction r)) (str "Invalid reaction: " (pr-str r)))
-                opts))
-          :embed-app-state :>>
-          (fn [f]
-            (assert (not (or (:reaction opts) (:embed opts) (:embed-locally opts))) reaction-invariant-msg)
-            (assoc opts
-                   :reaction (reaction :parent ->EmbedState embed-app-state-f [(lift-lens f)])))
-          ;; Note that extract-app-state and extract-local-state only work as expected during rendering (we could try to verify that?)
-          ;; If someone should instantiate components during handle-message, he shall be doomed (or has to adjust :app-state manually).
-          :embed :>>
-          (fn [comp]
-            (assert (not (or (:reaction opts) (:embed-app-state opts) (:embed-locally opts))) reaction-invariant-msg)
-            (when-not (-has-app-state? (component-class comp))
-              (throw (ex-info (str "Cannot bind to the app-state, as the class does not have an app-state. Maybe use bind-locally instead.") {:class (component-class comp)})))
-            (cond-> (assoc opts
-                           :reaction (reaction comp ->EmbedState embed-app-state-f [id-lens]))
-              (not (contains? opts :app-state-fn))
-              (assoc :app-state-fn (BoundFn0. extract-app-state [comp]))))
-          :embed-locally :>>
-          (fn [comp]
-            (assert (not (or (:reaction opts) (:embed-app-state opts) (:embed opts))) reaction-invariant-msg)
-            (cond-> (assoc opts
-                           :reaction (reaction comp ->EmbedState embed-locally-f [id-lens]))
-              (not (contains? opts :app-state-fn))
-              (assoc :app-state-fn (BoundFn0. extract-local-state [comp]))))
-          ;; else do nothing
-          opts)
-        (dissoc :embed-app-state :embed :embed-locally))))
+  (-> (condp geti opts
+        :reaction :>>
+        (fn [r]
+          (do (assert (not (or (:embed-app-state opts) (:embed opts) (:embed-locally opts))) reaction-invariant-msg)
+              (assert (or (nil? r) (instance? Reaction r)) (str "Invalid reaction: " (pr-str r)))
+              opts))
+        :embed-app-state :>>
+        (fn [f]
+          (assert (not (or (:reaction opts) (:embed opts) (:embed-locally opts))) reaction-invariant-msg)
+          (assoc opts
+                 :reaction (reaction :parent ->EmbedState embed-app-state-f [(lift-lens f)])))
+        ;; Note that extract-app-state and extract-local-state only work as expected during rendering (we could try to verify that?)
+        ;; If someone should instantiate components during handle-message, he shall be doomed (or has to adjust :app-state manually).
+        :embed :>>
+        (fn [comp]
+          (assert (not (or (:reaction opts) (:embed-app-state opts) (:embed-locally opts))) reaction-invariant-msg)
+          (when-not (-has-app-state? (component-class comp))
+            (throw (ex-info (str "Cannot bind to the app-state, as the class does not have an app-state. Maybe use bind-locally instead.") {:class (component-class comp)})))
+          (cond-> (assoc opts
+                         :reaction (reaction comp ->EmbedState embed-app-state-f [id-lens]))
+            (not (contains? opts :app-state))
+            (assoc :app-state (extract-app-state comp))))
+        :embed-locally :>>
+        (fn [comp]
+          (assert (not (or (:reaction opts) (:embed-app-state opts) (:embed opts))) reaction-invariant-msg)
+          (cond-> (assoc opts
+                         :reaction (reaction comp ->EmbedState embed-locally-f [id-lens]))
+            (not (contains? opts :app-state))
+            (assoc :app-state (extract-local-state comp))))
+        ;; else do nothing
+        opts)
+      (dissoc :embed-app-state :embed :embed-locally)))
 
 (defn opt
   "Create options for component instantiation.
@@ -441,12 +432,11 @@ To finally render a class to the DOM use [[render-component]] and [[handle-tople
   (opt :app-state app-state
        :reaction no-reaction))
 
-(defn- focus-make-message [inner-app-state prev-make-message lens original-app-state-fn & args]
-  (let [original-app-state (original-app-state-fn)]
-    (apply prev-make-message (lens original-app-state inner-app-state) args)))
+(defn- focus-make-message [inner-app-state prev-make-message lens original-app-state & args]
+  (apply prev-make-message (lens original-app-state inner-app-state) args))
 
-(defn- focused-app-state-fn [prev lens]
-  (lens (prev)))
+(defn- focused-app-state [prev lens]
+  (lens prev))
 
 (defn focus
   "Returns a binding that appends the given `lens` to the given
@@ -460,13 +450,13 @@ To finally render a class to the DOM use [[render-component]] and [[handle-tople
       (update binding :map
               (fn [mp]
                 (cond-> mp
-                  (contains? mp :app-state-fn)
-                  (assoc :app-state-fn (BoundFn0. focused-app-state-fn [(:app-state-fn mp) lens]))
+                  (contains? mp :app-state)
+                  (update :app-state focused-app-state lens)
 
                   (instance? Reaction (:reaction mp))
                   (update :reaction
                           (fn [prev-reaction]
-                            (when-not (contains? mp :app-state-fn)
+                            (when-not (contains? mp :app-state)
                               (throw (new js/Error "To focus a reaction, it must include the app-state. Use 'bind', 'bind-locally', 'fixed' or 'reactive'.")))
                             (cond
                               ;; simplified special case for embed (current states get passed in process-message anyway):
@@ -481,7 +471,7 @@ To finally render a class to the DOM use [[render-component]] and [[handle-tople
                               (apply reaction
                                      (:component prev-reaction)
                                      focus-make-message
-                                     (cons (:make-message prev-reaction) (cons lens (cons (:app-state-fn mp) (:args prev-reaction))))))))
+                                     (cons (:make-message prev-reaction) (cons lens (cons (:app-state mp) (:args prev-reaction))))))))
 
                   ;; Note: no-reaction = nil can be skipped here.
                   (not (or (nil? (:reaction mp))
@@ -518,13 +508,17 @@ To finally render a class to the DOM use [[render-component]] and [[handle-tople
        :reaction reaction))
 
 (defn reveal
-  "Returns the value provided by the given `binding` to be used as the app-state of a child component."
+  "Returns the value provided by the given `binding` to be used as the
+  app-state of a child component.
+
+  Do not use this outside the evaluation of the `render` clause in
+  which the binding was constructed (e.g. in an event handler); that
+  may lead to hard to track bugs in your component."
   [binding]
-  ;; may be be side effectful, but is constant during the same rendering.
   (assert (opt? binding))
   (let [mp (:map binding)]
-    (if-let [f (:app-state-fn mp)]
-      (f)
+    (if (contains? mp :app-state)
+      (:app-state mp)
       (throw (new js/Error "Cannot reveal the app-state of this binding; must created via 'fixed', 'reactive', 'bind' or 'bind-locally'.")))))
 
 (defn- map-over-components [elem f]
@@ -579,16 +573,22 @@ To finally render a class to the DOM use [[render-component]] and [[handle-tople
         [frst (rest rst)]
         [empty-opt rst]))))
 
-(defn ^:no-doc extract-opt+app-state
+(defn ^:no-doc extract-binding
   [has-app-state? rst]
   (let [[opts rst] (extract-opt rst)
-        [app-state args] (if has-app-state?
-                           (if-let [f (:app-state-fn (:map opts))]
-                             [(f) rst]
-                             ;; legacy variant, where app-state is the first arg after the opts:
-                             [(first rst) (rest rst)])
-                           [nil rst])]
-    [opts app-state args]))
+        [binding args] (if (or (not has-app-state?) (contains? (:map opts) :app-state))
+                         [opts rst]
+                         ;; legacy variant, where app-state is the first arg after the opts:
+                         (let [app-state (first rst)]
+                           [(Options. (assoc (:map opts)
+                                             :app-state app-state))
+                            (rest rst)]))]
+    [binding args]))
+
+(defn ^:no-doc extract-opt+app-state
+  [has-app-state? rst]
+  (let [[binding args] (extract-binding has-app-state? rst)]
+    [binding (:app-state (:map binding)) args]))
 
 (def ^:no-doc uber-class
   (let [cl

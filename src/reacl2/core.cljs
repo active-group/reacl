@@ -323,14 +323,16 @@
                  mp)]}
   (Options. mp))
 
+(def ^:private empty-opt (Options. {}))
+
 (defn- deconstruct-opt
   [rst]
   (if (empty? rst)
-    [{} rst]
+    [empty-opt rst]
     (let [frst (first rst)]
       (if (opt? frst)
-        [(:map frst) (rest rst)]
-        [{} rst]))))
+        [frst (rest rst)]
+        [empty-opt rst]))))
 
 (defn ^:no-doc extract-opt+app-state
   [has-app-state? rst]
@@ -429,7 +431,7 @@
   [clazz has-app-state? rst]
   (when-not (reacl-class? clazz)
     (throw (ex-info (str "Expected a Reacl class as the first argument, but got: " clazz) {:value clazz})))
-  (let [[opts app-state args] (extract-opt+app-state has-app-state? rst)]
+  (let [[{opts :map} app-state args] (extract-opt+app-state has-app-state? rst)]
     (assert (not (and (:reaction opts) (:embed-app-state opts)))) ; FIXME: assertion to catch FIXME below
     (make-uber-component clazz opts args app-state)))
 
@@ -458,7 +460,7 @@
                [clazz opts & args]
                [& args])}
   [clazz has-app-state? rst]
-  (let [[opts app-state args] (extract-opt+app-state has-app-state? rst)
+  (let [[{opts :map} app-state args] (extract-opt+app-state has-app-state? rst)
         rclazz (react-class clazz)]
     (assert (not (and (:reaction opts) (:embed-app-state opts)))) ; FIXME: assertion to catch FIXME in internal-reaction
     (when (and (-has-app-state? clazz)

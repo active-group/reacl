@@ -2,7 +2,7 @@ language: clojure
 
 before_install:
   - npm install -g karma
-  - npm install -g karma_cljs_test
+  - npm install -g karma-cljs-test
   - npm install -g karma-firefox-launcher
 
 script:

@@ -1,0 +1,5 @@
+^{:open-url "http://[[server-hostname]]:[[server-port]]/test.html"
+  :source-paths ["test-dom"]
+  :watch-dirs ["src" "test-dom"]
+  }
+{:main active-viz.test-runner}

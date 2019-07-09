@@ -21,17 +21,22 @@
             [lein-codox "0.9.3"]
             [lein-auto "0.1.3"]]
 
-  :profiles {:dev {:dependencies [[active-clojure "0.11.0" :exclusions [org.clojure/clojure]]
-                                  [lein-doo "0.1.7"]
-                                  [codox-theme-rdash "0.1.2"]
-                                  [com.bhauman/figwheel-main "0.2.0"]
-                                  [com.bhauman/rebel-readline-cljs "0.1.4"]]
-                   :resource-paths ["target" "resources"]}
-             :test {:source-paths ["src" "test-nodom" "test-dom" "examples"]}}
+  :profiles {:dev        {:dependencies   [[active-clojure "0.11.0" :exclusions [org.clojure/clojure]]
+                                           [lein-doo "0.1.7"]
+                                           [codox-theme-rdash "0.1.2"]
+                                           [com.bhauman/figwheel-main "0.2.0"]
+                                           [com.bhauman/rebel-readline-cljs "0.1.4"]]
+                          :resource-paths ["target" "resources"]}
+             :test       {:source-paths ["src" "test-nodom" "test-dom" "examples"]}
+             :test-dom   {:source-paths ["src" "test-dom"]}
+             :test-nodom {:source-paths ["src" "test-nodom"]}}
 
   ;; open http://localhost:9500/figwheel-extra-main/auto-testing for the tests.
   ;; open http://localhost:9500/figwheel-extra-main/todo and others for the examples
-  :aliases {"fig" ["trampoline" "with-profile" "+dev,+test" "run" "-m" "figwheel.main" "-b" "dev" "-r"]}
+  :aliases {"fig" ["trampoline" "with-profile" "+dev,+test" "run" "-m" "figwheel.main" "-b" "dev" "-r"]
+            "figtest-dom-travis" ["trampoline" "with-profile" "+dev,+test" "run" "-m" "figwheel.main" "-fwo" "{:launch-js [\"google-chrome-stable\" \"--no-sandbox\" \"--headless\" \"--disable-gpu\" \"--repl\" :open-url] :repl-eval-timeout 30000}" "-co" "test-dom.cljs.edn" "-m" reacl2.test.figwheel-test-runner]
+            "figtest-nodom-travis" ["trampoline" "with-profile" "+dev,+test" "run" "-m" "figwheel.main" "-fwo" "{:launch-js [\"google-chrome-stable\" \"--no-sandbox\" \"--headless\" \"--disable-gpu\" \"--repl\" :open-url] :repl-eval-timeout 30000}" "-co" "test-nodom.cljs.edn" "-m" reacl2.test.figwheel-test-runner]
+            }
 
 
   :codox {:language :clojurescript
@@ -45,9 +50,9 @@
   ;; for test driven development use
   ;; > lein auto do clean, doo chrome-headless test-nodom once, doo chrome-headless test-dom once
   :auto {:default {:paths ["src" "test-dom" "test-nodom" "examples"]}}
-  
+
   :cljsbuild
-  
+
   { :builds [{:id "test-dom"
               :source-paths ["src" "test-dom"]
               :compiler {:output-to "target/test-dom.js"
@@ -61,7 +66,7 @@
                          :output-dir "target/test-nodom"
                          :main reacl2.test.runner
                          }}
-             
+
               ;; examples
               {:id "products"
                :source-paths ["src" "examples/products"]

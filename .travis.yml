@@ -3,3 +3,4 @@ language: clojure
 script:
   - lein figtest-dom-travis
   - lein figtest-nodom-travis
+  - lein doo firefox-headless test-dom

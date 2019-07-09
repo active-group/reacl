@@ -762,6 +762,12 @@
       (is (= @render-called 1)))))
 
 (deftest component-did-catch-test
+  ;; in firefox-headless this test fails with 'intentional test
+  ;; error', unless this onerror handler is set too:
+  ;; Not sure why, but maybe the React error boundaries does not work with it;
+  ;; or there is some interference with the doo runner? Whatever...
+  (set! (.-onerror js/window) (fn [ev] false))
+  
   (let [render-called (atom 0)
         c1 (reacl/class "class1" this [arg]
 

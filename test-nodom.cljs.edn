@@ -1,5 +1,5 @@
 ^{:open-url "http://[[server-hostname]]:[[server-port]]/test-nodom.html"
-  :source-paths ["test-dom"]
+  :source-paths ["test-nodom"]
   :watch-dirs ["src" "test-nodom"]
   }
-{:main active-viz.test-runner}
+{:main active.clojure.figwheel-test-runner}

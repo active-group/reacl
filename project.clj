@@ -34,8 +34,8 @@
   ;; open http://localhost:9500/figwheel-extra-main/auto-testing for the tests.
   ;; open http://localhost:9500/figwheel-extra-main/todo and others for the examples
   :aliases {"fig" ["trampoline" "with-profile" "+dev,+test" "run" "-m" "figwheel.main" "-b" "dev" "-r"]
-            "figtest-dom-travis" ["trampoline" "with-profile" "+dev,+test" "run" "-m" "figwheel.main" "-fwo" "{:launch-js [\"google-chrome-stable\" \"--no-sandbox\" \"--headless\" \"--disable-gpu\" \"--repl\" :open-url] :repl-eval-timeout 30000}" "-co" "test-dom.cljs.edn" "-m" reacl2.test.figwheel-test-runner]
-            "figtest-nodom-travis" ["trampoline" "with-profile" "+dev,+test" "run" "-m" "figwheel.main" "-fwo" "{:launch-js [\"google-chrome-stable\" \"--no-sandbox\" \"--headless\" \"--disable-gpu\" \"--repl\" :open-url] :repl-eval-timeout 30000}" "-co" "test-nodom.cljs.edn" "-m" reacl2.test.figwheel-test-runner]
+            "figtest-dom-travis" ["trampoline" "with-profile" "+dev,+test-dom" "run" "-m" "figwheel.main" "-fwo" "{:launch-js [\"google-chrome-stable\" \"--no-sandbox\" \"--headless\" \"--disable-gpu\" \"--repl\" :open-url] :repl-eval-timeout 30000}" "-co" "test-dom.cljs.edn" "-m" reacl2.test.figwheel-test-runner]
+            "figtest-nodom-travis" ["trampoline" "with-profile" "+dev,+test-nodom" "run" "-m" "figwheel.main" "-fwo" "{:launch-js [\"google-chrome-stable\" \"--no-sandbox\" \"--headless\" \"--disable-gpu\" \"--repl\" :open-url] :repl-eval-timeout 30000}" "-co" "test-nodom.cljs.edn" "-m" reacl2.test.figwheel-test-runner]
             }
 
 

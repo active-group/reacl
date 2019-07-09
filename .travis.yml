@@ -1,5 +1,8 @@
 language: clojure
 
+before_install:
+  - npm install -g karma
+
 script:
   - lein figtest-dom-travis
   - lein figtest-nodom-travis

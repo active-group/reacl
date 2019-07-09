@@ -671,14 +671,27 @@
 (deftest re-render-toplevel
   (let [div (js/document.createElement "div")
         clazz (reacl/class "top" this state [arg1]
+                           handle-message (fn [msg] msg)
                            render (dom/div state "-" arg1))]
-    (let [item (reacl/render-component div clazz "foo" "bar")]
-      (is (= (map dom-content (doms-with-tag item "div"))
-             ["foo-bar"])))
+    (testing "initial render"
+      (let [item (reacl/render-component div clazz "foo" "bar")]
+        (is (= (map dom-content (doms-with-tag item "div"))
+               ["foo-bar"]))))
 
-    (let [item (reacl/render-component div clazz "bam" "baz")]
-      (is (= (map dom-content (doms-with-tag item "div"))
-             ["bam-baz"])))))
+    (testing "rerender to new state and args"
+      (let [item (reacl/render-component div clazz "bam" "baz")]
+        (is (= (map dom-content (doms-with-tag item "div"))
+               ["bam-baz"]))))
+
+    (testing "rerender to previous state"
+      (let [item (reacl/render-component div clazz "bam" "baz")]
+        ;; after change from inside.
+        (test-util/send-message! item (reacl/return :app-state "foo"))
+        ;; render back to same as before
+        (reacl/render-component div clazz "bam" "baz")
+        (is (= (map dom-content (doms-with-tag item "div"))
+               ["bam-baz"]))))
+    ))
 
 (deftest class-name-and-component-test
   (is (= (reacl/class-name (reacl/class "foobar" this []

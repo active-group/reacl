@@ -356,10 +356,9 @@
          #js {:getInitialState (fn []
                                  (this-as this
                                    (aset this "reacl_toplevel_ref" (react/createRef))
-                                   (let [app-state (aget (.-props this)
-                                                         "reacl_app_state")]
-                                     #js {:reacl_initial_app_state app-state
-                                          :reacl_uber_app_state app-state})))
+                                   (let [props (.-props this)]
+                                     #js {:reacl_init_id (aget props "reacl_init_id")
+                                          :reacl_uber_app_state (aget props "reacl_initial_app_state")})))
 
               :render
               (fn []
@@ -392,16 +391,15 @@
          (aset cl "contextTypes" #js {:reacl_uber ptypes/PropTypes.object})
          (aset cl "getDerivedStateFromProps"
                (fn [new-props state]
-                 ;; take a new app-state from outside;
+                 ;; take a new initial app-state from outside if render-component was called again;
                  ;; note this is called before every 'render' call,
                  ;; which is why we have to remember how the class was
                  ;; instantiated.
-                 (let [app-state (aget new-props
-                                       "reacl_app_state")]
-                   (if (not (identical? (aget state "reacl_initial_app_state")
-                                        app-state))
-                     #js {:reacl_initial_app_state app-state
-                          :reacl_uber_app_state app-state}
+                 (let [new-init-id (aget new-props "reacl_init_id")]
+                   (if (not (identical? new-init-id (aget state "reacl_init_id")))
+                     (let [app-state (aget new-props "reacl_initial_app_state")]
+                       #js {:reacl_init_id new-init-id
+                            :reacl_uber_app_state app-state})
                      #js {}))))
          cl))
 
@@ -415,7 +413,8 @@
                        #js {:reacl_toplevel_class clazz
                             :reacl_toplevel_opts opts
                             :reacl_toplevel_args args
-                            :reacl_app_state app-state}))
+                            :reacl_init_id #js {} ;; unique obj for each call.
+                            :reacl_initial_app_state app-state}))
 
 (defn- instantiate-toplevel-internal
   "Internal function to instantiate a Reacl component.

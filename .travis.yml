@@ -9,3 +9,4 @@ script:
   - lein figtest-dom-travis
   - lein figtest-nodom-travis
   - lein doo firefox-headless test-dom once
+  - lein doo firefox-headless test-nodom once

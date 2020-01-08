@@ -2,6 +2,8 @@
   (:require [reacl2.core :as reacl :include-macros true]
             [reacl2.dom :as dom :include-macros true]
             [reacl2.test-util.alpha :as test-util]
+            [reacl2.test-util.beta :as tu]
+            [reacl2.test-util.xpath :as xpath]
             ;; include 'reacl1' to see they compile at least:
             [reacl.core :as reacl1 :include-macros true]
             [reacl.dom :as dom1 :include-macros true]
@@ -966,3 +968,28 @@
     (let [c (test-util/instantiate&mount class1 0)]
       (test-util/send-message! c :start)
       (is (= 1 (test-util/extract-app-state c))))))
+
+;; FIXME: https://github.com/active-group/reacl/issues/41
+#_(deftest parent-reaction-test
+  (let [c1 (reacl/class "child" this state []
+                        render (dom/div)
+                        handle-message
+                        (fn [msg]
+                          (reacl/return :app-state msg)))
+        received (atom nil)
+        p1 (reacl/class "parent" this state [gparent]
+                        render (c1 (reacl/opt :parent gparent
+                                              :reaction (reacl/reaction this identity))
+                                   state)
+                        handle-message
+                        (fn [msg]
+                          (reset! received msg)
+                          (reacl/return :app-state msg)))
+        g1 (reacl/class "grandparent" this []
+                        local-state [state nil]
+                        render (p1 state this))
+
+        c (tu/mount g1)]
+    (tu/send-message! (xpath/select c (xpath/>> ** c1))
+                      :test)
+    (is (= @received :test))))

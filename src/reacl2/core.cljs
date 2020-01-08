@@ -10,7 +10,7 @@ The auxiliary functions for return values [[returned-actions]], [[returned-app-s
 In event handlers you will usually need to call [[send-message!]].
 
 To instantiate classes that have app-state you need to create bindings with [[bind]],
-[[bind-locally]], [[use-reaction]] or [[fixed]], and sometimes reactions with [[reaction]] or [[pass-through-reaction]].
+[[bind-locally]], [[use-reaction]] or [[use-app-state]], and sometimes reactions with [[reaction]] or [[pass-through-reaction]].
 
 Sometimes modifications of the created elements are needed via [[keyed]], [[refer]],
 [[redirect-actions]], [[reduce-action]], [[action-to-message]] or [[map-action]].
@@ -425,9 +425,9 @@ To finally render a class to the DOM use [[render-component]] and [[handle-tople
   (Options. (internal-opt mp)))
 
 
-(defn fixed
-  "Returns a binding that sets the app-state of a child component to
-  the given value, ignoring all updates the child component returns."
+(defn use-app-state
+  "Returns a binding that uses the given value as the app-state of a
+  child component, ignoring all updates the child component returns."
   [app-state]
   (opt :app-state app-state
        :reaction no-reaction))
@@ -457,7 +457,7 @@ To finally render a class to the DOM use [[render-component]] and [[handle-tople
                   (update :reaction
                           (fn [prev-reaction]
                             (when-not (contains? mp :app-state)
-                              (throw (new js/Error "To focus a reaction, it must include the app-state. Use 'bind', 'bind-locally', 'fixed' or 'use-reaction'.")))
+                              (throw (new js/Error "To focus a reaction, it must include the app-state. Use 'bind', 'bind-locally', 'use-app-state' or 'use-reaction'.")))
                             (cond
                               ;; simplified special case for embed (current states get passed in process-message anyway):
                               (= ->EmbedState (:make-message prev-reaction))
@@ -519,7 +519,7 @@ To finally render a class to the DOM use [[render-component]] and [[handle-tople
   (let [mp (:map binding)]
     (if (contains? mp :app-state)
       (:app-state mp)
-      (throw (new js/Error "Cannot reveal the app-state of this binding; must created via 'fixed', 'use-reaction', 'bind' or 'bind-locally'.")))))
+      (throw (new js/Error "Cannot reveal the app-state of this binding; must created via 'use-app-state', 'use-reaction', 'bind' or 'bind-locally'.")))))
 
 (defn- map-over-components [elem f]
   (assert (.hasOwnProperty elem "props"))
@@ -704,7 +704,7 @@ To finally render a class to the DOM use [[render-component]] and [[handle-tople
           rclazz (react-class clazz)]
       (when (and (-has-app-state? clazz)
                  (not (contains? opts :reaction)))
-        (warning "Instantiating class" (class-name clazz) "without reacting to its app-state changes. Use 'fixed' if you intended to do this."))
+        (warning "Instantiating class" (class-name clazz) "without reacting to its app-state changes. Use 'use-app-state' if you intended to do this."))
       (when (and (not (-has-app-state? clazz))
                  (contains? opts :reaction))
         (warning "Instantiating class" (class-name clazz) "with reacting to app-state changes, but it does not have an app-state."))

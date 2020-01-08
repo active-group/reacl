@@ -241,7 +241,7 @@
   The binding specifies what the app-state of the component will be,
   as well as how to handle changes to the app-state by that component.
   Bindings are created with [[bind]], [[bind-locally]]
-  and [[reactive]], and rarely with [[fixed]].
+  and [[use-reaction]], and rarely with [[use-app-state]].
 
   A lifecycle method can be one of:
 

@@ -31,9 +31,9 @@
     (is (= (tu/inspect-local-state c)
            {:sub ::state}))))
 
-(deftest fixed-test
+(deftest use-app-state-test
   (let [c (tu/mount (reacl/class "class" this []
-                                 render (msg-to-state (reacl/fixed ::fixed)))
+                                 render (msg-to-state (reacl/use-app-state ::fixed)))
                     {:sub nil})]
     (is (= (tu/send-message! (xpath/select c (xpath/>> / msg-to-state))
                              ::state)

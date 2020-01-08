@@ -96,7 +96,7 @@
   (-> (form (->Submit)
             (textbox (reacl/bind-locally this))
             (dom/button {:type "submit"} "Add"))
-      (reacl/handle-actions this))
+      (reacl/action-to-message this))
 
   handle-message
   (fn [msg]
@@ -120,7 +120,7 @@
                (dom/h3 "TODO")
                (to-do-item-list (reacl/bind this :todos) ->DeleteItem)
                (add-item-form ->AddItem))
-      (reacl/handle-actions this))
+      (reacl/action-to-message this))
 
   handle-message
   (fn [msg]

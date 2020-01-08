@@ -13,7 +13,7 @@ To instantiate classes that have app-state you need to create bindings with [[bi
 [[bind-locally]], [[use-reaction]] or [[fixed]], and sometimes reactions with [[reaction]] or [[pass-through-reaction]].
 
 Sometimes modifications of the created elements are needed via [[keyed]], [[refer-as]],
-[[redirect-actions]], [[reduce-action]], [[handle-actions]] or [[map-action]].
+[[redirect-actions]], [[reduce-action]], [[action-to-message]] or [[map-action]].
 
 To finally render a class to the DOM use [[render-component]] and [[handle-toplevel-action]].
 "
@@ -1243,13 +1243,13 @@ component (like the result of an Ajax request).
          (instance? pt action))
        true))
 
-(defn handle-actions
+(defn action-to-message
   "Clones the given element, but 'redirects' all actions matching the
   `pred` function (or all actions if not specified), as a message sent
-  to `target`. Alternatively `pred` and all remaining functions can be
+  to `target`. Alternatively `pred` and all remaining arguments can be
   record types, which are then used as in an instance check against
   the action."
-  ([elem target] (handle-actions elem target const-true))
+  ([elem target] (action-to-message elem target const-true))
   ([elem target pred & types]
    (reduce-action elem (fn [_ action]
                          (if (some (partial pred-or-type action) (cons pred types))

@@ -244,7 +244,12 @@
                          :message [comp 3]
                          :message [comp 30]
                          :action 4
-                         :action 40)))))
+                         :action 40)))
+    (is (= (reacl/merge-returned (reacl/return :action 1)
+                                 (reacl/return :action 2))
+           (reacl/return :action 1
+                         :action 2)))
+    ))
 
 (def ^:dynamic *parent-atom* nil)
   

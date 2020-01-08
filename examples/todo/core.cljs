@@ -94,7 +94,7 @@
 
   render
   (-> (form (->Submit)
-            (textbox (reacl/bind-locally this))
+            (textbox (reacl/bind-local this))
             (dom/button {:type "submit"} "Add"))
       (reacl/action-to-message this))
 

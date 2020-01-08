@@ -20,10 +20,10 @@
                              ::state)
            (reacl/return :app-state {:sub ::state})))))
 
-(deftest bind-locally-test
+(deftest bind-local-test
   (let [c (tu/mount (reacl/class "class" this []
                                  local-state [st {:sub nil}]
-                                 render (msg-to-state (reacl/bind-locally this :sub)))
+                                 render (msg-to-state (reacl/bind-local this :sub)))
                     {:sub nil})]
     (is (= (tu/send-message! (xpath/select c (xpath/>> / msg-to-state))
                              ::state)
@@ -173,7 +173,7 @@
                           (reacl/return :app-state msg)))
         g1 (reacl/class "grandparent" this []
                         local-state [state nil]
-                        render (p1 (reacl/bind-locally this) this))
+                        render (p1 (reacl/bind-local this) this))
 
         c (tu/mount g1)]
     (tu/send-message! (xpath/select c (xpath/>> ** c1))

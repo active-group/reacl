@@ -4,9 +4,10 @@ before_install:
   - npm install -g karma
   - npm install -g karma-cljs-test
   - npm install -g karma-firefox-launcher
+  - npm install -g karma-chrome-launcher
 
 script:
-  - lein figtest-dom-travis
-  - lein figtest-nodom-travis
   - lein doo firefox-headless test-dom once
   - lein doo firefox-headless test-nodom once
+  - lein doo chrome-headless test-dom once
+  - lein doo chrome-headless test-nodom once

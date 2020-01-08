@@ -976,8 +976,8 @@
                                                        (assoc :inner (:inner (:middle new-state))))))
 
                         render
-                        ;; testing with two focus calls... Note that 'reactive' can build an arbitrary app-state.
-                        (c1 (-> (reacl/reactive {:middle {:inner (:inner state)}} (reacl/pass-through-reaction this))
+                        ;; testing with two focus calls... Note that 'use-reaction' can build an arbitrary app-state.
+                        (c1 (-> (reacl/use-reaction {:middle {:inner (:inner state)}} (reacl/pass-through-reaction this))
                                 (reacl/focus :middle)
                                 (reacl/focus :inner))))
 

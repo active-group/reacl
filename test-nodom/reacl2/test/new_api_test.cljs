@@ -39,10 +39,10 @@
                              ::state)
            (reacl/return)))))
 
-(deftest reactive-test
+(deftest use-reaction-test
   (let [c (tu/mount (reacl/class "class" this state []
-                                 render (msg-to-state (reacl/reactive (:sub state)
-                                                                      (reacl/reaction this identity)))
+                                 render (msg-to-state (reacl/use-reaction (:sub state)
+                                                                          (reacl/reaction this identity)))
                                  handle-message
                                  (fn [sub-state]
                                    (reacl/return :app-state (assoc state :sub sub-state))))
@@ -62,8 +62,8 @@
                                                                 ::fail))))
         
         c (tu/mount (reacl/class "class" this state []
-                                 render (msg-to-state2 (reacl/reactive (:sub state)
-                                                                       (reacl/reaction this identity))
+                                 render (msg-to-state2 (reacl/use-reaction (:sub state)
+                                                                           (reacl/reaction this identity))
                                                        42 21)
                                  handle-message
                                  (fn [sub-state]
@@ -73,10 +73,10 @@
                              false)
            (reacl/return :app-state {:sub false})))))
 
-(deftest reactive-update-test
+(deftest use-reaction-update-test
   ;; mount with a wrong 'sel' value:
   (let [c (tu/mount (reacl/class "class" this state [sel]
-                                 render (msg-to-state (reacl/reactive 42 (reacl/reaction this vector sel)))
+                                 render (msg-to-state (reacl/use-reaction 42 (reacl/reaction this vector sel)))
                                  handle-message
                                  (fn [[st sel]]
                                    (reacl/return :app-state (assoc state sel st))))
@@ -89,10 +89,10 @@
                              ::state)
            (reacl/return :app-state {:sub ::state})))))
 
-(deftest reactive-focus-test
+(deftest use-reaction-focus-test
   (let [c (tu/mount (reacl/class "class" this state []
-                                 render (msg-to-state (-> (reacl/reactive (:sub state)
-                                                                          (reacl/reaction this identity))
+                                 render (msg-to-state (-> (reacl/use-reaction (:sub state)
+                                                                              (reacl/reaction this identity))
                                                           (reacl/focus :subsub)))
                                  handle-message
                                  (fn [sub-state]

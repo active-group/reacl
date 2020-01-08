@@ -10,7 +10,7 @@ The auxiliary functions for return values [[returned-actions]], [[returned-app-s
 In event handlers you will usually need to call [[send-message!]].
 
 To instantiate classes that have app-state you need to create bindings with [[bind]],
-[[bind-locally]], [[reactive]] or [[fixed]], and sometimes reactions with [[reaction]] or [[pass-through-reaction]].
+[[bind-locally]], [[use-reaction]] or [[fixed]], and sometimes reactions with [[reaction]] or [[pass-through-reaction]].
 
 Sometimes modifications of the created elements are needed via [[keyed]], [[refer-as]],
 [[redirect-actions]], [[reduce-action]], [[handle-actions]] or [[map-action]].
@@ -457,7 +457,7 @@ To finally render a class to the DOM use [[render-component]] and [[handle-tople
                   (update :reaction
                           (fn [prev-reaction]
                             (when-not (contains? mp :app-state)
-                              (throw (new js/Error "To focus a reaction, it must include the app-state. Use 'bind', 'bind-locally', 'fixed' or 'reactive'.")))
+                              (throw (new js/Error "To focus a reaction, it must include the app-state. Use 'bind', 'bind-locally', 'fixed' or 'use-reaction'.")))
                             (cond
                               ;; simplified special case for embed (current states get passed in process-message anyway):
                               (= ->EmbedState (:make-message prev-reaction))
@@ -466,7 +466,7 @@ To finally render a class to the DOM use [[render-component]] and [[handle-tople
                                         [embed [(lens-comp lens1 lens)]]))
 
                               :else
-                              ;; it's a bit dangerous for general reactions (via [[reactive]]), because it then captures more of some state
+                              ;; it's a bit dangerous for general reactions (via [[use-reaction]]), because it then captures more of some state
                               ;; than is actually edited by a component. So other changes in the outer part will race with this.
                               (apply reaction
                                      (:component prev-reaction)
@@ -499,7 +499,7 @@ To finally render a class to the DOM use [[render-component]] and [[handle-tople
    (-> (opt :embed-locally parent)
        (focus lens))))
 
-(defn reactive
+(defn use-reaction
   "Returns a binding the uses the given value `app-state` as the
   child's app-state, and triggers the given `reaction` when the child
   wants to update it. See [[reaction]] for creating reactions."
@@ -519,7 +519,7 @@ To finally render a class to the DOM use [[render-component]] and [[handle-tople
   (let [mp (:map binding)]
     (if (contains? mp :app-state)
       (:app-state mp)
-      (throw (new js/Error "Cannot reveal the app-state of this binding; must created via 'fixed', 'reactive', 'bind' or 'bind-locally'.")))))
+      (throw (new js/Error "Cannot reveal the app-state of this binding; must created via 'fixed', 'use-reaction', 'bind' or 'bind-locally'.")))))
 
 (defn- map-over-components [elem f]
   (assert (.hasOwnProperty elem "props"))

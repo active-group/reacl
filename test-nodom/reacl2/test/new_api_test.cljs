@@ -131,3 +131,51 @@
     (is (= (reacl/return :app-state {:sub [::msg1 ::msg2]})
            (tu/send-message! (xpath/select c (xpath/>> ** msgs))
                              ::dummy)))))
+
+(deftest no-redirect-parent-message-test
+  ;; redirect-actions should not affect message passing/handling:
+  (let [c1 (reacl/class "child" this [parent]
+                        render (dom/div)
+                        handle-message
+                        (fn [msg]
+                          (reacl/return :message [parent msg])))
+        received (atom nil)
+        p1 (reacl/class "parent" this [gparent]
+                        render (-> (c1 this)
+                                   (reacl/redirect-actions gparent))
+                        handle-message
+                        (fn [msg]
+                          (reset! received msg)
+                          (reacl/return)))
+        g1 (reacl/class "grandparent" this []
+                        render (p1 this))
+
+        c (tu/mount g1)]
+    (tu/send-message! (xpath/select c (xpath/>> ** c1))
+                      :test)
+    (is (= @received :test))))
+
+;; TODO
+#_(deftest no-redirect-parent-reaction-test
+  ;; redirect-actions should not affect :parent reactions:
+  (let [c1 (reacl/class "child" this state []
+                        render (dom/div)
+                        handle-message
+                        (fn [msg]
+                          (reacl/return :app-state msg)))
+        received (atom nil)
+        p1 (reacl/class "parent" this state [gparent]
+                        render (-> (c1 (reacl/use-reaction state (reacl/reaction :parent identity)))
+                                   (reacl/redirect-actions gparent))
+                        handle-message
+                        (fn [msg]
+                          (reset! received msg)
+                          (reacl/return :app-state msg)))
+        g1 (reacl/class "grandparent" this []
+                        local-state [state nil]
+                        render (p1 (reacl/bind-locally this) this))
+
+        c (tu/mount g1)]
+    (tu/send-message! (xpath/select c (xpath/>> ** c1))
+                      :test)
+    (is (= @received :test))))

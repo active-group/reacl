@@ -1001,3 +1001,16 @@
     (let [c (test-util/instantiate&mount class1 0)]
       (test-util/send-message! c :start)
       (is (= 1 (test-util/extract-app-state c))))))
+
+(deftest fragment
+
+  (let [d (dom/fragment
+           (dom/h1 "Hello, world!"))]
+    (is (= "<h1>Hello, world!</h1>"
+           (test-util/render-to-text d))))
+
+  (let [d (dom/fragment
+           (dom/h1 "Hello, world!")
+           (dom/h2 "moin"))]
+    (is (= "<h1>Hello, world!</h1><h2>moin</h2>"
+           (test-util/render-to-text d)))))

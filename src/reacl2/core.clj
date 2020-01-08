@@ -212,7 +212,7 @@
   its initial value.
 
   A `refs` clause specifies names for references to sub-components,
-  which can be associated with components via `ref` attributes or [[refer-as]]
+  which can be associated with components via `ref` attributes or [[refer]]
   in the `render` expression.
   
   `<renderer-exp>` is an expression that renders the component, and

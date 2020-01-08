@@ -12,7 +12,7 @@ In event handlers you will usually need to call [[send-message!]].
 To instantiate classes that have app-state you need to create bindings with [[bind]],
 [[bind-locally]], [[use-reaction]] or [[fixed]], and sometimes reactions with [[reaction]] or [[pass-through-reaction]].
 
-Sometimes modifications of the created elements are needed via [[keyed]], [[refer-as]],
+Sometimes modifications of the created elements are needed via [[keyed]], [[refer]],
 [[redirect-actions]], [[reduce-action]], [[action-to-message]] or [[map-action]].
 
 To finally render a class to the DOM use [[render-component]] and [[handle-toplevel-action]].
@@ -548,7 +548,7 @@ To finally render a class to the DOM use [[render-component]] and [[handle-tople
    (fn [comp]
      (react/cloneElement comp #js {:reacl_parent target}))))
 
-(defn refer-as
+(defn refer
   "Returns an element identical to the given `elem`, but replacing its
   `ref` property, so that the given ref reflects the dom element
   created for it."

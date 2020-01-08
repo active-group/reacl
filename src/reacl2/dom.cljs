@@ -507,6 +507,13 @@
   "Element which enables StrictMode, see https://reactjs.org/docs/strict-mode.html"
   (react/createElement react/StrictMode nil c))
 
+(defn fragment
+  "Empty container element, see https://reactjs.org/docs/fragments.html"
+  [& children]
+  (react/createElement
+   react/Fragment
+   #js {"children" children}))
+
 ;; The following HTML elements are supported by react (http://facebook.github.io/react/docs/tags-and-attributes.html)
 (defdom a)
 (defdom abbr)

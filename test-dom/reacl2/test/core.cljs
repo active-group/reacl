@@ -197,6 +197,41 @@
     (is (= ["13"]
            (map dom-content (doms-with-tag item "div"))))))
 
+
+;; :embed-locally
+
+(reacl/defclass blub-1
+  this
+  app-state
+  []
+
+  handle-message
+  (fn [msg]
+    (reacl/return :app-state msg))
+
+  render
+  (dom/span "moin"))
+
+(reacl/defclass blub-2
+  this []
+
+  local-state [local-state "no"]
+
+  render
+  (dom/span
+   (dom/div local-state)
+   (blub-1
+    (reacl/opt :embed-locally (fn [old new] new))
+    local-state)))
+
+(deftest embed-locally
+  (let [item (test-util/instantiate&mount blub-2)
+        embedded (dom-with-class item blub-1)]
+    (is (= ["no"] (map dom-content (doms-with-tag item "div"))))
+    (test-util/send-message! embedded "si")
+    (is (= ["si"] (map dom-content (doms-with-tag item "div"))))))
+
+
 (reacl/defclass blaz2
   this app-state []
   render

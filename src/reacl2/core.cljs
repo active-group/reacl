@@ -535,7 +535,19 @@ To finally render a class to the DOM use [[render-component]] and [[handle-tople
                                        e)))]
         (react/cloneElement elem nil cs)))))
 
-(defn redirect-actions
+(defn set-parent
+  "Clones the given element, but replaces the parent component used in
+  the reaction and action processing, which is the first component
+  higher in the rendering tree (its _rendering parent_) by default. If
+  `target` is nil, the default behavior is restored."
+  [elem target]
+  (map-over-components
+   elem
+   (fn [comp]
+     (react/cloneElement comp #js {:reacl_parent target}))))
+
+;; TODO: currently not properly implementable, I think, as it also affects reactions, which it should not.
+#_(defn redirect-actions
   "Clones the given element, but replacing the target of all actions
   flowing out of child components. By default, actions that are not
   _reduced_ or _handled_, are passed to the first component higher in

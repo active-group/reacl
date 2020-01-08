@@ -132,8 +132,8 @@
            (tu/send-message! (xpath/select c (xpath/>> ** msgs))
                              ::dummy)))))
 
-(deftest no-redirect-parent-message-test
-  ;; redirect-actions should not affect message passing/handling:
+(deftest parent-message-test
+  ;; set-parent should not affect message passing/handling:
   (let [c1 (reacl/class "child" this [parent]
                         render (dom/div)
                         handle-message
@@ -142,7 +142,7 @@
         received (atom nil)
         p1 (reacl/class "parent" this [gparent]
                         render (-> (c1 this)
-                                   (reacl/redirect-actions gparent))
+                                   (reacl/set-parent gparent))
                         handle-message
                         (fn [msg]
                           (reset! received msg)

@@ -24,10 +24,12 @@ jobs:
         lein doo firefox-headless test-dom once
         lein doo chrome-headless test-nodom once
     - name: Notify with mattermost upon failure
+      if: failure()
       run: |
         URL=https://github.com/${GITHUB_REPOSITORY}/commit/${GITHUB_SHA}
         echo "{\"text\":\"Failure in tests: ${URL}\"}" > mattermost.json
     - uses: mattermost/action-mattermost-notify@1.0.0
+      if: failure()
       env:
         MATTERMOST_WEBHOOK_URL: ${{ secrets.MATTERMOST_WEBHOOK_URL }}
         MATTERMOST_USERNAME: ${{ secrets.MATTERMOST_USERNAME }}

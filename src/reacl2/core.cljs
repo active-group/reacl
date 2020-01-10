@@ -355,51 +355,52 @@ To finally render a class to the DOM use [[render-component]] and [[handle-tople
     (keyword? v) (KeywordLens. v)
     :else v))
 
-(def ^:private reaction-invariant-msg "Only one of :reaction, :embed-app-state, :bind and :bind-local may be given in an opts value.")
-
 (defn- geti [k m] (get m k))
 
 (defn- internal-opt
   "Translates the 'user facing api' of using [[opt]] into a simplified form."
   [opts]
+  (assert (<= (count (select-keys opts [:reaction :embed-app-state :embed-local-state :bind :bind-local])) 1)
+          "Only one of :reaction, :embed-app-state, :embed-local-state :bind and :bind-local may be specified.")
   (-> (condp geti opts
         :reaction :>>
         (fn [r]
-          (do (assert (not (or (:embed-app-state opts) (:bin opts) (:bind-local opts))) reaction-invariant-msg)
-              (assert (or (nil? r) (instance? Reaction r)) (str "Invalid reaction: " (pr-str r)))
+          (do (assert (or (nil? r) (instance? Reaction r)) (str "Invalid reaction: " (pr-str r)))
               opts))
         :embed-app-state :>>
         (fn [f]
-          (assert (not (or (:reaction opts) (:bind opts) (:bind-local opts))) reaction-invariant-msg)
           (assoc opts
                  :reaction (reaction :parent ->EmbedState embed-app-state-f [(lift-lens f)])))
+        :embed-local-state :>>
+        (fn [f]
+          (assoc opts
+                 :reaction (reaction :parent ->EmbedState embed-local-f [(lift-lens f)])))
         ;; Note that extract-app-state and extract-local-state only work as expected during rendering (we could try to verify that?)
         ;; If someone should instantiate components during handle-message, he shall be doomed (or has to adjust :app-state manually).
         :bind :>>
-        (fn [comp]
-          (assert (not (or (:reaction opts) (:embed-app-state opts) (:bind-local opts))) reaction-invariant-msg)
+        (fn [[comp lens]]
           (when-not (-has-app-state? (component-class comp))
-            (throw (ex-info (str "Cannot bind to the app-state, as the class does not have an app-state. Maybe use bind-local instead.") {:class (component-class comp)})))
-          (cond-> (assoc opts
-                         :reaction (reaction comp ->EmbedState embed-app-state-f [id-lens]))
-            (not (contains? opts :app-state))
-            (assoc :app-state (extract-app-state comp))))
+            (throw (ex-info (str "Cannot bind to the app-state of the given component, as it does not have an app-state. Maybe use bind-local instead.") {:class (component-class comp)})))
+          (assert (not (contains? opts :app-state)) "Do not use :bind together with an :app-state.")
+          (let [l (lift-lens (or lens id-lens))]
+            (assoc opts
+                   :app-state (l (extract-app-state comp))
+                   :reaction (reaction comp ->EmbedState embed-app-state-f [l]))))
         :bind-local :>>
-        (fn [comp]
-          (assert (not (or (:reaction opts) (:embed-app-state opts) (:bind opts))) reaction-invariant-msg)
-          (cond-> (assoc opts
-                         :reaction (reaction comp ->EmbedState embed-local-f [id-lens]))
-            (not (contains? opts :app-state))
-            (assoc :app-state (extract-local-state comp))))
+        (fn [[comp lens]]
+          (assert (not (contains? opts :app-state)) "Do not use :bind-local together with an :app-state.")
+          (let [l (lift-lens (or lens id-lens))]
+            (assoc opts
+                   :app-state (l (extract-local-state comp))
+                   :reaction (reaction comp ->EmbedState embed-local-f [l]))))
         ;; else do nothing
         opts)
-      (dissoc :embed-app-state :bind :bind-local)))
+      (dissoc :embed-app-state :embed-local-state :bind :bind-local)))
 
 (defn opt
   "Create options for component instantiation.
 
-  Takes keyword arguments `:reaction`, `:embed-app-state`,
-  `:reduce-action`.
+  Takes the following keyword arguments:
 
   - `:reaction` must be a reaction to an app-state change, typically created via
     [[reaction]], [[no-reaction]], or [[pass-through-reaction]].  -
@@ -408,6 +409,16 @@ To finally render a class to the DOM use [[render-component]] and [[handle-tople
     parent component's app state.  This must be a function of two arguments, the
     parent app state and this component's app-state.  It must return a new parent
     app state.
+  - `:embed-local-state` is similar to `:embed-app-state`, but changes of the
+    app state are instead embedded into the local state of the parent component.
+  - `:app-state` can be specified as an alternative to passing the app state as the
+    next parameter of a class instantiation.
+  - `:bind [parent lens]` specifies, that `lens` applied to the current app state of
+    `parent` is used as the app state of the component, and that changes to the app state
+    of the component are integrated into the parent's app state via
+    `(lens parent-app-state new-child-app-state)`. `lens` can also be nil or a keyword.
+  - `:bind-local [parent lens]` is similar to `:bind`, but the app state of the
+    component is instead bound to the local state of the parent.
   - `:reduce-action` takes arguments `[app-state action]` where `app-state` is the app state
     of the component being instantiated, and `action` is an action.  This
     should call [[return]] to handle the action.  By default, it is a function
@@ -418,8 +429,11 @@ To finally render a class to the DOM use [[render-component]] and [[handle-tople
     the flow of actions and reactions.
   - `:ref` take a ref declared in the `refs` clause of a class, so that the
     instance of this class is bound to the ref at any time. Note that this cannot be specified on the toplevel.
+
+  Only one of `:reaction`, `:embed-app-state`, `:embed-local-state`,
+  `:bind` and `:bind-local` should be specified, and when using `:bind`
+  or `:bind-local` then do not specify an `:app-state` either.
   "
-  ;; TODO: mark 'embed-app-state' as deprecated; document :app-state, :bind and :bind-local
   [& {:as mp}]
   {:pre [(every? (fn [[k _]]
                    (contains? #{:reaction :embed-app-state :bind :bind-local :app-state :reduce-action :parent :ref} k))
@@ -488,8 +502,7 @@ To finally render a class to the DOM use [[render-component]] and [[handle-tople
   ([parent] (bind parent id-lens))
   ([parent lens]
    (assert (component? parent))
-   (-> (opt :bind parent)
-       (focus lens))))
+   (opt :bind [parent lens])))
 
 (defn bind-local
   "Returns a binding that embeds a child's app-state into the
@@ -498,8 +511,7 @@ To finally render a class to the DOM use [[render-component]] and [[handle-tople
   ([parent] (bind-local parent id-lens))
   ([parent lens]
    (assert (component? parent))
-   (-> (opt :bind-local parent)
-       (focus lens))))
+   (opt :bind-local [parent lens])))
 
 (defn use-reaction
   "Returns a binding the uses the given value `app-state` as the

@@ -187,6 +187,11 @@
      embed ; function parent-app-state child-app-state |-> parent-app-state
      ])
 
+(defrecord ^:private EmbedLocally
+    [app-state ; new app state from child
+     embed ; function parent-local-state child-app-state |-> parent-local-state
+     ])
+
 (defprotocol ^:no-doc IHasDom
   "General protocol for objects that contain or map to a virtual DOM object."  
   (-get-dom [thing]))
@@ -319,7 +324,7 @@
   "
   [& {:as mp}]
   {:pre [(every? (fn [[k _]]
-                   (contains? #{:reaction :embed-app-state :reduce-action :parent :ref} k))
+                   (contains? #{:reaction :embed-app-state :embed-locally :reduce-action :parent :ref} k))
                  mp)]}
   (Options. mp))
 
@@ -346,7 +351,9 @@
   (or (:reaction opts) ; FIXME: what if we have both?
       (if-let [embed-app-state (:embed-app-state opts)]
         (reaction :parent ->EmbedAppState embed-app-state)
-        no-reaction)))
+        (if-let [embed-locally (:embed-locally opts)]
+          (reaction :parent ->EmbedLocally embed-locally)
+          no-reaction))))
 
 (declare keep-state?)
 
@@ -431,7 +438,9 @@
   (when-not (reacl-class? clazz)
     (throw (ex-info (str "Expected a Reacl class as the first argument, but got: " clazz) {:value clazz})))
   (let [[{opts :map} app-state args] (extract-opt+app-state has-app-state? rst)]
-    (assert (not (and (:reaction opts) (:embed-app-state opts)))) ; FIXME: assertion to catch FIXME below
+    (assert (not (and (:reaction opts)
+                      (:embed-app-state opts)
+                      (:embed-locally opts)))) ; FIXME: assertion to catch FIXME below
     (make-uber-component clazz opts args app-state)))
 
 (defn instantiate-toplevel
@@ -461,12 +470,18 @@
   [clazz has-app-state? rst]
   (let [[{opts :map} app-state args] (extract-opt+app-state has-app-state? rst)
         rclazz (react-class clazz)]
-    (assert (not (and (:reaction opts) (:embed-app-state opts)))) ; FIXME: assertion to catch FIXME in internal-reaction
+    (assert (not (and (:reaction opts)
+                      (:embed-app-state opts)
+                      (:embed-locally opts)))) ; FIXME: assertion to catch FIXME in internal-reaction
     (when (and (-has-app-state? clazz)
-               (not (or (contains? opts :reaction) (:embed-app-state opts))))
+               (not (or (contains? opts :reaction)
+                        (:embed-app-state opts)
+                        (:embed-locally opts))))
       (warning "Instantiating class" (class-name clazz) "without reacting to its app-state changes. Specify 'no-reaction' if you intended to do this."))
     (when (and (not (-has-app-state? clazz))
-               (or (contains? opts :reaction) (:embed-app-state opts)))
+               (or (contains? opts :reaction)
+                   (:embed-app-state opts)
+                   (:embed-locally opts)))
       (warning "Instantiating class" (class-name clazz) "with reacting to app-state changes, but it does not have an app-state."))
     (-validate! clazz app-state args)
     (react/createElement rclazz
@@ -700,8 +715,14 @@
 (defn- process-message
   "Process a message for a Reacl component."
   [comp app-state local-state recompute-locals? msg]
-  (if (instance? EmbedAppState msg)
+  (cond
+    (instance? EmbedAppState msg)
     (return :app-state ((:embed msg) app-state (:app-state msg)))
+
+    (instance? EmbedLocally msg)
+    (return :local-state ((:embed msg) local-state (:app-state msg)))
+
+    :else
     (let [handle-message (aget comp "__handleMessage")]
       (assert handle-message (if-let [class (.-constructor comp)]
                                (str "Message target does not have a handle-message method: " (str "instance of " (.-displayName class)))

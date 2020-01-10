@@ -25,12 +25,10 @@ jobs:
         lein doo chrome-headless test-nodom once
     - name: Notify with mattermost upon failure
       if: failure()
+      env:
+        SECRET: ${{ secrets.MATTERMOST_WEBHOOK_URL }}
+        CHANNEL: "reacl"
+        USERNAME: "GitHub"
       run: |
         URL=https://github.com/${GITHUB_REPOSITORY}/commit/${GITHUB_SHA}
-        echo "{\"text\":\"Failure in tests: ${URL}\"}" > mattermost.json
-    - uses: mattermost/action-mattermost-notify@1.0.0
-      if: failure()
-      env:
-        MATTERMOST_WEBHOOK_URL: ${{ secrets.MATTERMOST_WEBHOOK_URL }}
-        MATTERMOST_USERNAME: ${{ secrets.MATTERMOST_USERNAME }}
-        MATTERMOST_CHANNEL: ${{ secrets.MATTERMOST_CHANNEL }}
+        curl -i --data-urlencode "payload={\"channel\":\"${CHANNEL}\", \"username\":\"${USERNAME}\",\"text\":\"Failure in tests: ${URL}\"}" ${SECRET}

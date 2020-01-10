@@ -200,7 +200,7 @@
            (map dom-content (doms-with-tag item "div"))))))
 
 
-;; :embed-locally
+;; :embed-local-state
 
 (reacl/defclass blub-1
   this
@@ -223,7 +223,7 @@
   (dom/span
    (dom/div local-state)
    (blub-1
-    (reacl/opt :embed-locally (fn [old new] new))
+    (reacl/opt :embed-local-state (fn [old new] new))
     local-state)))
 
 (deftest embed-locally

@@ -324,7 +324,7 @@
   "
   [& {:as mp}]
   {:pre [(every? (fn [[k _]]
-                   (contains? #{:reaction :embed-app-state :embed-locally :reduce-action :parent :ref} k))
+                   (contains? #{:reaction :embed-app-state :embed-local-state :reduce-action :parent :ref} k))
                  mp)]}
   (Options. mp))
 
@@ -351,7 +351,7 @@
   (or (:reaction opts) ; FIXME: what if we have both?
       (if-let [embed-app-state (:embed-app-state opts)]
         (reaction :parent ->EmbedAppState embed-app-state)
-        (if-let [embed-locally (:embed-locally opts)]
+        (if-let [embed-locally (:embed-local-state opts)]
           (reaction :parent ->EmbedLocally embed-locally)
           no-reaction))))
 
@@ -440,7 +440,7 @@
   (let [[{opts :map} app-state args] (extract-opt+app-state has-app-state? rst)]
     (assert (not (and (:reaction opts)
                       (:embed-app-state opts)
-                      (:embed-locally opts)))) ; FIXME: assertion to catch FIXME below
+                      (:embed-local-state opts)))) ; FIXME: assertion to catch FIXME below
     (make-uber-component clazz opts args app-state)))
 
 (defn instantiate-toplevel
@@ -472,16 +472,16 @@
         rclazz (react-class clazz)]
     (assert (not (and (:reaction opts)
                       (:embed-app-state opts)
-                      (:embed-locally opts)))) ; FIXME: assertion to catch FIXME in internal-reaction
+                      (:embed-local-state opts)))) ; FIXME: assertion to catch FIXME in internal-reaction
     (when (and (-has-app-state? clazz)
                (not (or (contains? opts :reaction)
                         (:embed-app-state opts)
-                        (:embed-locally opts))))
+                        (:embed-local-state opts))))
       (warning "Instantiating class" (class-name clazz) "without reacting to its app-state changes. Specify 'no-reaction' if you intended to do this."))
     (when (and (not (-has-app-state? clazz))
                (or (contains? opts :reaction)
                    (:embed-app-state opts)
-                   (:embed-locally opts)))
+                   (:embed-local-state opts)))
       (warning "Instantiating class" (class-name clazz) "with reacting to app-state changes, but it does not have an app-state."))
     (-validate! clazz app-state args)
     (react/createElement rclazz

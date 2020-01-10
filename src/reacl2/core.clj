@@ -1,7 +1,8 @@
 (ns ^{:doc "Supporting macros for Reacl."}
   reacl2.core
   (:require [clojure.set :as set]
-            [clojure.string :as string])
+            [clojure.string :as string]
+            cljs.analyzer)
   (:refer-clojure :exclude [class]))
 
 (def ^{:private true} special-tags
@@ -32,35 +33,45 @@
          `(~(first mix) ~@(map (partial compile-mixin-argument ?args) (rest mix))))
        mixins))
 
-(defn- clause-map [?clauses]
+(defn- compilation-error [env msg]
+  ;; empty in cljs? (:line (meta form)) ":" (:column (meta form))
+  #_(Error. msg)
+  ;; this does not change much, but maybe suitable:
+  (cljs.analyzer/error env msg))
+
+(defn- clause-map [env ?clauses]
   ;; check for even number of args.
-  (assert (even? (count ?clauses))
-          (str "Invalid class definition. Must have an even number of arguments."
-               ;; if there is a symbol followed by a symbol, report the first as the potential problem
-               (if-let [p (reduce (fn [[r rem] v]
-                                    (if r
-                                      [r (rest rem)] ;; stop
-                                      (if (and (symbol? v)
-                                               (symbol? (first rem)))
-                                        [v (rest rem)]
-                                        [nil (rest rem)])))
-                                  [nil (rest ?clauses)]
-                                  ?clauses)]
-                 (str "Possibly missing def for " p ".")
-                 "")))
+  (when-not (even? (count ?clauses))
+    (throw (compilation-error
+            env
+            (str "Invalid class definition. Must have an even number of arguments."
+                 ;; if there is a symbol followed by a symbol, report the first as the potential problem
+                 (if-let [p (reduce (fn [[r rem] v]
+                                      (if r
+                                        [r (rest rem)] ;; stop
+                                        (if (and (symbol? v)
+                                                 (symbol? (first rem)))
+                                          [v (rest rem)]
+                                          [nil (rest rem)])))
+                                    [nil (rest ?clauses)]
+                                    ?clauses)]
+                   (str "Possibly missing def for " p ".")
+                   "")))))
   (let [?clause-map (apply hash-map ?clauses)]
     ;; check for duplicate defs.
-    (assert (= (count ?clause-map) (/ (count ?clauses) 2))
-            (str "Duplicate class clauses: " (let [keys (map second (filter #(even? (first %))
-                                                                            (map-indexed vector ?clauses)))
-                                                   dups (filter (fn [v]
-                                                                  (> (count (filter #(= v %) keys)) 1))
-                                                                keys)]
-                                               (set dups))))
+    (when-not (= (count ?clause-map) (/ (count ?clauses) 2))
+      (throw (compilation-error
+              env
+              (str "Duplicate class clauses: " (let [keys (map second (filter #(even? (first %))
+                                                                              (map-indexed vector ?clauses)))
+                                                     dups (filter (fn [v]
+                                                                    (> (count (filter #(= v %) keys)) 1))
+                                                                  keys)]
+                                                 (set dups))))))
 
     ?clause-map))
 
-(defn- analyze-stuff [?stuff]
+(defn- analyze-stuff [env ?stuff]
   (let [[?component ?stuff] (split-symbol ?stuff `component#)
         [has-app-state? ?app-state ?stuff] (if (symbol? (first ?stuff))
                                              [true (first ?stuff) (rest ?stuff)]
@@ -68,7 +79,7 @@
 
         [?args & ?clauses] ?stuff
 
-        ?clause-map (clause-map ?clauses)]
+        ?clause-map (clause-map env ?clauses)]
     
     [?component ?app-state has-app-state? ?args ?clause-map]))
 
@@ -85,7 +96,7 @@
   This is equivalent to [[defclass]] but without binding the new class to a name."
   [?name & ?stuff]
 
-  (let [[?component ?app-state has-app-state? ?args ?clause-map] (analyze-stuff ?stuff)
+  (let [[?component ?app-state has-app-state? ?args ?clause-map] (analyze-stuff &env ?stuff)
         
         ?locals-clauses (get ?clause-map 'local [])
         ?locals-ids (map first (partition 2 ?locals-clauses))
@@ -94,7 +105,8 @@
         
         [has-local-state? [?local-state ?initial-local-state-expr]]
         (if-let [local-state-clauses (get ?clause-map 'local-state)]
-          (do (assert (= (count local-state-clauses) 2) "The local-state clause must contain exactly one binding.")
+          (do (when-not (and (vector? local-state-clauses) (= (count local-state-clauses) 2))
+                (throw (compilation-error &env "Invalid local-state clause. Must have the form: local-state [<name> <value>].")))
               [true local-state-clauses])
           [false [`local-state# nil]])
 
@@ -109,7 +121,7 @@
         ?misc-fns-map (apply dissoc ?other-fns-map special-tags)
 
         _ (when (and compat-v1? (not-empty ?misc-fns-map))
-            (throw (Error. "Invalid clauses in class definition: " (keys ?misc-fns-map))))
+            (throw (compilation-error &env (str "Invalid clauses in class definition: " (keys ?misc-fns-map)))))
         
 
         wrap-misc (fn [body]
@@ -165,7 +177,7 @@
                     `(fn [~?app-state & ~?args]
                        ~?validate-expr))]
     (when (nil? ?render-fn)
-      (throw (Error. "All classes must have a render clause.")))
+      (throw (compilation-error &env "All classes must have a render clause.")))
     `(reacl2.core/create-class ~?name ~compat-v1? ~(if ?mixins `[~@?mixins] `nil) ~has-app-state? ~?compute-locals ~?validate ~(count ?ref-ids) ~?fns)))
 
 (defmacro defclass

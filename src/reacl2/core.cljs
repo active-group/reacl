@@ -436,7 +436,7 @@ To finally render a class to the DOM use [[render-component]] and [[handle-tople
   "
   [& {:as mp}]
   {:pre [(every? (fn [[k _]]
-                   (contains? #{:reaction :embed-app-state :bind :bind-local :app-state :reduce-action :parent :ref} k))
+                   (contains? #{:reaction :embed-app-state :embed-local-state :bind :bind-local :app-state :reduce-action :parent :ref} k))
                  mp)]}
   (Options. (internal-opt mp)))
 

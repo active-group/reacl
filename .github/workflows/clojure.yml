@@ -1,0 +1,34 @@
+name: Tests
+
+on: [push]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v1
+    - name: Install karma
+      run: |
+          sudo npm install -g karma
+          sudo npm install -g karma-cljs-test
+          sudo npm install -g karma-firefox-launcher
+          sudo npm install -g karma-chrome-launcher
+    - name: Install dependencies
+      run: lein deps
+    - name: Run tests 
+      run: |
+        lein doo firefox-headless test-dom once
+        lein doo chrome-headless test-nodom once
+        lein doo firefox-headless test-dom once
+        lein doo chrome-headless test-nodom once
+    - name: Notify with mattermost upon failure
+      if: failure()
+      env:
+        SECRET: ${{ secrets.MATTERMOST_WEBHOOK_URL }}
+        CHANNEL: "reacl"
+        USERNAME: "GitHub"
+      run: |
+        URL=https://github.com/${GITHUB_REPOSITORY}/commit/${GITHUB_SHA}
+        curl -i --data-urlencode "payload={\"channel\":\"${CHANNEL}\", \"username\":\"${USERNAME}\",\"text\":\"Failure in tests: ${URL}\"}" ${SECRET}

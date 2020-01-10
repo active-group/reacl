@@ -11,6 +11,5 @@ pom.xml.asc
 /repl
 /.repl
 /out
-/doc
 /node_modules
 .rebel_readline_history

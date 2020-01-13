@@ -631,22 +631,13 @@ To finally render a class to the DOM use [[render-component]] and [[handle-tople
                 (this-as this
                   (let [props (.-props this)
                         clazz (aget props "reacl_toplevel_class")
-                        rclazz (react-class clazz)
                         opts (aget props "reacl_toplevel_opts")
                         args (aget props "reacl_toplevel_args")
-                        state (.-state this)
-                        app-state (aget state "reacl_uber_app_state")]
-                    (-validate! clazz app-state args)
-                    (react/createElement rclazz
-                                         #js {:ref (aget this "reacl_toplevel_ref")
-                                              :reacl_app_state app-state
-                                              :reacl_locals (-compute-locals clazz app-state args)
-                                              :reacl_args (vec args)
-                                              :reacl_refs (-make-refs clazz)
-                                              :reacl_class clazz
-                                              :reacl_reaction (or (:reaction opts) no-reaction) 
-                                              :reacl_reduce_action (or (:reduce-action opts)
-                                                                       default-reduce-action)}))))
+                        app-state (aget (.-state this) "reacl_uber_app_state")]
+                    (apply clazz
+                           (Options. (cond-> (assoc opts :ref (aget this "reacl_toplevel_ref"))
+                                       (has-app-state? clazz) (assoc :app-state app-state)))
+                           args))))
 
               :displayName (str `toplevel)
 
@@ -677,7 +668,8 @@ To finally render a class to the DOM use [[render-component]] and [[handle-tople
   [clazz opts args app-state]
   (react/createElement uber-class
                        #js {:reacl_toplevel_class clazz
-                            :reacl_toplevel_opts opts
+                            :reacl_toplevel_opts (cond-> opts
+                                                   (and (has-app-state? clazz) (not (contains? opts :reaction))) (assoc :reaction no-reaction))
                             :reacl_toplevel_args args
                             :reacl_init_id #js {} ;; unique obj for each call.
                             :reacl_initial_app_state app-state}))

@@ -1,5 +1,6 @@
 ^{:auto-testing true
   :extra-main-files {:todo {:main examples.todo.core}
+                     :clock {:main examples.clock.core}
                      :products {:main examples.products.core}
                      :todo-reacl1 {:main examples.todo-reacl1.core}}
   :watch-dirs ["src" "test-nodom" "test-dom" "examples"]}

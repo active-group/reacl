@@ -101,5 +101,5 @@
                         (reacl/handle-toplevel-action toplevel-action)
                         {:date (js/Date.)
                          :timezone-1 "Europe/Berlin"
-                         :timezone-2 "America/New_York"})
-
+                         :timezone-2 "America/New_York"}
+                        "Hello")

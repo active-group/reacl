@@ -20,7 +20,7 @@ Your `project.clj` should contain something like this:
 
 API documentation for the latest release: [CljDoc](https://cljdoc.xyz/d/reacl/reacl/CURRENT).
 
-An introduction to the library can be found [here](doc/intro.md)
+An introduction to the library can be found [here](doc/intro.md).
 
 And the sources on [Github](http://active-group.github.io/reacl/).
 

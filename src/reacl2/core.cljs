@@ -1253,26 +1253,30 @@ component (like the result of an Ajax request).
                         ;; TODO: allow a 'ignore-action'/nil?
                         (return :action (f action)))))
 
-(def ^:private const-true (constantly true))
-
-(defn- pred-or-type [action pt]
-  (and (if (ifn? pt)
-         (pt action)
-         (instance? pt action))
-       true))
-
 (defn action-to-message
-  "Clones the given element, but 'redirects' all actions matching the
-  `pred` function (or all actions if not specified), as a message sent
-  to `target`. Alternatively `pred` and all remaining arguments can be
-  record types, which are then used as in an instance check against
-  the action."
-  ([elem target] (action-to-message elem target const-true))
-  ([elem target pred & types]
+  "Clones the given element so that actions are sent as messages to
+  the given `target` component. If a function `pred` is given, then
+  it is applied to each action, and if it returns a truthy value that
+  value is sent as a message to `target`. Otherwise the action is
+  passed upwards."
+  ([elem target]
    (reduce-action elem (fn [_ action]
-                         (if (some (partial pred-or-type action) (cons pred types))
-                           (return :message [target action])
+                         (return :message [target action]))))
+  ([elem target pred]
+   (reduce-action elem (fn [_ action]
+                         (if-let [msg (pred action)]
+                           (return :message [target msg])
                            (return :action action))))))
+
+;; TODO: add this convenience?
+#_(defn action-types-to-message
+  "Clones the given element so that actions are sent as messages to
+  the given `target` component, if the action is an instance of any of
+  the given record types."
+  [elem target type & types]
+  (action-to-message elem target
+                     (fn [action]
+                       (some #(and (instance? %) %) (cons type types)))))
 
 
 ;; Attention: duplicate definition for macro in core.clj

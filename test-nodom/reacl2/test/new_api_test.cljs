@@ -102,6 +102,37 @@
                              ::state)
            (reacl/return :app-state {:sub {:subsub ::state}})))))
 
+(deftest action-to-message-test
+  (let [emitter (reacl/class "emitter" this []
+                             render (dom/div)
+                             handle-message
+                             (fn [act]
+                               (reacl/return :action act)))
+        test (fn [f t]
+               (let [c (tu/mount (reacl/class "c1" this st []
+                                              render (-> (emitter)
+                                                         (f this))
+                                              handle-message
+                                              (fn [msg]
+                                                (reacl/return :app-state msg))))]
+                 (t (fn [action]
+                      (tu/send-message! (xpath/select c (xpath/>> ** emitter))
+                                        action)))))]
+    (testing "handling all actions"
+      (test (fn [elem this]
+              (reacl/action-to-message elem this))
+            (fn [test]
+              (is (= (test :action)
+                     (reacl/return :app-state :action))))))
+    (testing "handling only some actions"
+      (test (fn [elem this]
+              (reacl/action-to-message elem this #(and (= :action1 %) %)))
+            (fn [test]
+              (is (= (test :action1)
+                     (reacl/return :app-state :action1)))
+              (is (= (test :action2)
+                     (reacl/return :action :action2))))))))
+
 ;; not sure if this is well-defined at all, and can/should be possible:
 #_(deftest double-state-change-test
   ;; covers a rather obscure edge case, where a two state changes in are triggered in one cycle:

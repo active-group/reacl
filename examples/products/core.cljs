@@ -67,7 +67,7 @@
    (dom/p
     (dom/input
      {:type "checkbox"
-      :value (:in-stock-only params)
+      :value (:in-stock-only? params)
       :onchange (fn [e]
                   (reacl/send-message! this (NewInStockOnly. (.. e -target -checked))))})
     "Only show products in stock"))

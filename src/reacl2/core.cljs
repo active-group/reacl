@@ -3,7 +3,7 @@
 
 Define classes with the macros [[defclass]] or [[class]].
 
-Create return values for a message handler or livecycle method with [[return]] and [[merge-returned]].
+Create return values for a message handler or livecycle methods with [[return]] and [[merge-returned]].
 The auxiliary functions for return values [[returned-actions]], [[returned-app-state]],
 [[returned-local-state]], [[returned-messages]], [[returned?]] will usually only be needed in unit tests.
 
@@ -16,6 +16,9 @@ Sometimes modifications of the created elements are needed via [[keyed]], [[refe
 [[redirect-actions]], [[reduce-action]], [[action-to-message]] or [[map-action]].
 
 To finally render a class to the DOM use [[render-component]] and [[handle-toplevel-action]].
+
+An older API consists of the functions [[opt]], [[opt?]], [[no-reaction]].
+
 "
   (:require [react :as react]
             [react-dom :as react-dom]
@@ -240,13 +243,14 @@ To finally render a class to the DOM use [[render-component]] and [[handle-tople
   [x]
   (satisfies? IReaclClass x))
 
-(defn react-class
+;; TODO: this alone is poor interop - reacl classes need specific props and the uber-class to work. Removed from the docs for now.
+(defn ^:no-doc react-class
   "Extract the React class from a Reacl class."
   [clazz]
   (-react-class clazz))
 
 (defn has-app-state?
-  "Returns if the given class has an app-state class or not."
+  "Returns if the given class creates components with an app-state or not."
   [class]
   (-has-app-state? class))
 
@@ -575,7 +579,7 @@ To finally render a class to the DOM use [[render-component]] and [[handle-tople
 (defn set-parent
   "Clones the given element, but replaces the parent component used in
   the reaction and action processing, which is the first component
-  higher in the rendering tree (its _rendering parent_) by default. If
+  higher in the rendering tree by default - its _rendering parent_. If
   `target` is nil, the default behavior is restored."
   [elem target]
   (map-over-components
@@ -775,18 +779,17 @@ To finally render a class to the DOM use [[render-component]] and [[handle-tople
 
 (defn handle-toplevel-action
   "Returns a value to be passed to [[render-component]], which
-  specifies how to handle toplevel actions, which will usually be
-  actions interacting with some global entity like the browser or a server.
+  specifies how to handle toplevel actions.
 
-  All actions reaching the toplevel, are passed to `(f app-state action)`:
+  All actions reaching the toplevel are passed to `(f app-state action)`:
  
 - with the current state of the application, where
-- `f` may have a side effect on the browser or initiate some Ajax request, and 
-- must use [[return]] to return a modified application state, or send some message to a component below.
+- `f` may have a side effect on the browser or initiate some Ajax request etc., and 
+- must use [[return]] to return a modified application state or to send some message back to a component.
 
 Note that you must only use [[return]] so send a message
 _immediately_ to a component (like the id of an Ajax request), and
-only [[send-message!]] to send a message later, from an _asynchronous_ context, to a
+[[send-message!]] only to send a message later, from an _asynchronous_ context, to a
 component (like the result of an Ajax request).
 "
   [f]
@@ -815,8 +818,7 @@ component (like the result of an Ajax request).
     KeepState
   [])
 
-(def ^{:doc "Single value of type KeepState.
-             Can be used in [[return]] to indicate no (application or local)
+(def ^{:doc "Singleton value which can be used in [[return]] to indicate no (application or local)
              state change, which is different from setting it to nil."}
   keep-state (KeepState.))
 
@@ -1269,7 +1271,7 @@ component (like the result of an Ajax request).
                                                           f)}))))
 
 (defn map-action
-  "Clones the given element so that all actions 'coming out' of it are
+  "Clones the given element so that all actions coming out of it are
   piped through `f`."
   [elem f]
   (reduce-action elem (fn [app-state action]

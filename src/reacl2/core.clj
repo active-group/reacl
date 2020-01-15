@@ -88,12 +88,14 @@
 
   The syntax is
 
-      (class <name> <this-name> [<app-state-name>] [<param> ...]
+      (class <name> <this-name> <app-state-name>? [<param> ...]
         <clause> ...)
 
   `<name>` is a name for the class, for debugging purposes.
 
-  This is equivalent to [[defclass]] but without binding the new class to a name."
+  This is equivalent to [[defclass]] but without binding the new class
+  to a variable. The `name` specified here should be a string instead,
+  and is used as the display name of the class."
   [?name & ?stuff]
 
   (let [[?component ?app-state has-app-state? ?args ?clause-map] (analyze-stuff &env ?stuff)
@@ -185,7 +187,7 @@
 
   The syntax is
 
-      (defclass <name> <this-name> [<app-state-name>] [<param> ...]
+      (defclass <name> <this-name> <app-state-name>? [<param> ...]
         <clause> ...)
 
   `<name>` is the symbol the class is bound to, and is used together with the

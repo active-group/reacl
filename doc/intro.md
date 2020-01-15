@@ -59,7 +59,7 @@ reacting to user or server input.
 
 At the lowest level, there is the `dom` namespace for creating
 (virtual) DOM elements that can be rendered. The following shows
-examples of creating simple DOM elements, and abstraction over DOM
+examples of creating simple DOM elements, and abstractions over DOM
 elements via plain functions:
 
 ```clj
@@ -127,9 +127,11 @@ component, this means its application state should consist of
 everything relevant to your application and that might change during
 the time it is running.
 
+<!--- remove preceding sentence entirely? --->
+
 It's also good practice to minimize the data passed to a class. Try to
 pass as little data as possible in the arguments and the application
-state. That not only increases its reusability, but also helps to
+state. This practice not only increases its reusability, but also helps to
 prevent bugs and to get a good performance of your UI out of the box.
 
 We haven't fully followed that principle in this minimal example
@@ -186,7 +188,7 @@ all that's needed to make the clock tick.
 
 ### Reusability
 
-We now want to add a control, that allows the user to select the
+We now want to add a control that allows the user to select the
 timezone for which to display the current time. For that we first
 extend the `clock` function with a timezone parameter:
 
@@ -195,7 +197,7 @@ extend the `clock` function with a timezone parameter:
   (bold (.toLocaleTimeString date "en-US" #js {"timeZone" timezone})))
 ```
 
-Then we define the following class, that has no arguments, but defines
+Then we define the following class that has no arguments but defines
 a timezone value as the application state of components created from
 it:
 
@@ -256,7 +258,7 @@ child's application state. Or it is called with the current
 application state of the parent and a new value for the child's
 application state, in which case it should return an updated parent
 application state. A function like this forms a so called *lens*, and
-libraries exist with a comprehensive combinator language for lenses of
+there are libraries with a comprehensive combinator language for lenses of
 this kind (e.g. [Active
 Clojure](https://github.com/active-group/active-clojure)).
 
@@ -306,7 +308,7 @@ points in the *livecycle* of the component: after its first rendering
 into the web page, and just before it is removed from it
 again. Although the toplevel component of your application might never
 be removed, it is important for reusable classes to cleanup things
-like a timer, because after a component is removed, no messages may be
+like a timer, because after a component is removed, no messages must be
 sent to it anymore.
 
 To do that properly, we store the id returned by `setInterval` in the
@@ -505,14 +507,14 @@ action values flowing out of a child component.
 ## Summary
 
 In this small introduction, we've learned about the data flow model of
-Reacl, the basic namespaces of library, and learned how to
+Reacl, the basic namespaces of the library, and we learned how to
 
 - design classes with arguments, application state and actions via
   pure expressions and functions,
 - isolate the imperative parts like primitive event handlers from the
   pure parts via `send-message!`,
 - break down an application into small reusable classes, resp. combine
-  components to a whole application.
+  components to form an entire application.
 
 Some of the things not covered are:
 

@@ -349,10 +349,32 @@ To finally render a class to the DOM use [[render-component]] and [[handle-tople
   (-invoke [this v] (get v k))
   (-invoke [this v vv] (assoc v k vv)))
 
+(defn- take-at-least [n coll]
+  (take n (concat coll (repeat nil))))
+
+(defn- put-nth [coll idx v]
+  ;; optimized for vectors and 'valid' indices:
+  (if (and (vector? coll) (< idx (count coll)))
+    (assoc coll idx v)
+    (into (empty coll)
+          (concat (take-at-least idx coll) (cons v (drop (inc idx) coll))))))
+
+(defn- get-nth [coll idx]
+  ;; optimized for vectors and 'valid' indices:
+  (if (and (vector? coll) (< idx (count coll)))
+    (nth coll idx)
+    (first (drop idx coll))))
+
+(defrecord ^:private IndexLens [i]
+  IFn
+  (-invoke [this v] (get-nth v i))
+  (-invoke [this v vv] (put-nth v i vv)))
+
 (defn- lift-lens [v]
   ;; Note: maybe we should use active.clojure/lens, but we don't have a dependency on that yet.
   (cond
     (keyword? v) (KeywordLens. v)
+    (integer? v) (IndexLens. v)
     :else v))
 
 (defn- geti [k m] (get m k))
@@ -416,7 +438,8 @@ To finally render a class to the DOM use [[render-component]] and [[handle-tople
   - `:bind [parent lens]` specifies, that `lens` applied to the current app state of
     `parent` is used as the app state of the component, and that changes to the app state
     of the component are integrated into the parent's app state via
-    `(lens parent-app-state new-child-app-state)`. `lens` can also be nil or a keyword.
+    `(lens parent-app-state new-child-app-state)`. `lens` can also be nil, a keyword or
+    an index into a sequential collection.
   - `:bind-local [parent lens]` is similar to `:bind`, but the app state of the
     component is instead bound to the local state of the parent.
   - `:reduce-action` takes arguments `[app-state action]` where `app-state` is the app state

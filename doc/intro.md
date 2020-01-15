@@ -250,16 +250,17 @@ here, `(reacl/bind this :timezone)` specifies that the currently
 selected timezone should be stored in the application state of the
 `my-app` component (`this`) under the map key `:timezone`.
 
-The second argument to bind can either be a keyword, like here, or can
-be a function of two different arities. Such a function is either
-called with one argument, the application state of the parent
-component, in which case it should return the current value of the
-child's application state. Or it is called with the current
-application state of the parent and a new value for the child's
-application state, in which case it should return an updated parent
-application state. A function like this forms a so called *lens*, and
-there are libraries with a comprehensive combinator language for lenses of
-this kind (e.g. [Active
+The second argument to bind can either be a keyword to bind to an
+element of an associative collection, like here, an integer to bind to
+an element of a sequential collection, or can be a function of two
+different arities. Such a function is either called with one argument,
+the application state of the parent component, in which case it should
+return the current value of the child's application state. Or it is
+called with the current application state of the parent and a new
+value for the child's application state, in which case it should
+return an updated parent application state. A function like this forms
+a so called *lens*, and there are libraries with a comprehensive
+combinator language for lenses of this kind (e.g. [Active
 Clojure](https://github.com/active-group/active-clojure)).
 
 A call to `bind` without a second argument specifies a "1:1" binding

@@ -307,3 +307,24 @@
 (deftest element-test
   (= (.-type (dom/element "div"))
      (.-type (dom/div))))
+
+(deftest lenses-test
+  (let [lift-lens #'reacl2.core/lift-lens]
+    (let [k (lift-lens :a)]
+      (is (= (k {:a 42}) 42))
+      (is (= (k {:b 42}) nil))
+
+      (is (= (k {:a 42} 21) {:a 21}))
+      (is (= (k {:b 42} 21) {:a 21 :b 42})))
+
+    (let [i (lift-lens 1)]
+      (is (= (i [21 42]) 42))
+      (is (= (i [0]) nil))
+
+      (is (= (i [21 42] 11)) [21 11])
+      (is (= (i [21] 11)) [21 11])
+      (is (= (i [] 11)) [nil 11])
+      
+      (is (= (i '(21 42) 11)) '(21 11))
+      (is (= (i '(21) 11)) '(21 11))
+      (is (= (i nil 11)) '(nil 11)))))

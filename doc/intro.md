@@ -291,8 +291,8 @@ applications state now:
 (def app (reacl/render-component (.getElementById js/document "app")
                                  my-app
                                  {:date (js/Date.)
-                                  :timezone-1 "Europe/Berlin
-                                  :timezone-2 "America/New_York}
+                                  :timezone-1 "Europe/Berlin"
+                                  :timezone-2 "America/New_York"}
                                  "Hello"))
 ```
 

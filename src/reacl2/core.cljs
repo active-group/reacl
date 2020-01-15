@@ -1244,7 +1244,7 @@ component (like the result of an Ajax request).
             actions (returned-actions ret1)
             ret1 (assoc ret1 :actions (:actions returned-nil))]
         ;; reduce over all actions r1 translated action into;
-        ;; need to keep track of the app-state (once it is set keep that, but als keep-state if not changed at all.
+        ;; need to keep track of the app-state (once it is set keep that, but as keep-state if not changed at all).
         (reduce (fn [ret action]
                   (let [interm-app-state (returned-app-state ret)
                         current-app-state (right-state app-state interm-app-state)
@@ -1264,13 +1264,13 @@ component (like the result of an Ajax request).
   (map-over-components
    elem
    (fn [comp]
-     (react/cloneElement comp #js {:reacl_reduce_action (if-let [prev (action-reducer comp)] ;; Note: will usually have one: the default-action-reducer.
+     (react/cloneElement comp #js {:reacl_reduce_action (if-let [prev (action-reducer comp)] ;; Note: will usually have one: the default-reduce-action
                                                           (compose-reducers prev f)
                                                           f)}))))
 
 (defn map-action
-  "Clones the given element, applying a transformation function `f` to
-  all actions 'coming out' of components below it."
+  "Clones the given element so that all actions 'coming out' of it are
+  piped through `f`."
   [elem f]
   (reduce-action elem (fn [app-state action]
                         ;; TODO: allow a 'ignore-action'/nil?

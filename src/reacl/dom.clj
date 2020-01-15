@@ -1,4 +1,5 @@
-(ns ^{:doc "Supporting macros for Reacl's DOM library   ."}
+(ns ^{:no-doc true
+      :doc "Supporting macros for Reacl's DOM library   ."}
   reacl.dom)
 
 (defmacro ^:no-doc defdom

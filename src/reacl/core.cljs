@@ -1,4 +1,5 @@
-(ns ^{:doc "Reacl core functionality."}
+(ns ^{:no-doc true
+      :doc "Reacl core functionality."}
   reacl.core
   (:require [reacl2.core :as reacl2]))
 

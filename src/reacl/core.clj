@@ -1,4 +1,5 @@
-(ns ^{:doc "Supporting macros for Reacl."}
+(ns ^{:no-doc true
+      :doc "Supporting macros for Reacl."}
   reacl.core
   (:require [clojure.set :as set]
             [reacl2.core])

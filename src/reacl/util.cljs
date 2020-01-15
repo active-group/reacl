@@ -1,4 +1,5 @@
 (ns ^{:author "Marcus Crestani"
+      :no-doc true
       :doc "Various utilities for Reacl."}
   reacl.util
   (:require [reacl.core :as core :include-macros true]

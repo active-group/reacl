@@ -1,4 +1,5 @@
-(ns ^{:doc "Convenience API for constructing virtual DOM.
+(ns ^{:no-doc true
+      :doc "Convenience API for constructing virtual DOM.
 
   This has ClojureScript wrappers for the various HTML elements.
 

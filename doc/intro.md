@@ -4,11 +4,11 @@
 
 Facebook’s React framework brought a wonderful programming model to user interface development on the web. With React, your UI is the result of a pure function application with your application state as input. A change in your app state signifies advancement of (logical) time. At every point in logical time your UI is (conceptually) entirely rerendered.
 
-<img src="https://raw.githubusercontent.com/active-group/reacl/new-composability/doc/rationale-2.png" width="524">
+<img src="https://raw.githubusercontent.com/active-group/reacl/master/doc/rationale-2.png" width="524">
 
 With React, the transitions in logical time (a.k.a. your business logic) are driven and managed implicitely by imperative calls to `setState`. Reacl improves on this model by decoupling the triggering of change (`send-message!`) from the pure handling of application state transitions (`handle-message`).
 
-<img src="https://raw.githubusercontent.com/active-group/reacl/new-composability/doc/rationale-3.png" width="609">
+<img src="https://raw.githubusercontent.com/active-group/reacl/master/doc/rationale-3.png" width="609">
 
 Advancement of logical time is now driven by calls to `send-message!`. The messages you send are then handled by the components in their `handle-message` functions, which are functionally pure descriptions of your business logic. The messages encode the change that happens in your application as values. This leads to good design, ease of reasoning, and general peace of mind.
 
@@ -17,17 +17,17 @@ Advancement of logical time is now driven by calls to `send-message!`. The messa
 
 React components can pass data from parent to children via props. There is no standard way to pass data the other way. To circumvent this shortcoming, you could pass down callback functions that call `setState` on the parent. This callback model is brittle and error-prone.
 
-<img src="https://raw.githubusercontent.com/active-group/reacl/new-composability/doc/react.png" width="160">
+<img src="https://raw.githubusercontent.com/active-group/reacl/master/doc/react.png" width="160">
 
 In an attempt to fix the React model, Redux and similar frameworks like re-frame and Om have a global application store that you can use to structure your app. With this model, data always flows through a central node.
 
-<img src="https://raw.githubusercontent.com/active-group/reacl/new-composability/doc/redux.png" width="160">
+<img src="https://raw.githubusercontent.com/active-group/reacl/master/doc/redux.png" width="160">
 
 The problem with this model is that components are no longer composable by default. Making components compose is hard work. You have to allocate storage in the global application store manually such that two components of the same kind don't interfere. This is because writing to the global store is essentially a side-effect.
 
 Reacl has a different model of passing data rootwards. Just as with React, data flows leafwards via simple props. In addition, data can flow rootwards via an *application state* that flows out of a component and can be composed on the parent side.
 
-<img src="https://raw.githubusercontent.com/active-group/reacl/new-composability/doc/reacl.png" width="160">
+<img src="https://raw.githubusercontent.com/active-group/reacl/master/doc/reacl.png" width="160">
 
 Components are therefore composable by default, because each parent has full control over what it passes down to its children and how it reacts to state changes from below.
 

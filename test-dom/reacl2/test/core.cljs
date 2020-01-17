@@ -1115,6 +1115,10 @@
     (is (= @received :test))))
 
 (deftest fragment
+  (is (= ""
+         (test-util/render-to-text (dom/fragment))))
+  (is (= ""
+         (test-util/render-to-text (dom/fragment {}))))
 
   (let [d (dom/fragment
            (dom/h1 "Hello, world!"))]

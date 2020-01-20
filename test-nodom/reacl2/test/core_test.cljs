@@ -192,9 +192,11 @@
     (assert true)))
 
 (deftest comments-action-test
-  (let [st (reacl-test/handle-message comment-box ["foo" "bar" "baz"] [] nil (Refresh.))]
-    (is (= [(EdnXhr. nil "comments.edn" ->NewComments)]
-           (:actions st)))))
+  (let [st (reacl-test/handle-message comment-box ["foo" "bar" "baz"] [] nil (Refresh.))
+        a (first (:actions st))]
+    (is (instance? EdnXhr a))
+    (is (= "comments.edn" (:url a)))
+    (is (= ->NewComments (:make-message a)))))
 
 (deftest display-name-test
   (reacl/defclass display-name-test1 this [] render (dom/div))

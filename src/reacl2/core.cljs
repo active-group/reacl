@@ -1234,49 +1234,64 @@ component (like the result of an Ajax request).
       (handle-returned! component v from)
       (assert false (str "A 'reacl/return' value was expected, but " from " returned:" (pr-str v))))))
 
+(defrecord ^:private ActionReducer [f args]
+  IFn
+  (-invoke [this app-state action]
+    (apply f app-state action args)))
+
+(defn- reduce-composed [app-state action r1 r2]
+  (let [ret1 (r1 app-state action)
+        ;; get and remove actions from ret1 (in which action was translated to)
+        actions (returned-actions ret1)
+        ret1 (assoc ret1 :actions (:actions returned-nil))]
+    ;; reduce over all actions r1 translated action into;
+    ;; need to keep track of the app-state (once it is set keep that, but as keep-state if not changed at all).
+    (reduce (fn [ret action]
+              (let [interm-app-state (returned-app-state ret)
+                    current-app-state (right-state app-state interm-app-state)
+                    ret2 (merge-returned ret
+                                         (r2 current-app-state action))]
+                (if (keep-state? (returned-app-state ret2))
+                  (merge-returned ret2 (return :app-state interm-app-state))
+                  ret2)))
+            ret1
+            actions)))
+
 (defn ^:no-doc compose-reducers [r1 r2]
   ;; Note: the default reducer just passes the action as is, so we can optimize that
   (cond
     (= r1 default-reduce-action) r2
     (= r2 default-reduce-action) r1
     :else
-    (fn [app-state action]
-      (let [ret1 (r1 app-state action)
-            ;; get and remove actions from ret1 (in which action was translated to)
-            actions (returned-actions ret1)
-            ret1 (assoc ret1 :actions (:actions returned-nil))]
-        ;; reduce over all actions r1 translated action into;
-        ;; need to keep track of the app-state (once it is set keep that, but as keep-state if not changed at all).
-        (reduce (fn [ret action]
-                  (let [interm-app-state (returned-app-state ret)
-                        current-app-state (right-state app-state interm-app-state)
-                        ret2 (merge-returned ret
-                                             (r2 current-app-state action))]
-                    (if (keep-state? (returned-app-state ret2))
-                      (merge-returned ret2 (return :app-state interm-app-state))
-                      ret2)))
-                ret1
-                actions)))))
+    (ActionReducer. reduce-composed [r1 r2])))
 
 (defn reduce-action
   "Clone the given element, wrapping (composing) its action reducer
   with the given action reducer `f`."
-  [elem f]
+  [elem f & args]
   (assert f)
-  (map-over-components
-   elem
-   (fn [comp]
-     (react/cloneElement comp #js {:reacl_reduce_action (if-let [prev (action-reducer comp)] ;; Note: will usually have one: the default-reduce-action
-                                                          (compose-reducers prev f)
-                                                          f)}))))
+  (let [red (if (empty? args) f (ActionReducer. f args))]
+    (map-over-components
+     elem
+     (fn [comp]
+       (react/cloneElement comp #js {:reacl_reduce_action (if-let [prev (action-reducer comp)] ;; Note: will usually have one: the default-reduce-action
+                                                            (compose-reducers prev red)
+                                                            red)})))))
+
+(defn- action-mapper [app-state action f args]
+  ;; TODO: allow a 'ignore-action'/nil?
+  (return :action (apply f action args)))
 
 (defn map-action
   "Clones the given element so that all actions coming out of it are
   piped through `f`."
-  [elem f]
-  (reduce-action elem (fn [app-state action]
-                        ;; TODO: allow a 'ignore-action'/nil?
-                        (return :action (f action)))))
+  [elem f & args]
+  (reduce-action elem action-mapper f args))
+
+(defn- reduce-to-message [_ action pred target]
+  (if-let [msg (pred action)]
+    (return :message [target msg])
+    (return :action action)))
 
 (defn action-to-message
   "Clones the given element so that actions are sent as messages to
@@ -1285,13 +1300,9 @@ component (like the result of an Ajax request).
   value is sent as a message to `target`. Otherwise the action is
   passed upwards."
   ([elem target]
-   (reduce-action elem (fn [_ action]
-                         (return :message [target action]))))
+   (reduce-action elem reduce-to-message identity target))
   ([elem target pred]
-   (reduce-action elem (fn [_ action]
-                         (if-let [msg (pred action)]
-                           (return :message [target msg])
-                           (return :action action))))))
+   (reduce-action elem reduce-to-message pred target)))
 
 ;; TODO: add this convenience?
 #_(defn action-types-to-message

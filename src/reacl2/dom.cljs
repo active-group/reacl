@@ -455,38 +455,44 @@
   (and (map? v)
        (not (satisfies? IHasDom v))))
 
+(def ^{:arglists '([type attrs & children]
+                   [type & children])
+       :doc "Generic function to create virtual dom elements. `(element \"div\" ...)` is the same as `(div ...)`."}
+  element
+  (fn
+    ([n]
+     (react/createElement n nil))
+    ([n a0]
+     (if (attributes? a0)
+       (react/createElement n (attributes a0))
+       (react/createElement n nil (normalize-arg a0))))
+    ([n a0 a1]
+     (if (attributes? a0)
+       (react/createElement n (attributes a0) (normalize-arg a1))
+       (react/createElement n nil (normalize-arg a0) (normalize-arg a1))))
+    ([n a0 a1 a2]
+     (if (attributes? a0)
+       (react/createElement n (attributes a0) (normalize-arg a1) (normalize-arg a2))
+       (react/createElement n nil (normalize-arg a0) (normalize-arg a1) (normalize-arg a2))))
+    ([n a0 a1 a2 a3]
+     (if (attributes? a0)
+       (react/createElement n (attributes a0) (normalize-arg a1) (normalize-arg a2) (normalize-arg a3))
+       (react/createElement n nil (normalize-arg a0) (normalize-arg a1) (normalize-arg a2) (normalize-arg a3))))
+    ([n a0 a1 a2 a3 a4 & args]
+     (if (attributes? a0)
+       (apply react/createElement n (attributes a0) (normalize-arg a1) (normalize-arg a2) (normalize-arg a3) (normalize-arg a4) (clojure.core/map normalize-arg args))
+       (apply react/createElement n nil (normalize-arg a0) (normalize-arg a1) (normalize-arg a2) (normalize-arg a3) (normalize-arg a4) (clojure.core/map normalize-arg args))))))
+
 (defn ^:no-doc dom-function
   "Internal function for constructing wrappers for DOM-construction function."
   [n]
   (fn
-    ([]
-     (react/createElement n nil))
-    ([maybe]
-     (if (attributes? maybe)
-       (react/createElement n (attributes maybe))
-       (react/createElement n nil (normalize-arg maybe))))
-    ([maybe a1]
-     (if (attributes? maybe)
-       (react/createElement n (attributes maybe) (normalize-arg a1))
-       (react/createElement n nil (normalize-arg maybe) (normalize-arg a1))))
-    ([maybe a1 a2]
-     (if (attributes? maybe)
-       (react/createElement n (attributes maybe) (normalize-arg a1) (normalize-arg a2))
-       (react/createElement n nil (normalize-arg maybe) (normalize-arg a1) (normalize-arg a2))))
-    ([maybe a1 a2 a3]
-     (if (attributes? maybe)
-       (react/createElement n (attributes maybe) (normalize-arg a1) (normalize-arg a2) (normalize-arg a3))
-       (react/createElement n nil (normalize-arg maybe) (normalize-arg a1) (normalize-arg a2) (normalize-arg a3))))
-    ([maybe a1 a2 a3 a4 & rest]
-     (let [args (cljs.core/map normalize-arg rest)]
-       (if (attributes? maybe)
-         (apply react/createElement n (attributes maybe) (normalize-arg a1) (normalize-arg a2) (normalize-arg a3) (normalize-arg a4) args)
-         (apply react/createElement n nil (normalize-arg maybe) (normalize-arg a1) (normalize-arg a2) (normalize-arg a3) (normalize-arg a4) args))))))
-
-(def ^{:arglists '([type attrs & children]
-                   [type & children])
-       :doc "Generic function to create virtual dom elements. `(element \"div\" ...)` is then same as `(div ...)`."}
-  element dom-function)
+    ([] (element n))
+    ([a0] (element n a0))
+    ([a0 a1] (element n a0 a1))
+    ([a0 a1 a2] (element n a0 a1 a2))
+    ([a0 a1 a2 a3] (element n a0 a1 a2 a3))
+    ([a0 a1 a2 a3 a4 & rest] (apply element n a0 a1 a2 a3 a4 rest))))
 
 (defn ^:no-doc set-dom-binding!
   "Internal function for use by `letdom'.

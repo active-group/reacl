@@ -81,14 +81,12 @@
         (-instantiate this (concat [a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12 a13 a14 a15 a16 a17 a18 a19 a20] rest)))
       IReaclView
       (-instantiate [this args]
-        (reacl2/instantiate-embedded-internal-v1 clazz nil reacl2.core/no-reaction args))
+        (reacl2/instantiate-embedded-internal-v1 clazz nil reacl2.core/no-reaction nil args))
       reacl2/IReaclClass
-      (-instantiate-toplevel-internal [this rst]
-        (reacl2/instantiate-toplevel-internal this false rst))
+      (-has-app-state? [this] false)
       (-react-class [this] react-class)
-      (-compute-locals [this app-state args]
-        nil)
+      (-instantiate-embedded-internal [this args]
+        (reacl2/instantiate-embedded-internal-v1 clazz nil reacl2.core/no-reaction nil args))
       (-validate! [this app-state args]
         nil)
-      (-make-refs [this] nil)
       )))

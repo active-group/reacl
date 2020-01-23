@@ -336,9 +336,9 @@
         cmp #js {}
         handle-message-internal (aget (.-prototype rcl) "__handleMessage")]
     ;; FIXME: move Reacl guts exposed here back into the core
-    (handle-message-internal nil
+    (handle-message-internal nil ;; should have been cmp? (but might break someones tests)
                              app-state local-state
-                             (reacl/-compute-locals cl app-state args)
+                             true
                              args [] msg)))
 
 (defn handle-message->state

@@ -210,11 +210,13 @@ An older API consists of the functions [[opt]], [[opt?]], [[no-reaction]].
 
 (defprotocol ^:no-doc IHasDom
   "General protocol for objects that contain or map to a virtual DOM object."  
+  ;; TODO: remove/deprecate - this is flawed; used the get the virtual dom element of a letdom binding, and to get the current real dom element (of component) of a ref!?
   (-get-dom [thing]))
 
 (defn get-dom
   "Get a (real) DOM node from an object that contains one, typically a reference."
   [thing]
+  ;; TODO: can also return the (runtime) component - name deref?
   (-get-dom thing))
 
 ;; wrapper for React refs
@@ -232,11 +234,9 @@ An older API consists of the functions [[opt]], [[opt?]], [[no-reaction]].
 
 (defprotocol ^:no-doc IReaclClass
   (-react-class [clazz])
-  (-instantiate-toplevel-internal [clazz rst])
+  (-instantiate-embedded-internal [clazz rst]) ;; rename just 'instantiate'?
   (-has-app-state? [clazz])
-  (-validate! [clazz app-state args])
-  (-make-refs [clazz])
-  (-compute-locals [clazz app-state args]))
+  (-validate! [clazz app-state args]))
 
 (defn reacl-class?
   "Is an object a Reacl class?"
@@ -661,10 +661,11 @@ An older API consists of the functions [[opt]], [[opt?]], [[no-reaction]].
                         opts (aget props "reacl_toplevel_opts")
                         args (aget props "reacl_toplevel_args")
                         app-state (aget (.-state this) "reacl_uber_app_state")]
-                    (apply clazz
-                           (Options. (cond-> (assoc opts :ref (aget this "reacl_toplevel_ref"))
+                    (-instantiate-embedded-internal
+                     clazz
+                     (cons (Options. (cond-> (assoc opts :ref (aget this "reacl_toplevel_ref"))
                                        (has-app-state? clazz) (assoc :app-state app-state)))
-                           args))))
+                           args)))))
 
               :displayName (str `toplevel)
 
@@ -744,22 +745,22 @@ An older API consists of the functions [[opt]], [[opt?]], [[no-reaction]].
   - `app-state` is the application state
   - `args` is a seq of class arguments"}
   instantiate-embedded-internal
-  (fn [clazz has-app-state? rst]
+  (fn [clazz has-app-state? make-refs compute-locals rst]
     (let [[{opts :map} app-state args] (extract-opt+app-state has-app-state? rst)
           rclazz (react-class clazz)]
-      (when (and (-has-app-state? clazz)
+      (when (and has-app-state?
                  (not (contains? opts :reaction)))
         (warning "Instantiating class" (class-name clazz) "without reacting to its app-state changes. Use 'use-app-state' if you intended to do this."))
-      (when (and (not (-has-app-state? clazz))
+      (when (and (not has-app-state?)
                  (contains? opts :reaction))
         (warning "Instantiating class" (class-name clazz) "with reacting to app-state changes, but it does not have an app-state."))
       (-validate! clazz app-state args)
       (react/createElement rclazz
                            #js {:reacl_app_state app-state
                                 :ref (:ref opts)
-                                :reacl_locals (-compute-locals clazz app-state args)
+                                :reacl_locals (when compute-locals (compute-locals app-state args))
                                 :reacl_args args
-                                :reacl_refs (-make-refs clazz)
+                                :reacl_refs (make-refs clazz)
                                 :reacl_class clazz
                                 :reacl_reaction (or (:reaction opts) no-reaction)
                                 :reacl_parent (:parent opts)
@@ -767,11 +768,11 @@ An older API consists of the functions [[opt]], [[opt?]], [[no-reaction]].
                                                          default-reduce-action)}))))
 
 (defn- instantiate-embedded-internal-v1
-  [clazz app-state reaction args]
+  [clazz app-state reaction compute-locals args]
   (let [rclazz (react-class clazz)]
     (react/createElement rclazz
                          #js {:reacl_app_state app-state
-                              :reacl_locals (-compute-locals clazz app-state args)
+                              :reacl_locals (when compute-locals (compute-locals app-state args))
                               :reacl_args args
                               :reacl_class clazz
                               :reacl_reaction reaction
@@ -809,7 +810,7 @@ component (like the result of an Ajax request).
   render-component
   (fn [element clazz & rst]
     (react-dom/render
-     (-instantiate-toplevel-internal clazz rst)
+     (apply instantiate-toplevel clazz rst)
      element)))
 
 (defrecord ^{:doc "Type of a unique value to distinguish nil from no change of state.
@@ -1016,9 +1017,7 @@ component (like the result of an Ajax request).
       (let [args (extract-args comp)
             ret (handle-message comp
                                 app-state local-state
-                                (if recompute-locals?
-                                  (-compute-locals (component-class comp) app-state args)
-                                  (extract-locals comp))
+                                recompute-locals?
                                 args (extract-refs comp)
                                 msg)]
         (if (returned? ret)
@@ -1428,7 +1427,12 @@ component (like the result of an Ajax request).
             ;; app-state, even if the component was not updated after
             
             ;; a change to it.
-            "__handleMessage" handle-message
+            "__handleMessage" (when handle-message
+                                (fn [this app-state local-state recompute-locals? args refs msg]
+                                  (let [locals (if recompute-locals?
+                                                 (when compute-locals (compute-locals app-state args))
+                                                 (extract-locals this))]
+                                    (handle-message this app-state local-state locals args refs msg))))
 
             "UNSAFE_componentWillMount"
             (std+state component-will-mount 'component-will-mount)
@@ -1485,112 +1489,102 @@ component (like the result of an Ajax request).
           IFn ; only this is different between v1 and v2
           ;; this + 20 regular args, then rest, so a1..a18
           (-invoke [this app-state reaction]
-            (instantiate-embedded-internal-v1 this app-state reaction []))
+            (instantiate-embedded-internal-v1 this app-state reaction compute-locals []))
           (-invoke [this app-state reaction a1]
-            (instantiate-embedded-internal-v1 this app-state reaction [a1]))
-          (-invoke [this app-state reaction a1 a2]
-            (instantiate-embedded-internal-v1 this app-state reaction [a1 a2]))
-          (-invoke [this app-state reaction a1 a2 a3]
-            (instantiate-embedded-internal-v1 this app-state reaction [a1 a2 a3]))
-          (-invoke [this app-state reaction a1 a2 a3 a4]
-            (instantiate-embedded-internal-v1 this app-state reaction [a1 a2 a3 a4]))
-          (-invoke [this app-state reaction a1 a2 a3 a4 a5]
-            (instantiate-embedded-internal-v1 this app-state reaction [a1 a2 a3 a4 a5]))
-          (-invoke [this app-state reaction a1 a2 a3 a4 a5 a6]
-            (instantiate-embedded-internal-v1 this app-state reaction [a1 a2 a3 a4 a5 a6]))
-          (-invoke [this app-state reaction a1 a2 a3 a4 a5 a6 a7]
-            (instantiate-embedded-internal-v1 this app-state reaction [a1 a2 a3 a4 a5 a6 a7]))
-          (-invoke [this app-state reaction a1 a2 a3 a4 a5 a6 a7 a8]
-            (instantiate-embedded-internal-v1 this app-state reaction [a1 a2 a3 a4 a5 a6 a7 a8]))
-          (-invoke [this app-state reaction a1 a2 a3 a4 a5 a6 a7 a8 a9]
-            (instantiate-embedded-internal-v1 this app-state reaction [a1 a2 a3 a4 a5 a6 a7 a8 a9]))
-          (-invoke [this app-state reaction a1 a2 a3 a4 a5 a6 a7 a8 a9 a10]
-            (instantiate-embedded-internal-v1 this app-state reaction [a1 a2 a3 a4 a5 a6 a7 a8 a9 a10]))
-          (-invoke [this app-state reaction a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11]
-            (instantiate-embedded-internal-v1 this app-state reaction [a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11]))
-          (-invoke [this app-state reaction a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12]
-            (instantiate-embedded-internal-v1 this app-state reaction [a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12]))
-          (-invoke [this app-state reaction a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12 a13]
-            (instantiate-embedded-internal-v1 this app-state reaction [a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12 a13]))
-          (-invoke [this app-state reaction a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12 a13 a14]
-            (instantiate-embedded-internal-v1 this app-state reaction [a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12 a13 a14]))
-          (-invoke [this app-state reaction a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12 a13 a14 a15]
-            (instantiate-embedded-internal-v1 this app-state reaction [a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12 a13 a14 a15]))
-          (-invoke [this app-state reaction a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12 a13 a14 a15 a16]
-            (instantiate-embedded-internal-v1 this app-state reaction [a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12 a13 a14 a15 a16]))
-          (-invoke [this app-state reaction a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12 a13 a14 a15 a16 a17]
-            (instantiate-embedded-internal-v1 this app-state reaction [a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12 a13 a14 a15 a16 a17]))
-          (-invoke [this app-state reaction a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12 a13 a14 a15 a16 a17 a18]
-            (instantiate-embedded-internal-v1 this app-state reaction [a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12 a13 a14 a15 a16 a17 a18]))
-          (-invoke [this app-state reaction a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12 a13 a14 a15 a16 a17 a18 rest]
-            (instantiate-embedded-internal-v1 this app-state reaction (concat [a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12 a13 a14 a15 a16 a17 a18] rest)))
+            (instantiate-embedded-internal-v1 this app-state reaction compute-locals [a1]))
+          (-invoke [this app-state reaction compute-locals a1 a2]
+            (instantiate-embedded-internal-v1 this app-state reaction compute-locals [a1 a2]))
+          (-invoke [this app-state reaction compute-locals a1 a2 a3]
+            (instantiate-embedded-internal-v1 this app-state reaction compute-locals [a1 a2 a3]))
+          (-invoke [this app-state reaction compute-locals a1 a2 a3 a4]
+            (instantiate-embedded-internal-v1 this app-state reaction compute-locals [a1 a2 a3 a4]))
+          (-invoke [this app-state reaction compute-locals a1 a2 a3 a4 a5]
+            (instantiate-embedded-internal-v1 this app-state reaction compute-locals [a1 a2 a3 a4 a5]))
+          (-invoke [this app-state reaction compute-locals a1 a2 a3 a4 a5 a6]
+            (instantiate-embedded-internal-v1 this app-state reaction compute-locals [a1 a2 a3 a4 a5 a6]))
+          (-invoke [this app-state reaction compute-locals a1 a2 a3 a4 a5 a6 a7]
+            (instantiate-embedded-internal-v1 this app-state reaction compute-locals [a1 a2 a3 a4 a5 a6 a7]))
+          (-invoke [this app-state reaction compute-locals a1 a2 a3 a4 a5 a6 a7 a8]
+            (instantiate-embedded-internal-v1 this app-state reaction compute-locals [a1 a2 a3 a4 a5 a6 a7 a8]))
+          (-invoke [this app-state reaction compute-locals a1 a2 a3 a4 a5 a6 a7 a8 a9]
+            (instantiate-embedded-internal-v1 this app-state reaction compute-locals [a1 a2 a3 a4 a5 a6 a7 a8 a9]))
+          (-invoke [this app-state reaction compute-locals a1 a2 a3 a4 a5 a6 a7 a8 a9 a10]
+            (instantiate-embedded-internal-v1 this app-state reaction compute-locals [a1 a2 a3 a4 a5 a6 a7 a8 a9 a10]))
+          (-invoke [this app-state reaction compute-locals a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11]
+            (instantiate-embedded-internal-v1 this app-state reaction compute-locals [a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11]))
+          (-invoke [this app-state reaction compute-locals a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12]
+            (instantiate-embedded-internal-v1 this app-state reaction compute-locals [a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12]))
+          (-invoke [this app-state reaction compute-locals a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12 a13]
+            (instantiate-embedded-internal-v1 this app-state reaction compute-locals [a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12 a13]))
+          (-invoke [this app-state reaction compute-locals a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12 a13 a14]
+            (instantiate-embedded-internal-v1 this app-state reaction compute-locals [a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12 a13 a14]))
+          (-invoke [this app-state reaction compute-locals a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12 a13 a14 a15]
+            (instantiate-embedded-internal-v1 this app-state reaction compute-locals [a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12 a13 a14 a15]))
+          (-invoke [this app-state reaction compute-locals a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12 a13 a14 a15 a16]
+            (instantiate-embedded-internal-v1 this app-state reaction compute-locals [a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12 a13 a14 a15 a16]))
+          (-invoke [this app-state reaction compute-locals a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12 a13 a14 a15 a16 a17]
+            (instantiate-embedded-internal-v1 this app-state reaction compute-locals [a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12 a13 a14 a15 a16 a17]))
+          (-invoke [this app-state reaction compute-locals a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12 a13 a14 a15 a16 a17 rest]
+            (instantiate-embedded-internal-v1 this app-state reaction compute-locals (concat [a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12 a13 a14 a15 a16 a17] rest)))
           IReaclClass
-          (-instantiate-toplevel-internal [this rst]
-            (instantiate-toplevel-internal this has-app-state? rst))
+          (-instantiate-embedded-internal [this rst]
+            (instantiate-embedded-internal this has-app-state? make-refs compute-locals rst))
           (-has-app-state? [this] has-app-state?)
           (-validate! [this app-state args]
             (when validate (apply validate app-state args)))
-          (-make-refs [this]
-            (make-refs))
-          (-compute-locals [this app-state args]
-            (when compute-locals (compute-locals app-state args)))
           (-react-class [this] react-class))
         (reify
           IFn
           (-invoke [this]
-            (instantiate-embedded-internal this has-app-state? []))
+            (-instantiate-embedded-internal this []))
           (-invoke [this a1]
-            (instantiate-embedded-internal this has-app-state? [a1]))
+            (-instantiate-embedded-internal this [a1]))
           (-invoke [this a1 a2]
-            (instantiate-embedded-internal this has-app-state? [a1 a2]))
+            (-instantiate-embedded-internal this [a1 a2]))
           (-invoke [this a1 a2 a3]
-            (instantiate-embedded-internal this has-app-state? [a1 a2 a3]))
+            (-instantiate-embedded-internal this [a1 a2 a3]))
           (-invoke [this a1 a2 a3 a4]
-            (instantiate-embedded-internal this has-app-state? [a1 a2 a3 a4]))
+            (-instantiate-embedded-internal this [a1 a2 a3 a4]))
           (-invoke [this a1 a2 a3 a4 a5]
-            (instantiate-embedded-internal this has-app-state? [a1 a2 a3 a4 a5]))
+            (-instantiate-embedded-internal this [a1 a2 a3 a4 a5]))
           (-invoke [this a1 a2 a3 a4 a5 a6]
-            (instantiate-embedded-internal this has-app-state? [a1 a2 a3 a4 a5 a6]))
+            (-instantiate-embedded-internal this [a1 a2 a3 a4 a5 a6]))
           (-invoke [this a1 a2 a3 a4 a5 a6 a7]
-            (instantiate-embedded-internal this has-app-state? [a1 a2 a3 a4 a5 a6 a7]))
+            (-instantiate-embedded-internal this [a1 a2 a3 a4 a5 a6 a7]))
           (-invoke [this a1 a2 a3 a4 a5 a6 a7 a8]
-            (instantiate-embedded-internal this has-app-state? [a1 a2 a3 a4 a5 a6 a7 a8]))
+            (-instantiate-embedded-internal this [a1 a2 a3 a4 a5 a6 a7 a8]))
           (-invoke [this a1 a2 a3 a4 a5 a6 a7 a8 a9]
-            (instantiate-embedded-internal this has-app-state? [a1 a2 a3 a4 a5 a6 a7 a8 a9]))
+            (-instantiate-embedded-internal this [a1 a2 a3 a4 a5 a6 a7 a8 a9]))
           (-invoke [this a1 a2 a3 a4 a5 a6 a7 a8 a9 a10]
-            (instantiate-embedded-internal this has-app-state? [a1 a2 a3 a4 a5 a6 a7 a8 a9 a10]))
+            (-instantiate-embedded-internal this [a1 a2 a3 a4 a5 a6 a7 a8 a9 a10]))
           (-invoke [this a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11]
-            (instantiate-embedded-internal this has-app-state? [a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11]))
+            (-instantiate-embedded-internal this [a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11]))
           (-invoke [this a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12]
-            (instantiate-embedded-internal this has-app-state? [a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12]))
+            (-instantiate-embedded-internal this [a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12]))
           (-invoke [this a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12 a13]
-            (instantiate-embedded-internal this has-app-state? [a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12 a13]))
+            (-instantiate-embedded-internal this [a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12 a13]))
           (-invoke [this a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12 a13 a14]
-            (instantiate-embedded-internal this has-app-state? [a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12 a13 a14]))
+            (-instantiate-embedded-internal this [a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12 a13 a14]))
           (-invoke [this a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12 a13 a14 a15]
-            (instantiate-embedded-internal this has-app-state? [a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12 a13 a14 a15]))
+            (-instantiate-embedded-internal this [a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12 a13 a14 a15]))
           (-invoke [this a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12 a13 a14 a15 a16]
-            (instantiate-embedded-internal this has-app-state? [a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12 a13 a14 a15 a16]))
+            (-instantiate-embedded-internal this [a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12 a13 a14 a15 a16]))
           (-invoke [this a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12 a13 a14 a15 a16 a17]
-            (instantiate-embedded-internal this has-app-state? [a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12 a13 a14 a15 a16 a17]))
+            (-instantiate-embedded-internal this [a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12 a13 a14 a15 a16 a17]))
           (-invoke [this a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12 a13 a14 a15 a16 a17 a18]
-            (instantiate-embedded-internal this has-app-state? [a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12 a13 a14 a15 a16 a17 a18]))
+            (-instantiate-embedded-internal this [a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12 a13 a14 a15 a16 a17 a18]))
           (-invoke [this a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12 a13 a14 a15 a16 a17 a18 a19]
-            (instantiate-embedded-internal this has-app-state? [a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12 a13 a14 a15 a16 a17 a18 a19]))
+            (-instantiate-embedded-internal this [a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12 a13 a14 a15 a16 a17 a18 a19]))
           (-invoke [this a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12 a13 a14 a15 a16 a17 a18 a19 a20]
-            (instantiate-embedded-internal this has-app-state? [a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12 a13 a14 a15 a16 a17 a18 a19 a20]))
+            (-instantiate-embedded-internal this [a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12 a13 a14 a15 a16 a17 a18 a19 a20]))
           (-invoke [this a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12 a13 a14 a15 a16 a17 a18 a19 a20 rest]
-            (instantiate-embedded-internal this has-app-state? (concat [a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12 a13 a14 a15 a16 a17 a18 a19 a20] rest)))
+            (-instantiate-embedded-internal this (concat [a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12 a13 a14 a15 a16 a17 a18 a19 a20] rest)))
           IReaclClass
-          (-instantiate-toplevel-internal [this rst]
-            (instantiate-toplevel-internal this has-app-state? rst))
+          (-instantiate-embedded-internal [this args]
+            (instantiate-embedded-internal this has-app-state? make-refs compute-locals args))
           (-has-app-state? [this] has-app-state?)
           (-validate! [this app-state args]
             (when validate (apply validate app-state args)))
-          (-make-refs [this]
-            (make-refs))
-          (-compute-locals [this app-state args]
-            (when compute-locals (compute-locals app-state args)))
           (-react-class [this] react-class))))))
 
 (def ^:private mixin-methods #{:component-will-mount :component-did-mount

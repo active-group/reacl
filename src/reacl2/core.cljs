@@ -947,7 +947,9 @@ component (like the result of an Ajax request).
                                (assert false (str "A :local-state argument to reacl/return must be specified only once.")))
                              (recur nxt app-state arg actions messages))
           (:action) (recur nxt app-state local-state (conj! actions arg) messages)
-          (:message) (recur nxt app-state local-state actions (conj messages arg))
+          (:message) (let [[target msg] arg]
+                       (assert (and (some? target) (component? target)) (str "A :message argument to reacl/return must be a tuple of a component and a message."))
+                       (recur nxt app-state local-state actions (conj messages arg)))
           (do (assert (contains? #{:app-state :local-state :action :message} (first args)) (str "Invalid argument " (first args) " to reacl/return."))
               (recur nxt app-state local-state actions messages)))))))
 
@@ -1210,6 +1212,7 @@ component (like the result of an Ajax request).
 
   Returns the `Returned` object returned by the message handler."
   [comp msg]
+  (assert (some? comp))
   (when *send-message-forbidden*
     (assert false "The function send-message! must never be called during an update cycle. Use (reacl/return :message ...) instead."))
   ;; resolve-component is mainly for automated tests that send a message to the top-level component directly

@@ -205,7 +205,7 @@
 
 (deftest return-test
   ;; tests properties of 'reacl/return'
-  (let [comp (reacl/instantiate-toplevel contacts-display contacts)] ;; just any component.
+  (let [comp (reacl-test/instantiate&mount contacts-display contacts)] ;; just any component.
     (testing "keep-state by default"
       (is (= (reacl/return)
              (reacl/return :app-state reacl/keep-state)))
@@ -228,7 +228,7 @@
                 (reacl/return :message [comp 2] :message [comp 1]))))))
 
 (deftest merge-returned-test
-  (let [comp (reacl/instantiate-toplevel contacts-display contacts)] ;; just any component
+  (let [comp (reacl-test/instantiate&mount contacts-display contacts)] ;; just any component
     (is (= (reacl/merge-returned (reacl/return :app-state 1)
                                  (reacl/return :local-state 2)
                                  (reacl/return :message [comp 3])

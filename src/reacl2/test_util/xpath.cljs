@@ -335,21 +335,21 @@
   composition macro [[>>]], the literal `..` is translated into this."}
   parent (Parent.))
 
+(def ^{:doc "A selector that drops everything, making a selection empty."} void (Void.))
+
 (defn or
   "Selects all nodes that any of the given selectors selects."
   [& selectors]
   (if (empty? selectors)
-    self ;; ???
+    void ;; (or) === false
     (reduce #(Or. %1 %2)
             selectors)))
-
-(def ^{:doc "A selector that drops everything, making a selection empty."} void (Void.))
 
 (defn and
   "Selects all nodes that all of the given selectors selects."
   [& selectors]
   (if (empty? selectors)
-    void ;; ???
+    self ;; (and) == true
     (reduce #(And. %1 %2)
             selectors)))
 

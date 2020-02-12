@@ -363,7 +363,7 @@
     (is (nil? (test-util/extract-local-state item)))))
 
 
-(deftest text-refs-message
+(deftest test-refs-message
   (let [item (test-util/instantiate&mount (reacl/class "text-refs"
                                                        this content []
                                                        refs [text-input]

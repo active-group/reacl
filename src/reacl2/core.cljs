@@ -374,7 +374,7 @@ An older API consists of the functions [[opt]], [[opt?]], [[no-reaction]].
   (-invoke [this v] (get-nth v i))
   (-invoke [this v vv] (put-nth v i vv)))
 
-(defn- lift-lens [v]
+(defn ^:no-doc lift-lens [v]
   ;; Note: maybe we should use active.clojure/lens, but we don't have a dependency on that yet.
   (cond
     (keyword? v) (KeywordLens. v)

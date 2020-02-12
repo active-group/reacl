@@ -221,7 +221,7 @@ An older API consists of the functions [[opt]], [[opt?]], [[no-reaction]].
 
 ;; wrapper for React refs
 ;; the field has to be named "current" to pass for a React ref
-(defrecord ^{:private true} Ref [current]
+(deftype ^{:private true} Ref [^:mutable current]
   IHasDom
   (-get-dom [_] current))
 

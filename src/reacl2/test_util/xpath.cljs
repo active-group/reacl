@@ -210,7 +210,9 @@
 
 (defn- map-prop [n nodes]
   (->> nodes
-       (filter #(.hasOwnProperty (node-props %) n))
+       (filter (fn [node]
+                 (clojure.core/and (some? (node-props node)) ;; not sure why this is nil sometimes; dom and component nodes should have props?
+                                   (.hasOwnProperty (node-props node) n))))
        (map (fn [node]
               (NodeProperty. node (keyword n) (aget (node-props node) n))))))
 

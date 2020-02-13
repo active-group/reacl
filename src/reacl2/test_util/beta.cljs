@@ -271,6 +271,8 @@
     (throw (js/Error. "Something must be mounted to be unmounted. Call mount! first.")))
   (render-return env nil))
 
+;; TODO: add push!, push!!, mount!!, update!! and unmount!!
+
 (defn inject-return!
   "This injects or simulates a [[reacl/return]] from a method of the
   class the given component was instantied from. Returns a

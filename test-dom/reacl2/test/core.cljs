@@ -1130,3 +1130,60 @@
            (dom/h2 "moin"))]
     (is (= "<h1>Hello, world!</h1><h2>moin</h2>"
            (test-util/render-to-text d)))))
+
+(deftest two-mounted-test
+  ;; what happens when two components change the state on mount?
+  (let [c1 (reacl/class "test1" this state []
+                        render (dom/div)
+                        component-did-mount
+                        (fn []
+                          (reacl/return :app-state (inc state))))
+        
+        c (reacl/class "test" this state []
+
+                       render (dom/div (c1 (reacl/bind this))
+                                       (c1 (reacl/bind this))))
+        cc (test-util/instantiate&mount c 0)]
+    ;; Note: currently it's 1, but of course it would be nice if both could succeed.
+    ;; The preferred way is tested in [[two-changes-test]] and [[two-focused-changes]] below.
+    (is (= 1
+           (test-util/extract-app-state cc)))))
+
+(deftest two-changes-test
+  ;; test if there can be two dependant changes that eventually succeed both.
+  (let [c1 (reacl/class "test1" this state [parent]
+                        render (dom/div)
+                        component-did-mount
+                        (fn []
+                          (reacl/return :message [parent true])))
+        
+        c (reacl/class "test" this state []
+
+                       handle-message
+                       (fn [msg]
+                         (reacl/return :app-state (inc state)))
+
+                       render (dom/div (c1 (reacl/bind this) this)
+                                       (c1 (reacl/bind this) this)))
+        cc (test-util/instantiate&mount c 0)]
+    ;; FIXME: this should be equal - see issue #42
+    (is (not= 2
+              (test-util/extract-app-state cc)))))
+
+(deftest two-focused-changes-test
+  ;; test if there can be two dependant changes via focus
+  (let [c1 (reacl/class "test1" this state []
+                        render (dom/div)
+                        component-did-mount
+                        (fn []
+                          (reacl/return :app-state true)))
+        
+        c (reacl/class "test" this state []
+                       render (dom/div (c1 (-> (reacl/bind this)
+                                               (reacl/focus :a)) this)
+                                       (c1 (-> (reacl/bind this)
+                                               (reacl/focus :b)) this)))
+        cc (test-util/instantiate&mount c {:a false :b false})]
+    ;; FIXME: this should be equal; probably same as issue #42
+    (is (not= {:a true :b true}
+              (test-util/extract-app-state cc)))))

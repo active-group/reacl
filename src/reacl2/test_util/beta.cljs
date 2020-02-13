@@ -278,6 +278,8 @@
   of a `reacl/return` value."
   [comp ret]
   (assert (reacl/returned? ret))
+  ;; Note: there is a way to find 'real' components starting from the root of the test instance hierarchy... but do not do this for now.
+  (assert (some? (.-instance comp)) "The given component is not extracted from the test environment.")
   (let [instance (.-instance comp)
         class (reacl/component-class instance)]
     (when-not (reacl/reacl-class? class)

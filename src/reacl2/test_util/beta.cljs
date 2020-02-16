@@ -9,6 +9,11 @@
 
 (defrecord ^:private TestEnv [class has-app-state? renderer ret-atom])
 
+(defn env?
+  "Returns true if the given value is a test environment."
+  [v]
+  (instance? TestEnv v))
+
 (reacl/defclass ^:private runner-class this [env class args ret-atom]
   render (if (:has-app-state? env)
            ;; TODO: (Merge app-state (first arg) into opts with next version)

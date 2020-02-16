@@ -42,7 +42,7 @@
             [clojure.string :as str]
             [clojure.set :as set]
             [reacl2.test-util.alpha :as alpha])
-  (:refer-clojure :exclude [type comp range first last nth or and contains? key]))
+  (:refer-clojure :exclude [type comp range first last nth or and contains? key not]))
 
 ;; Idea: an xpath is a concatenated sequence of selectors (>> sel1 sel2 ...) that can be
 ;; applied to a list of nodes, where each selector maps that list to a
@@ -62,6 +62,14 @@
   (node-type [this] "Return a type of this node; a string for dom nodes, a React class, or a keyword for other nodes.")
   (node-parent [this] "Return the parent node instance, if not the root node.")
   (node-children [this] "Return a sequence of nodes that are immediate children of this node."))
+
+(defn- node? [v]
+  (satisfies? XPathNode v))
+
+(defn- class-type? [v]
+  ;; (reacl/reacl-class? v) seemed to work, but doesn't anyore? (probably it's the React class)
+  (clojure.core/and (clojure.core/not (string? v))
+                    (clojure.core/not (keyword? v))))
 
 (declare ^:private react-test-instance)
 
@@ -130,7 +138,7 @@
 (defn- node-instance [node]
   ;; corresponds to 'this' inside a class.
   (when (clojure.core/and (instance? ReactTestInstance node)
-                          (not (string? (node-type node))) ;; is class?
+                          (clojure.core/not (string? (node-type node))) ;; is class?
                           )
     (.-instance (node-value node))))
 
@@ -226,7 +234,7 @@
 
 (defn- map-nodes-to-property [nodes property]
   (->> nodes
-       (filter (fn [n] (not (string? (node-type n))))) ;; only components.
+       (filter (fn [n] (clojure.core/not (string? (node-type n))))) ;; only components.
        (map-prop property)))
 
 (defrecord ^:private AppState []
@@ -252,7 +260,7 @@
   XPathSelector
   (-map-nodes [this nodes]
     (-> nodes
-        (filter #(clojure.core/or (string? (node-type %)) (reacl/reacl-class? (node-type %))))
+        (filter #(clojure.core/or (string? (node-type %)) (class-type? (node-type %))))
         (map-prop k))))
 
 (defrecord ^:private Root []
@@ -279,11 +287,11 @@
     ;; Note: multiple nodes may have the same parent; removing duplicates:
     (distinct (filter some? (map node-parent nodes)))))
 
-(defrecord ^:private Or [sel1 sel2]
+(defrecord ^:private Or [sels]
   XPathSelector
   (-map-nodes [this nodes]
-    (distinct (concat (-map-nodes sel1 nodes)
-                      (-map-nodes sel2 nodes)))))
+    (distinct (mapcat #(-map-nodes % nodes)
+                      sels))))
 
 (defn ^:no-doc concat-commons [l1 l2]
   (let [s1 (set l1)
@@ -296,6 +304,46 @@
   (-map-nodes [this nodes]
     (concat-commons (-map-nodes sel1 nodes)
                     (-map-nodes sel2 nodes))))
+
+(defrecord ^:private AnyTagType []
+  XPathSelector
+  (-map-nodes [this nodes]
+    (filter #(string? (node-type %))
+            nodes)))
+
+(defrecord ^:private AnyClassType []
+  XPathSelector
+  (-map-nodes [this nodes]
+    (filter #(class-type? (node-type %))
+            nodes)))
+
+(defrecord ^:private FirstWhere [sel]
+  XPathSelector
+  (-map-nodes [this nodes]
+    (loop [nodes nodes
+           result nil]
+      (assert (every? node? nodes) (remove node? nodes))
+      (if (empty? nodes)
+        result
+        (let [{ok false more true} (group-by #(empty? (-map-nodes sel (list %)))
+                                             nodes)]
+          (assert (every? node? ok) (remove node? ok))
+          (assert (every? node? more) (remove node? more))
+          (recur (-map-nodes (Children.) more)
+                 (concat result ok)))))))
+
+(defrecord ^:private CountIs [n]
+  XPathSelector
+  (-map-nodes [this nodes]
+    (if (= (clojure.core/count nodes) n)
+      nodes
+      nil)))
+
+(defrecord ^:private Not [sel]
+  XPathSelector
+  (-map-nodes [this nodes]
+    (filter #(empty? (-map-nodes sel (list %)))
+            nodes)))
 
 ;; external api
 
@@ -338,15 +386,14 @@
 (def ^{:doc "A selector that drops everything, making a selection empty."} void (Void.))
 
 (defn or
-  "Selects all nodes that any of the given selectors selects."
+  "Selects the nodes that any of the given selectors selects."
   [& selectors]
   (if (empty? selectors)
     void ;; (or) === false
-    (reduce #(Or. %1 %2)
-            selectors)))
+    (Or. selectors)))
 
 (defn and
-  "Selects all nodes that all of the given selectors selects."
+  "Selects the nodes that all of the given selectors selects."
   [& selectors]
   (if (empty? selectors)
     self ;; (and) == true
@@ -363,6 +410,27 @@
 (def ^{:doc "Selects only those nodes that are an instance of the given Reacl `c`."
        :arglists '([c])}
   class type)
+
+(def ^{:doc "Selects only those nodes that are a virtual dom element of any tag type."}
+  tag? (AnyTagType.))
+
+(def ^{:doc "Selects only those nodes that are a virtual component of any class type."}
+  class? (AnyClassType.))
+
+(defn not
+  "Selects those nodes that are not selected by the given selectors."
+  [sel]
+  (Not. sel))
+
+(defn first-where
+  "Selects those nodes that are selected by the given selector, and for those that are not, the children are tried recursively."
+  [sel]
+  (FirstWhere. sel))
+
+(defn count=
+  "Keeps the current selection, if it contains the given number of nodes."
+  [n]
+  (CountIs. n))
 
 (defn- resolve-attr-name [n]
   (clojure.core/or (clojure.core/and (string? n) n)
@@ -474,6 +542,10 @@
 
 (defn is= "Keeps the current node only if it is equal to `v`." [v]
   (is? = v))
+
+(defn text= "Selects the nodes where the text content is equal to the given string."
+  [s]
+  (where (comp text (is= s))))
 
 (defn id= "Keeps the current node only if it has an attribute `id` equaling `v`." [v]
   (where (comp (attr :id) (is= v))))

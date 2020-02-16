@@ -64,7 +64,23 @@
              1))
       (is (= (xpath/select-all comp (xpath/comp xpath/children xpath/all "span" (xpath/where xpath/first)))
              (xpath/select-all comp (xpath/comp xpath/children xpath/all "span" xpath/first))))
-      )))
+
+      (is (= (count (xpath/select-all comp (xpath/first-where xpath/tag?))) ;; the div
+             1))
+      (is (= (count (xpath/select-all comp (xpath/comp xpath/all xpath/tag?)))
+             5))
+      (is (= (count (xpath/select-all comp xpath/class?))
+             1))
+      ))
+  (let [c (reacl/class "tt" this [sub]
+                       render sub)
+        clazz (reacl/class "test" this state []
+                           render (dom/div (dom/span)
+                                           (c (dom/span))
+                                           (c (c (dom/span)))))
+        comp (tu/mount clazz :initial)]
+    (is (= (count (xpath/select-all comp (xpath/>> / / (xpath/first-where xpath/tag?)))) ;; the spans
+           3))))
 
 (deftest range-plus-test
   (is (= (xpath/range-plus 5 0 0)

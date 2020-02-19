@@ -1187,3 +1187,19 @@
     ;; FIXME: this should be equal; probably same as issue #42
     (is (not= {:a true :b true}
               (test-util/extract-app-state cc)))))
+
+(deftest stable-refs-test
+  ;; see issue #44
+  (let [last-ref (atom nil)
+        c (reacl/class "test" this state []
+                       refs [r]
+                       handle-message
+                       (fn [msg]
+                         (reacl/return :app-state msg))
+                       render (do (reset! last-ref r)
+                                  (dom/div)))
+        cc (test-util/instantiate&mount c :foo)]
+    (let [r1 @last-ref]
+      (test-util/send-message! cc :bar)
+      (is (= r1
+             @last-ref)))))

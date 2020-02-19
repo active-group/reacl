@@ -51,8 +51,7 @@ An older API consists of the functions [[opt]], [[opt?]], [[no-reaction]].
 
    For internal use."
   [state]
-  (when (some? state)
-    (aget state "reacl_local_state")))
+  (aget state "reacl_local_state"))
 
 (defn ^:no-doc extract-local-state
   "Extract local state from a Reacl component.
@@ -101,19 +100,20 @@ An older API consists of the functions [[opt]], [[opt?]], [[no-reaction]].
   [this]
   (props-extract-args (.-props this)))
 
-(defn- props-extract-refs
-  "Get the refs for a component from its props.
+(defn- state-extract-refs
+  "Get the refs for a component from its state.
 
    For internal use."
-  [props]
-  (aget props "reacl_refs"))
+  [state]
+  (aget state "reacl_refs"))
 
 (defn- extract-refs
   "Get the refs for a component.
 
    For internal use."
   [this]
-  (props-extract-refs (.-props this)))
+  ;; Note: could be special 'instance member'; will not be changed during livetime of a component.
+  (state-extract-refs (.-state this)))
 
 (defn- props-extract-locals
   "Get the local bindings for a component.
@@ -285,8 +285,9 @@ An older API consists of the functions [[opt]], [[opt?]], [[no-reaction]].
   "Make a React state containing Reacl local variables and local state.
 
    For internal use."
-  [this local-state]
-  #js {:reacl_local_state local-state})
+  [this local-state refs]
+  #js {:reacl_local_state local-state
+       :reacl_refs refs})
 
 (defn ^:no-doc default-should-component-update?
   "Implements [[should-component-update?]] for React.
@@ -745,7 +746,7 @@ An older API consists of the functions [[opt]], [[opt?]], [[no-reaction]].
   - `app-state` is the application state
   - `args` is a seq of class arguments"}
   instantiate-embedded-internal
-  (fn [clazz has-app-state? make-refs compute-locals rst]
+  (fn [clazz has-app-state? compute-locals rst]
     (let [[{opts :map} app-state args] (extract-opt+app-state has-app-state? rst)
           rclazz (react-class clazz)]
       (when (and has-app-state?
@@ -760,7 +761,6 @@ An older API consists of the functions [[opt]], [[opt?]], [[no-reaction]].
                                 :ref (:ref opts)
                                 :reacl_locals (when compute-locals (compute-locals app-state args))
                                 :reacl_args args
-                                :reacl_refs (make-refs clazz)
                                 :reacl_class clazz
                                 :reacl_reaction (or (:reaction opts) no-reaction)
                                 :reacl_parent (:parent opts)
@@ -1365,27 +1365,27 @@ component (like the result of an Ajax request).
     (assert (optional-ifn? should-component-update?))
     
     ;; Note that it's args is not & args down there
-    (let [;; with locals, but without local-state
+    (let [ ;; with locals, but without local-state
           std
           (fn [f]
             (and f
                  (fn [& react-args]
                    (this-as this
-                     (apply f this (extract-app-state this) (extract-local-state this)
-                            (extract-locals this) (extract-args this) (extract-refs this)
-                            react-args)))))
+                            (apply f this (extract-app-state this) (extract-local-state this)
+                                   (extract-locals this) (extract-args this) (extract-refs this)
+                                   react-args)))))
 
           std+state
           (fn [f method-name]
             (and f
                  (fn [& react-args]
                    (this-as this
-                     (opt-handle-returned! this (apply f
-                                                       this
-                                                       (extract-app-state this) (extract-local-state this)
-                                                       (extract-locals this) (extract-args this) (extract-refs this)
-                                                       react-args)
-                                           method-name)))))
+                            (opt-handle-returned! this (apply f
+                                                              this
+                                                              (extract-app-state this) (extract-local-state this)
+                                                              (extract-locals this) (extract-args this) (extract-refs this)
+                                                              react-args)
+                                                  method-name)))))
 
           ;; and one arg with next/prev-state
           with-state-and-args
@@ -1393,11 +1393,11 @@ component (like the result of an Ajax request).
             (and f
                  (fn [other-props other-state]
                    (this-as this
-                     (apply f this
-                            (extract-app-state this) (extract-local-state this) (extract-locals this) (extract-args this) (extract-refs this)
-                            (props-extract-app-state other-props)
-                            (state-extract-local-state other-state)
-                            (props-extract-args other-props))))))
+                            (apply f this
+                                   (extract-app-state this) (extract-local-state this) (extract-locals this) (extract-args this) (extract-refs this)
+                                   (props-extract-app-state other-props)
+                                   (state-extract-local-state other-state)
+                                   (props-extract-args other-props))))))
 
           make-refs (fn [] (new-refs num-refs))
 
@@ -1408,13 +1408,16 @@ component (like the result of an Ajax request).
             display-name
 
             "getInitialState"
-            (when initial-state
-              (fn []
-                (this-as this
-                         (let [app-state (extract-app-state this)
-                               locals (extract-locals this)
-                               args (extract-args this)]
-                           (make-local-state this (initial-state this app-state locals args))))))
+            (fn []
+              (this-as this
+                       (let [app-state (extract-app-state this)
+                             locals (extract-locals this)
+                             args (extract-args this)]
+                         (make-local-state this
+                                           (if initial-state
+                                             (initial-state this app-state locals args)
+                                             nil)
+                                           (make-refs)))))
 
             "mixins"
             (when mixins
@@ -1531,7 +1534,7 @@ component (like the result of an Ajax request).
             (instantiate-embedded-internal-v1 this app-state reaction compute-locals (concat [a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12 a13 a14 a15 a16 a17] rest)))
           IReaclClass
           (-instantiate-embedded-internal [this rst]
-            (instantiate-embedded-internal this has-app-state? make-refs compute-locals rst))
+            (instantiate-embedded-internal this has-app-state? compute-locals rst))
           (-has-app-state? [this] has-app-state?)
           (-validate! [this app-state args]
             (when validate (apply validate app-state args)))
@@ -1584,7 +1587,7 @@ component (like the result of an Ajax request).
             (-instantiate-embedded-internal this (concat [a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12 a13 a14 a15 a16 a17 a18 a19 a20] rest)))
           IReaclClass
           (-instantiate-embedded-internal [this args]
-            (instantiate-embedded-internal this has-app-state? make-refs compute-locals args))
+            (instantiate-embedded-internal this has-app-state? compute-locals args))
           (-has-app-state? [this] has-app-state?)
           (-validate! [this app-state args]
             (when validate (apply validate app-state args)))

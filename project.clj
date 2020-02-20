@@ -1,4 +1,4 @@
-(defproject reacl "2.2.3-SNAPSHOT"
+(defproject reacl "2.2.3"
   :description "ClojureScript wrappers for programming with React"
   :url "http://github.com/active-group/reacl"
   :license {:name "Eclipse Public License"

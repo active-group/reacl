@@ -1177,7 +1177,7 @@ component (like the result of an Ajax request).
                  queued-messages
                  'handle-message))))))
 
-(defn ^:no-doc handle-returned!
+(defn- handle-returned!
   "Handle all effects described and caused by a [[Returned]] object. This is the entry point into a Reacl update cycle.
 
   Assumes the actions in `ret` are for comp."
@@ -1207,6 +1207,9 @@ component (like the result of an Ajax request).
 
 (def ^{:dynamic true :private true} *send-message-forbidden* false)
 
+(defn ^:no-doc toplevel-handle-returned! [comp ret from]
+  (react-dom/unstable_batchedUpdates #(handle-returned! comp ret from)))
+
 (defn send-message!
   "Send a message to a Reacl component.
 
@@ -1220,7 +1223,7 @@ component (like the result of an Ajax request).
   (binding [*send-message-forbidden* true]
     (let [comp (resolve-component comp)
           ^Returned ret (handle-message comp msg)]
-      (react-dom/unstable_batchedUpdates #(handle-returned! comp ret 'handle-message))
+      (toplevel-handle-returned! comp ret 'handle-message)
       ret)))
 
 (defn send-message-allowed?

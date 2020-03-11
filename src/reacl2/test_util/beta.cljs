@@ -295,7 +295,8 @@
                 (reacl/has-app-state? class)))
     (with-collect-return! (find-env comp)
       (fn []
-        (reacl/handle-returned! instance ret 'injected)))))
+        ;; TODO: add a test that shows that 'unstable_batchedUpdates' actually makes a difference.
+        (reacl/toplevel-handle-returned! instance ret 'injected)))))
 
 (defn inject-change!
   "This injects or simulates a `(return :app-state state)` from a

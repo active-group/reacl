@@ -276,7 +276,34 @@
     (throw (js/Error. "Something must be mounted to be unmounted. Call mount! first.")))
   (render-return env nil))
 
-;; TODO: add push!, push!!, mount!!, update!! and unmount!!
+(def ^:dynamic *max-update-loops* 100)
+
+(defn push!
+  "If the given 'return' value contains an app-state change, then
+  update the given test environment, merging in another 'return' value
+  resulting from the update - 'pushing' the update cycle forward."
+  [env ret]
+  (let [st (reacl/returned-app-state ret)]
+    (if (not (reacl/keep-state? st))
+      (reacl/merge-returned ret (update! env st))
+      ret)))
+
+(defn push!!
+  "If the given 'return' value contains an app-state change, then
+  update the given test environment, merging in another 'return' value
+  resulting from the update, and repeat until the app-state does not
+  change anymore. Stops with an exception when [[*max-update-loops*]]
+  are exceeded."
+  [env ret]
+  (loop [r ret
+         state reacl/keep-state
+         n 1]
+    (when (> n *max-update-loops*)
+      (throw (ex-info "Component keeps on updating. Check the livecylcle methods, which should eventually reach a fixed state." {:intermediate-state state})))
+    (let [st (reacl/returned-app-state r)]
+      (if (not= state st)
+        (recur (push! env r) st (inc n))
+        r))))
 
 (defn inject-return!
   "This injects or simulates a [[reacl/return]] from a method of the
@@ -329,3 +356,43 @@
     ;; these should be equivalent:
     #_(reacl/set-local-state! (get-reacl-instance tc) state)
     (inject-return! (get-component* c) (reacl/return :local-state state))))
+
+(defn mount!!
+  "Like [[mount!]], but followed by a [[push!!]]."
+  [env & args]
+  (push!! env (apply mount! env args)))
+
+(defn update!!
+  "Like [[update!!]], but followed by a [[push!!]]."
+  [c & args]
+  (push!! (get-env c) (apply update! c args)))
+
+(defn unmount!!
+  "Like [[unmount!]], but followed by a [[push!!]]."
+  [env & args]
+  (push!! env (apply unmount! env args)))
+
+(defn invoke-callback!!
+  "Like [[invoke-callback!]], but followed by a [[push!!]]."
+  [elem callback event]
+  (push!! (find-env elem) (invoke-callback! elem callback event)))
+
+(defn send-message!!
+  "Like [[send-message!]], but followed by a [[push!!]]."
+  [c msg]
+  (push!! (find-env c) (send-message! c msg)))
+
+(defn inject-return!!
+  "Like [[inject-return!]], but followed by a [[push!!]]."
+  [comp ret]
+  (push!! (find-env comp) (inject-return! comp ret)))
+
+(defn inject-action!!
+  "Like [[inject-action!]], but followed by a [[push!!]]."
+  [comp action]
+  (inject-return!! comp (reacl/return :action action)))
+
+(defn inject-change!!
+  "Like [[inject-change!]], but followed by a [[push!!]]."
+  [comp state]
+  (inject-return!! comp (reacl/return :app-state state)))

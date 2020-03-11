@@ -153,8 +153,8 @@
 
     (let [inner (xpath/select-one c (xpath/>> ** c2))
           act ::act]
-      (is (tu/inject-return! inner (reacl/return :app-state 42 :action act))
-          (reacl/return :app-state 42 :action act)))))
+      (is (= (tu/inject-return! inner (reacl/return :app-state 42 :action act))
+             (reacl/return :app-state 43 :action act))))))
 
 (def prov-x 11)
 

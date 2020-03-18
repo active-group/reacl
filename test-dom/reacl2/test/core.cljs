@@ -8,7 +8,6 @@
             [reacl.core :as reacl1 :include-macros true]
             [reacl.dom :as dom1 :include-macros true]
             [active.clojure.lens :as lens]
-            [react-test-renderer :as react-test-renderer]
             ["react-dom/test-utils" :as react-tu]
             [cljs.test :as t])
   (:require-macros [cljs.test
@@ -64,7 +63,7 @@
 
 (deftest to-do-message
   (let [e (reacl/instantiate-toplevel to-do-item (Todo. 42 "foo" true))
-        renderer (react-test-renderer/create e)]
+        renderer (test-util/create-renderer e)]
     (let [t (.-root renderer)]
       (let [input (test-util/descend-into-element t [:div :input])]
         (.onChange (.-props input) #js {:checked false})))

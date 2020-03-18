@@ -27,8 +27,8 @@ An older API consists of the functions [[opt]], [[opt?]], [[no-reaction]].
             [reacl2.trace.core :as trace])
   (:refer-clojure :exclude [refer]))
 
-(defn- warning [& args]
-  (if (and js/console js/console.warn)
+(defn ^:no-doc warning [& args]
+  (if js/console.-warn
     (apply js/console.warn args)
     (apply println args)))
 

@@ -369,8 +369,8 @@
 
 (defn unmount!!
   "Like [[unmount!]], but followed by a [[push!!]]."
-  [env & args]
-  (push!! env (apply unmount! env args)))
+  [env]
+  (push!! env (apply unmount! env)))
 
 (defn invoke-callback!!
   "Like [[invoke-callback!]], but followed by a [[push!!]]."

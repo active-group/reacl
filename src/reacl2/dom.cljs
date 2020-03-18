@@ -127,7 +127,7 @@
        :radioGroup "radioGroup"
        :rel "rel"
        :referrer-policy "referrerPolicy"
-       :readOnly  "rel"
+       :readOnly "readOnly"
        :required "required"
        :results "results"
        :reversed "reversed"

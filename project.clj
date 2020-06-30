@@ -7,9 +7,9 @@
   :jvm-opts ^:replace ["-Xmx512m" "-server"]
 
   :dependencies [[org.clojure/clojure "1.9.0" :scope "provided"]
-                 [org.clojure/clojurescript "1.10.238" :scope "provided"]
                  [cljsjs/react "16.4.1-0"]
                  [cljsjs/react-dom "16.4.1-0" :exclusions [cljsjs/react]]
+                 [org.clojure/clojurescript "1.10.439" :scope "provided"]
                  [cljsjs/create-react-class "15.6.3-0" :exclusions [cljsjs/react]]
                  [cljsjs/prop-types "15.6.2-0" :exclusions [cljsjs/react]]
                  [cljsjs/react-test-renderer-shallow "16.4.1-1" :exclusions [cljsjs/react]]

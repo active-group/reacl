@@ -348,7 +348,11 @@
   [comp msg]
   (let [comp (reacl/resolve-component comp)
         ret (reacl/handle-message comp msg)
-        [app-state local-state _actions-for-parent _messages] (reacl/reduce-returned-actions comp (extract-app-state comp) ret)]
+        
+        ret (reacl/reduce-returned-actions comp (extract-app-state comp) ret)
+        app-state (reacl/returned-app-state ret)
+        local-state (reacl/returned-local-state ret)]
+    
     [(if (not (reacl/keep-state? app-state)) app-state (reacl/extract-app-state comp))
      (if (not (reacl/keep-state? local-state)) local-state (reacl/extract-local-state comp))]))
 

@@ -965,7 +965,8 @@ component (like the result of an Ajax request).
             (return :action action))))))
 
 (defn ^:no-doc reduce-returned-actions
-  "Returns app-state, local-state for this, actions reduced here, to be sent to parent."
+  "Reduce a return value relative to the given component (and its
+  app-state), into a return value relative to it's parent component."
   [comp app-state0 ^Returned ret]
   (let [reduce-action (action-reducer comp)]
     (loop [actions (:actions ret)
@@ -974,8 +975,10 @@ component (like the result of an Ajax request).
            reduced-actions (transient [])
            messages (or (:messages ret) #queue [])] ; no transients for queues
       (if (empty? actions)
-        ;; FIXME: why not Returned?
-        [app-state local-state (persistent! reduced-actions) messages]
+        (Returned. app-state
+                   local-state
+                   (persistent! reduced-actions)
+                   messages)
         (let [action (first actions)
               action-ret (action-effect reduce-action
                                         (right-state app-state0
@@ -1105,7 +1108,12 @@ component (like the result of an Ajax request).
 
   Returns `UpdateInfo` value."
   [comp ^Returned ret pending-messages app-state-map local-state-map]
-  (let [[app-state local-state actions-for-parent queued-messages] (reduce-returned-actions comp (get-app-state comp app-state-map) ret)
+  (let [p-ret (reduce-returned-actions comp (get-app-state comp app-state-map) ret)
+        app-state (returned-app-state p-ret)
+        local-state (returned-local-state p-ret)
+        actions-for-parent (returned-actions p-ret)
+        queued-messages (returned-messages p-ret)
+        
         app-state-map (update-state-map app-state-map comp app-state)
         local-state-map (update-state-map local-state-map comp local-state)]
 

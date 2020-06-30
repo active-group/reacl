@@ -1114,8 +1114,9 @@ component (like the result of an Ajax request).
         actions-for-parent (returned-actions p-ret)
         
         queued-messages (reduce conj (:queued-messages ui) (returned-messages p-ret))
-        app-state-map (update-state-map (:app-state-map ui) comp app-state)
-        local-state-map (update-state-map (:local-state-map ui) comp local-state)]
+        ui (-> ui
+               (update :app-state-map update-state-map comp app-state)
+               (update :local-state-map update-state-map comp local-state))]
 
     (if-let [parent (component-parent comp)]
        (let [pending-messages
@@ -1124,13 +1125,13 @@ component (like the result of an Ajax request).
                (cons (reaction->pending-message comp app-state reaction) pending-messages)
                pending-messages)
              [pending-messages returned] (process-reactions parent
-                                                            (get-app-state parent app-state-map)
-                                                            (get-local-state parent local-state-map)
+                                                            (get-app-state parent (:app-state-map ui))
+                                                            (get-local-state parent (:local-state-map ui))
                                                             actions-for-parent pending-messages queued-messages)]
 
-         (recur (assoc ui
-                       :app-state-map (update-state-map app-state-map parent (:app-state returned))
-                       :local-state-map (update-state-map local-state-map parent (:local-state returned)))
+         (recur (-> ui
+                    (update :app-state-map update-state-map parent (:app-state returned))
+                    (update :local-state-map update-state-map parent (:local-state returned)))
                 parent returned pending-messages))
        (do
          ;; little tricks here to remove this when asserts are elided:
@@ -1145,9 +1146,7 @@ component (like the result of an Ajax request).
          (assert (or (nil? (:toplevel-component ui)) (= comp (:toplevel-component ui))))
          (assoc ui
                 :toplevel-component comp
-                :toplevel-app-state (right-state (get app-state-map comp (:toplevel-app-state ui)) app-state)
-                :app-state-map app-state-map
-                :local-state-map local-state-map
+                :toplevel-app-state (right-state (get (:app-state-map ui) comp (:toplevel-app-state ui)) app-state)
                 :queued-messages queued-messages)))))
 
 (defn- handle-returned

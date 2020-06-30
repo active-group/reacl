@@ -1152,10 +1152,10 @@ component (like the result of an Ajax request).
   "Execute a complete supercycle.
 
   Returns `UpdateInfo` object."
-  [comp ^Returned ret from]
+  [ui comp ^Returned ret from]
   (loop [comp comp
          ^Returned ret ret
-         ui (UpdateInfo. nil keep-state {} {} #queue [])
+         ui ui
          from from]
     (trace/trace-returned! comp ret from)
     ;; process this Returned, resulting in updated states, and maybe more messages.
@@ -1188,7 +1188,7 @@ component (like the result of an Ajax request).
 
   Assumes the actions in `ret` are for comp."
   [comp ^Returned ret from]
-  (let [ui (handle-returned comp ret from)
+  (let [ui (handle-returned (UpdateInfo. nil keep-state {} {} #queue []) comp ret from)
         app-state (:toplevel-app-state ui)]
     ;; after handle-returned, all messages must have been processed:
     (assert (empty? (:queued-messages ui)) "Internal invariant violation.")

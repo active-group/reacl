@@ -1469,7 +1469,7 @@ component (like the result of an Ajax request).
             "shouldComponentUpdate"
             (with-state-and-args should-component-update?)
 
-            "componentWillUpdate"
+            "UNSAFE_componentWillUpdate"
             (with-state-and-args component-will-update)
 
             "componentDidUpdate"

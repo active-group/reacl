@@ -1112,8 +1112,8 @@ component (like the result of an Ajax request).
         app-state (returned-app-state p-ret)
         local-state (returned-local-state p-ret)
         actions-for-parent (returned-actions p-ret)
-        queued-messages (reduce conj (:queued-messages ui) (returned-messages p-ret))
         
+        queued-messages (reduce conj (:queued-messages ui) (returned-messages p-ret))
         app-state-map (update-state-map (:app-state-map ui) comp app-state)
         local-state-map (update-state-map (:local-state-map ui) comp local-state)]
 
@@ -1143,10 +1143,12 @@ component (like the result of an Ajax request).
                          (warning "Action not handled:" a "- Add an action reducer to your call to render-component.")))
                      true))
          (assert (or (nil? (:toplevel-component ui)) (= comp (:toplevel-component ui))))
-         (UpdateInfo. comp
-                      (right-state (get app-state-map comp (:toplevel-app-state ui)) app-state)
-                      app-state-map local-state-map
-                      queued-messages)))))
+         (assoc ui
+                :toplevel-component comp
+                :toplevel-app-state (right-state (get app-state-map comp (:toplevel-app-state ui)) app-state)
+                :app-state-map app-state-map
+                :local-state-map local-state-map
+                :queued-messages queued-messages)))))
 
 (defn- handle-returned
   "Execute a complete supercycle.

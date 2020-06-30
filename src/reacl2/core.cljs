@@ -1107,15 +1107,15 @@ component (like the result of an Ajax request).
   Assumes the actions in `ret` are for comp.
 
   Returns `UpdateInfo` value."
-  [comp ^Returned ret pending-messages app-state-map local-state-map]
-  (let [p-ret (reduce-returned-actions comp (get-app-state comp app-state-map) ret)
+  [ui comp ^Returned ret pending-messages]
+  (let [p-ret (reduce-returned-actions comp (get-app-state comp (:app-state-map ui)) ret)
         app-state (returned-app-state p-ret)
         local-state (returned-local-state p-ret)
         actions-for-parent (returned-actions p-ret)
-        queued-messages (returned-messages p-ret)
+        queued-messages (reduce conj (:queued-messages ui) (returned-messages p-ret))
         
-        app-state-map (update-state-map app-state-map comp app-state)
-        local-state-map (update-state-map local-state-map comp local-state)]
+        app-state-map (update-state-map (:app-state-map ui) comp app-state)
+        local-state-map (update-state-map (:local-state-map ui) comp local-state)]
 
     (if-let [parent (component-parent comp)]
        (let [pending-messages
@@ -1128,9 +1128,10 @@ component (like the result of an Ajax request).
                                                             (get-local-state parent local-state-map)
                                                             actions-for-parent pending-messages queued-messages)]
 
-         (recur parent returned pending-messages
-                (update-state-map app-state-map parent (:app-state returned))
-                (update-state-map local-state-map parent (:local-state returned))))
+         (recur (assoc ui
+                       :app-state-map (update-state-map app-state-map parent (:app-state returned))
+                       :local-state-map (update-state-map local-state-map parent (:local-state returned)))
+                parent returned pending-messages))
        (do
          ;; little tricks here to remove this when asserts are elided:
          (assert (do (when-let [messages (not-empty pending-messages)]
@@ -1141,8 +1142,9 @@ component (like the result of an Ajax request).
                        (doseq [a actions]
                          (warning "Action not handled:" a "- Add an action reducer to your call to render-component.")))
                      true))
+         (assert (or (nil? (:toplevel-component ui)) (= comp (:toplevel-component ui))))
          (UpdateInfo. comp
-                      (right-state (get app-state-map comp keep-state) app-state)
+                      (right-state (get app-state-map comp (:toplevel-app-state ui)) app-state)
                       app-state-map local-state-map
                       queued-messages)))))
 
@@ -1159,10 +1161,10 @@ component (like the result of an Ajax request).
          from from]
     (trace/trace-returned! comp ret from)
     ;; process this Returned, resulting in updated states, and maybe more messages.
-    (let [ui (handle-returned-1 comp ret nil app-state-map local-state-map)
+    (let [ui (handle-returned-1 (UpdateInfo. nil keep-state app-state-map local-state-map queued-messages) comp ret nil)
           app-state-map (:app-state-map ui)
           local-state-map (:local-state-map ui)
-          queued-messages (reduce conj queued-messages (:queued-messages ui))]
+          queued-messages (:queued-messages ui)]
       (if (empty? queued-messages)
         ui
         ;; process the next message, resulting in a new 'Returned', then recur.

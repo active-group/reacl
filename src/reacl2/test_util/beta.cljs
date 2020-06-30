@@ -235,7 +235,8 @@
   (fn [c msg]
     (with-reacl-instance-return c
       (fn [inst]
-        (reacl/send-message! inst msg)))))
+        (react-tr/unstable_batchedUpdates
+         #(reacl/send-message! inst msg))))))
 
 (defn invoke-callback!
   "Invokes the function assiciated with the given `callback` of the
@@ -249,8 +250,9 @@
   [elem callback event]
   (with-collect-return! (find-env elem)
     (fn []
-      (let [n (aget dom/reacl->react-attribute-names (name callback))]
-        ((aget (.-props elem) n) event)))))
+      (react-tr/unstable_batchedUpdates
+       #(let [n (aget dom/reacl->react-attribute-names (name callback))]
+          ((aget (.-props elem) n) event))))))
 
 ;; click-element? change-element? some very common event objects?
 
@@ -322,8 +324,8 @@
                 (reacl/has-app-state? class)))
     (with-collect-return! (find-env comp)
       (fn []
-        ;; TODO: add a test that shows that 'unstable_batchedUpdates' actually makes a difference.
-        (reacl/toplevel-handle-returned! instance ret 'injected)))))
+        (react-tr/unstable_batchedUpdates
+         #(reacl/toplevel-handle-returned! instance ret 'injected))))))
 
 (defn inject-change!
   "This injects or simulates a `(return :app-state state)` from a

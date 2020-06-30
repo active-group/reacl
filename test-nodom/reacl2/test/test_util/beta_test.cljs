@@ -165,3 +165,78 @@
   (tu/provided [reacl/send-message! (constantly 42)]
                ;; Note: clojurescript will still complain about the arity, because that is in the metadata of the var (I guess) - but that's ok.
                (is (= (reacl2.core/send-message! :a :b) 42))))
+
+(deftest test-renderer-state-consistency-test
+  (testing "changing app and local state must be consistent (via send-message)"
+    (let [c2 (reacl/class "test2" this state []
+                          local-state [m state]
+
+                          handle-message
+                          (fn [msg]
+                            (reacl/return :app-state 42
+                                          :local-state 42))
+
+                          render
+                          (do (assert (= m state) (str "(" (pr-str 'not= m state) ")"))
+                              (dom/div)))
+        
+          c (tu/mount (reacl/class "test" this _ []
+                                   local-state [v 0]
+
+                                   render (c2 (reacl/bind-local this)))
+                      nil)]
+
+      (let [inner (xpath/select-one c (xpath/>> ** c2))]
+        (is (= (tu/send-message! inner ::act)
+               (reacl/return))))))
+
+  (testing "changing app and local state must be consistent (via handle-returned)"
+    (let [c3 (reacl/class "test3" this []
+                          render (dom/div))
+          c2 (reacl/class "test2" this state []
+                          local-state [m state]
+
+                          handle-message
+                          (fn [msg]
+                            (reacl/return :app-state 42
+                                          :local-state 42))
+
+                          render
+                          (do (assert (= m state) (str "(" (pr-str 'not= m state) ")"))
+                              (-> (c3)
+                                  (reacl/reduce-action (fn [_ a]
+                                                         (reacl/return :message [this a]))))))
+        
+          c (tu/mount (reacl/class "test" this _ []
+                                   local-state [v 0]
+
+                                   render (c2 (reacl/bind-local this)))
+                      nil)]
+
+      (let [inner (xpath/select-one c (xpath/>> ** c3))]
+        (is (= (tu/inject-action! inner ::act)
+               (reacl/return))))))
+
+  (testing "changing app and local state must be consistent (via invoke-callback)"
+    (let [c2 (reacl/class "test2" this state []
+                          local-state [m state]
+
+                          handle-message
+                          (fn [msg]
+                            (reacl/return :app-state 42
+                                          :local-state 42))
+
+                          render
+                          (do (assert (= m state) (str "(" (pr-str 'not= m state) ")"))
+                              (dom/button {:onclick (fn [_]
+                                                      (reacl/send-message! this :msg))})))
+        
+          c (tu/mount (reacl/class "test" this _ []
+                                   local-state [v 0]
+
+                                   render (c2 (reacl/bind-local this)))
+                      nil)]
+
+      (let [inner (xpath/select-one c (xpath/>> ** "button"))]
+        (is (= (tu/invoke-callback! inner :onclick #js {})
+               (reacl/return)))))))

@@ -1,7 +1,7 @@
 (ns reacl2.test-util.beta
   (:require [reacl2.core :as reacl :include-macros true]
             [reacl2.dom :as dom]
-            [react-test-renderer :as react-test-renderer]))
+            ["react-test-renderer" :as react-tr]))
 
 ;; TODO: xpath/select adaptor in the test utility object (when mounted)?
 
@@ -77,7 +77,7 @@
 
 (defn- test* [class has-app-state? options]
   (TestEnv. class has-app-state?
-            (react-test-renderer/create nil (clj->js (into {} (map (fn [[k v]]
+            (react-tr/create nil (clj->js (into {} (map (fn [[k v]]
                                                                      [(if (= k :create-node-mock)
                                                                         :createNodeMock
                                                                         k) v])

@@ -4,7 +4,7 @@
             [reacl2.dom :as dom :include-macros true]
             ["react-dom/server" :as react-dom-server]
             ["react-dom/test-utils" :as react-tu]
-            [react-test-renderer :as react-test-renderer]
+            ["react-test-renderer" :as react-tr]
             ["react-test-renderer/shallow" :as react-tu-shallow]))
 
 (defn send-message!
@@ -162,7 +162,7 @@
                       (vec (list* (keyword ttype) props ch))))
                   (recur (.find element (fn [ti]
                                           (string? (.-type ti)))))))))]
-    (recurse (.-root (react-test-renderer/create element)))))
+    (recurse (.-root (react-tr/create element)))))
 
 (defn hiccup-matches?
   [pattern data]
@@ -240,7 +240,7 @@
 (defn create-renderer
   "Create a renderer for testing"
   [& [el]]
-  (react-test-renderer/create el))
+  (react-tr/create el))
 
 (defn render!
   "Render an element into a renderer."

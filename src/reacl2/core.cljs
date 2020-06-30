@@ -1155,13 +1155,11 @@ component (like the result of an Ajax request).
   [comp ^Returned ret from]
   (loop [comp comp
          ^Returned ret ret
-         app-state-map {}
-         local-state-map {}
-         queued-messages #queue []
+         ui (UpdateInfo. nil keep-state {} {} #queue [])
          from from]
     (trace/trace-returned! comp ret from)
     ;; process this Returned, resulting in updated states, and maybe more messages.
-    (let [ui (handle-returned-1 (UpdateInfo. nil keep-state app-state-map local-state-map queued-messages) comp ret nil)
+    (let [ui (handle-returned-1 ui comp ret nil)
           app-state-map (:app-state-map ui)
           local-state-map (:local-state-map ui)
           queued-messages (:queued-messages ui)]
@@ -1182,9 +1180,7 @@ component (like the result of an Ajax request).
                                              recompute-locals?
                                              msg)]
           (recur dest ret
-                 app-state-map
-                 local-state-map
-                 queued-messages
+                 (assoc ui :queued-messages queued-messages)
                  'handle-message))))))
 
 (defn- handle-returned!

@@ -1165,9 +1165,8 @@
                        render (dom/div (c1 (reacl/bind this) this)
                                        (c1 (reacl/bind this) this)))
         cc (test-util/instantiate&mount c 0)]
-    ;; FIXME: this should be equal - see issue #42
-    (is (not= 2
-              (test-util/extract-app-state cc)))))
+    (is (= 2
+           (test-util/extract-app-state cc)))))
 
 (deftest two-focused-changes-test
   ;; test if there can be two dependant changes via focus
@@ -1183,9 +1182,8 @@
                                        (c1 (-> (reacl/bind this)
                                                (reacl/focus :b)) this)))
         cc (test-util/instantiate&mount c {:a false :b false})]
-    ;; FIXME: this should be equal; probably same as issue #42
-    (is (not= {:a true :b true}
-              (test-util/extract-app-state cc)))))
+    (is (= {:a true :b true}
+           (test-util/extract-app-state cc)))))
 
 (deftest stable-refs-test
   ;; see issue #44

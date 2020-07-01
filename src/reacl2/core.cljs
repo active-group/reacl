@@ -644,6 +644,13 @@ An older API consists of the functions [[opt]], [[opt?]], [[no-reaction]].
   (let [[binding args] (extract-binding has-app-state? rst)]
     [binding (:app-state (:map binding)) args]))
 
+(defn- uber-render-data [props state]
+  (let [clazz (aget props "reacl_toplevel_class")
+        opts (aget props "reacl_toplevel_opts")
+        args (aget props "reacl_toplevel_args")
+        app-state (aget state "reacl_uber_app_state")]
+    [clazz opts app-state args]))
+
 (def ^:no-doc uber-class
   (let [cl
         (createReactClass
@@ -654,14 +661,22 @@ An older API consists of the functions [[opt]], [[opt?]], [[no-reaction]].
                                      #js {:reacl_init_id (aget props "reacl_init_id")
                                           :reacl_uber_app_state (aget props "reacl_initial_app_state")})))
 
+              :shouldComponentUpdate
+              (fn [nextProps nextState]
+                (this-as this
+                         ;; Note: the main purpose if this is to catch the empty update case done in handle-returned!
+                         (let [[clazz opts app-state args] (uber-render-data (.-props this) (.-state this))
+                               [n-clazz n-opts n-app-state n-args] (uber-render-data nextProps nextState)]
+                           (or (not= clazz n-clazz)
+                               (not= opts n-opts)
+                               ;; be conservate here, because the user cannot override this in case he want's to use mutable data:
+                               (not (identical? app-state n-app-state))
+                               (not (identical? args n-args))))))
+
               :render
               (fn []
                 (this-as this
-                  (let [props (.-props this)
-                        clazz (aget props "reacl_toplevel_class")
-                        opts (aget props "reacl_toplevel_opts")
-                        args (aget props "reacl_toplevel_args")
-                        app-state (aget (.-state this) "reacl_uber_app_state")]
+                  (let [[clazz opts app-state args] (uber-render-data (.-props this) (.-state this))]
                     (-instantiate-embedded-internal
                      clazz
                      (cons (Options. (cond-> (assoc opts :ref (aget this "reacl_toplevel_ref"))
@@ -1073,7 +1088,7 @@ component (like the result of an Ajax request).
                  (conj! remaining (first msgs))
                  app-state local-state actions queued-messages))))))
 
-(defrecord ^:private UpdateInfo [toplevel-component toplevel-app-state app-state-map local-state-map queued-messages])
+(defrecord ^:private UpdateInfo [toplevel-component toplevel-app-state app-state-map local-state-map queued-messages hyper-count])
 
 (defn- update-state-map
   [state-map comp state]
@@ -1184,22 +1199,61 @@ component (like the result of an Ajax request).
                  (assoc ui :queued-messages queued-messages)
                  'handle-message))))))
 
+;; A Note on how the update/interaction of React works in the usual case:
+;;   send-message ->
+;;     handle-returned! { setState(callback) }
+;;     re-render ->
+;;       callback()
+;; but the renderning will put multiple mount/unmount/update methods on a stack, which call into handle-returned.
+;; And between those calls, there will be no re-rendering, and thus no update of the app-states of lower components (because that's in props).
+;;   render
+;;   mount(A) -> handle-returned! { setState(callbackA) } ->
+;;   mount(B) -> handle-returned! { setState(callbackB) } ->
+;;   re-render
+;;     callbackA()
+;;     callbackB()
+;; So for both of these calls, we remember the changed app-states of all lower components in the app-state-map as 'virtual' app-states.
+;; Note that the callbacks are run in FIFO order, unfortunately.
+;; We call handle-returned! a supercycle, and the whole thing a hypercycle.
+
+;; Note: there may be multiple independant React trees active - if they interleave their actions, this might better be in a context variable:
+(def ^:private current-hypercycle-ui (atom nil)) ;; an UpdateInfo, if we are in a hypercycle.
+
+(def ^:private fresh-ui (UpdateInfo. nil keep-state {} {} #queue [] 0))
+
+(defn- hypercylce-callback []
+  ;; if this is the last callback of a hypercycle, then reset ui
+  (assert (some? @current-hypercycle-ui))
+  (when (zero? (:hyper-count (swap! current-hypercycle-ui update :hyper-count dec)))
+    (reset! current-hypercycle-ui nil)))
+
 (defn- handle-returned!
   "Handle all effects described and caused by a [[Returned]] object. This is the entry point into a Reacl update cycle.
 
   Assumes the actions in `ret` are for comp."
   [comp ^Returned ret from]
-  (let [ui (handle-returned (UpdateInfo. nil keep-state {} {} #queue []) comp ret from)
+  (let [ui (handle-returned (or @current-hypercycle-ui fresh-ui) comp ret from)
         app-state (:toplevel-app-state ui)]
     ;; after handle-returned, all messages must have been processed:
     (assert (empty? (:queued-messages ui)) "Internal invariant violation.")
     (trace/trace-commit! app-state (:local-state-map ui))
     (doseq [[comp local-state] (:local-state-map ui)]
       (set-local-state! comp local-state))
-    (when-not (keep-state? app-state)
-      (let [comp (:toplevel-component ui)
-            uber (resolve-uber comp)]
-        (.setState uber #js {:reacl_uber_app_state app-state})))))
+    (let [uber (when-let [comp (:toplevel-component ui)]
+                 (resolve-uber comp))
+          ;; Note: that we always want to call setState to get a callback, even if
+          ;; nothing changed (shouldComponentUpdate of uber-class catches that)
+          uber-state-js (if-not (keep-state? app-state)
+                          #js {:reacl_uber_app_state app-state}
+                          #js {})
+          ui (-> ui
+                 (assoc :local-state-map {}  ;; done above
+                        :toplevel-app-state keep-state  ;; done below
+                        :toplevel-component nil)
+                 ;; count the calls of handle-returned! so that the last callback can finish the hypercycle.
+                 (update :hyper-count inc))]
+      (reset! current-hypercycle-ui ui)
+      (.setState uber uber-state-js hypercylce-callback))))
 
 
 (defn ^:no-doc resolve-component

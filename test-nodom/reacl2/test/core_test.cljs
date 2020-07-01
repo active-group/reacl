@@ -180,7 +180,7 @@
       (is (reacl-test/element-has-type? t contacts-display))
       (is (reacl-test/element-has-type? (first (reacl-test/element-children (first (reacl-test/element-children t)))) :div)))))
 
-(deftest dom-f-perf-test
+#_(deftest dom-f-perf-test
   (let [mp {:style {:background-color "white"
                     :padding "0px 1px 2px 4px"}
             :onClick (fn [x] nil)

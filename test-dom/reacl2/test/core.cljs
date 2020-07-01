@@ -1148,7 +1148,7 @@
     (is (= 1
            (test-util/extract-app-state cc)))))
 
-(deftest two-changes-test
+(deftest two-changes-via-handle-message-test
   ;; test if there can be two dependant changes that eventually succeed both.
   (let [c1 (reacl/class "test1" this state [parent]
                         render (dom/div)

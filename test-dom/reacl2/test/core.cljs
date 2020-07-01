@@ -608,8 +608,8 @@
              42)))))
 
 
-(deftest livecylce-calls-test
-  ;; tests all arguments to the livecycle methods, and when they are called.
+(deftest lifecylce-calls-test
+  ;; tests all arguments to the lifecycle methods, and when they are called.
 
   (let [calls (atom {})
 

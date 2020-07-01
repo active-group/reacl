@@ -1495,7 +1495,6 @@ component (like the result of an Ajax request).
 
             ;; Note handle-message must always see the most recent
             ;; app-state, even if the component was not updated after
-            
             ;; a change to it.
             "__handleMessage" (when handle-message
                                 (fn [this app-state local-state recompute-locals? args refs msg]

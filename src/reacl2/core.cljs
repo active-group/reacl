@@ -1232,8 +1232,6 @@ component (like the result of an Ajax request).
       ;; indefinitely.
       (reset! current-hypercycle-ui nil))))
 
-(def ^:private max-supercycle-count (atom 0))
-
 (defn- handle-returned!
   "Handle all effects described and caused by a [[Returned]] object. This is the entry point into a Reacl update cycle.
 
@@ -1243,12 +1241,6 @@ component (like the result of an Ajax request).
     (let [ui (handle-returned (or @current-hypercycle-ui fresh-ui) comp ret from)
           app-state (:toplevel-app-state ui)]
 
-      ;; TODO: take a look at this in a big application: - should alwas come back to 0
-      (when-let [cnt (and (> (:supercycle-count ui) @max-supercycle-count)
-                          (:supercycle-count ui))]
-        (reset! max-supercycle-count cnt)
-        (js/console.warn "New maximum supercycle count:" cnt))
-      
       ;; after handle-returned, all messages must have been processed:
       (assert (empty? (:queued-messages ui)) "Internal invariant violation.")
       (trace/trace-commit! app-state (:local-state-map ui))

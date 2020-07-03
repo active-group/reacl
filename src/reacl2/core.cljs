@@ -644,6 +644,13 @@ An older API consists of the functions [[opt]], [[opt?]], [[no-reaction]].
   (let [[binding args] (extract-binding has-app-state? rst)]
     [binding (:app-state (:map binding)) args]))
 
+(defn- uber-render-data [props state]
+  (let [clazz (aget props "reacl_toplevel_class")
+        opts (aget props "reacl_toplevel_opts")
+        args (aget props "reacl_toplevel_args")
+        app-state (aget state "reacl_uber_app_state")]
+    [clazz opts app-state args]))
+
 (def ^:no-doc uber-class
   (let [cl
         (createReactClass
@@ -652,16 +659,25 @@ An older API consists of the functions [[opt]], [[opt?]], [[no-reaction]].
                                    (aset this "reacl_toplevel_ref" (react/createRef))
                                    (let [props (.-props this)]
                                      #js {:reacl_init_id (aget props "reacl_init_id")
+                                          :reacl_hypercycle_ui (atom nil) ;; an UpdateInfo, while we are in a hypercycle, nil otherwise.
                                           :reacl_uber_app_state (aget props "reacl_initial_app_state")})))
+
+              :shouldComponentUpdate
+              (fn [nextProps nextState]
+                (this-as this
+                         ;; Note: the main purpose if this is to catch the empty update case done in handle-returned!
+                         (let [[clazz opts app-state args] (uber-render-data (.-props this) (.-state this))
+                               [n-clazz n-opts n-app-state n-args] (uber-render-data nextProps nextState)]
+                           (or (not= clazz n-clazz)
+                               (not= opts n-opts)
+                               ;; be conservate here, because the user cannot override this in case he want's to use mutable data:
+                               (not (identical? app-state n-app-state))
+                               (not (identical? args n-args))))))
 
               :render
               (fn []
                 (this-as this
-                  (let [props (.-props this)
-                        clazz (aget props "reacl_toplevel_class")
-                        opts (aget props "reacl_toplevel_opts")
-                        args (aget props "reacl_toplevel_args")
-                        app-state (aget (.-state this) "reacl_uber_app_state")]
+                  (let [[clazz opts app-state args] (uber-render-data (.-props this) (.-state this))]
                     (-instantiate-embedded-internal
                      clazz
                      (cons (Options. (cond-> (assoc opts :ref (aget this "reacl_toplevel_ref"))
@@ -965,7 +981,8 @@ component (like the result of an Ajax request).
             (return :action action))))))
 
 (defn ^:no-doc reduce-returned-actions
-  "Returns app-state, local-state for this, actions reduced here, to be sent to parent."
+  "Reduce a return value relative to the given component (and its
+  app-state), into a return value relative to it's parent component."
   [comp app-state0 ^Returned ret]
   (let [reduce-action (action-reducer comp)]
     (loop [actions (:actions ret)
@@ -974,8 +991,10 @@ component (like the result of an Ajax request).
            reduced-actions (transient [])
            messages (or (:messages ret) #queue [])] ; no transients for queues
       (if (empty? actions)
-        ;; FIXME: why not Returned?
-        [app-state local-state (persistent! reduced-actions) messages]
+        (Returned. app-state
+                   local-state
+                   (persistent! reduced-actions)
+                   messages)
         (let [action (first actions)
               action-ret (action-effect reduce-action
                                         (right-state app-state0
@@ -1104,10 +1123,16 @@ component (like the result of an Ajax request).
   Assumes the actions in `ret` are for comp.
 
   Returns `UpdateInfo` value."
-  [comp ^Returned ret pending-messages app-state-map local-state-map]
-  (let [[app-state local-state actions-for-parent queued-messages] (reduce-returned-actions comp (get-app-state comp app-state-map) ret)
-        app-state-map (update-state-map app-state-map comp app-state)
-        local-state-map (update-state-map local-state-map comp local-state)]
+  [ui comp ^Returned ret pending-messages]
+  (let [p-ret (reduce-returned-actions comp (get-app-state comp (:app-state-map ui)) ret)
+        app-state (returned-app-state p-ret)
+        local-state (returned-local-state p-ret)
+        actions-for-parent (returned-actions p-ret)
+        
+        queued-messages (reduce conj (:queued-messages ui) (returned-messages p-ret))
+        ui (-> ui
+               (update :app-state-map update-state-map comp app-state)
+               (update :local-state-map update-state-map comp local-state))]
 
     (if-let [parent (component-parent comp)]
        (let [pending-messages
@@ -1116,13 +1141,14 @@ component (like the result of an Ajax request).
                (cons (reaction->pending-message comp app-state reaction) pending-messages)
                pending-messages)
              [pending-messages returned] (process-reactions parent
-                                                            (get-app-state parent app-state-map)
-                                                            (get-local-state parent local-state-map)
+                                                            (get-app-state parent (:app-state-map ui))
+                                                            (get-local-state parent (:local-state-map ui))
                                                             actions-for-parent pending-messages queued-messages)]
 
-         (recur parent returned pending-messages
-                (update-state-map app-state-map parent (:app-state returned))
-                (update-state-map local-state-map parent (:local-state returned))))
+         (recur (-> ui
+                    (update :app-state-map update-state-map parent (:app-state returned))
+                    (update :local-state-map update-state-map parent (:local-state returned)))
+                parent returned pending-messages))
        (do
          ;; little tricks here to remove this when asserts are elided:
          (assert (do (when-let [messages (not-empty pending-messages)]
@@ -1133,28 +1159,27 @@ component (like the result of an Ajax request).
                        (doseq [a actions]
                          (warning "Action not handled:" a "- Add an action reducer to your call to render-component.")))
                      true))
-         (UpdateInfo. comp
-                      (right-state (get app-state-map comp keep-state) app-state)
-                      app-state-map local-state-map
-                      queued-messages)))))
+         (assert (or (nil? (:toplevel-component ui)) (= comp (:toplevel-component ui))))
+         (assoc ui
+                :toplevel-component comp
+                :toplevel-app-state (right-state (get (:app-state-map ui) comp (:toplevel-app-state ui)) app-state)
+                :queued-messages queued-messages)))))
 
 (defn- handle-returned
   "Execute a complete supercycle.
 
   Returns `UpdateInfo` object."
-  [comp ^Returned ret from]
+  [ui comp ^Returned ret from]
   (loop [comp comp
          ^Returned ret ret
-         app-state-map {}
-         local-state-map {}
-         queued-messages #queue []
+         ui ui
          from from]
     (trace/trace-returned! comp ret from)
     ;; process this Returned, resulting in updated states, and maybe more messages.
-    (let [ui (handle-returned-1 comp ret nil app-state-map local-state-map)
+    (let [ui (handle-returned-1 ui comp ret nil)
           app-state-map (:app-state-map ui)
           local-state-map (:local-state-map ui)
-          queued-messages (reduce conj queued-messages (:queued-messages ui))]
+          queued-messages (:queued-messages ui)]
       (if (empty? queued-messages)
         ui
         ;; process the next message, resulting in a new 'Returned', then recur.
@@ -1172,27 +1197,71 @@ component (like the result of an Ajax request).
                                              recompute-locals?
                                              msg)]
           (recur dest ret
-                 app-state-map
-                 local-state-map
-                 queued-messages
+                 (assoc ui :queued-messages queued-messages)
                  'handle-message))))))
+
+;; A Note on how the update/interaction of React works in the usual case:
+;;   send-message ->
+;;     handle-returned! { setState(callback) }
+;;     re-render ->
+;;       callback()
+;; but the renderning will put multiple mount/unmount/update methods on a stack, which call into handle-returned.
+;; And between those calls, there will be no re-rendering, and thus no update of the app-states of lower components (because that's in props).
+;;   render
+;;   mount(A) -> handle-returned! { setState(callbackA) } ->
+;;   mount(B) -> handle-returned! { setState(callbackB) } ->
+;;   re-render
+;;     callbackA()
+;;     callbackB()
+;; So for both of these calls, we remember the changed app-states of all lower components in the app-state-map as 'virtual' app-states.
+;; Note that the callbacks are run in FIFO order, unfortunately.
+;; We call handle-returned! a supercycle, and the whole thing a hypercycle.
+
+(defn- get-current-hypercycle-ui [comp]
+  ;; access the state of the uber-class:
+  (aget (.-state (resolve-uber comp)) "reacl_hypercycle_ui"))
+
+(def ^:private fresh-ui (UpdateInfo. nil keep-state {} {} #queue []))
+
+(defn- hypercycle-callback [current-hypercycle-ui]
+  ;; Note: we could also reset to an empty UI, but it's important
+  ;; to not keep references to components in app-state-map
+  ;; indefinitely.
+  (reset! current-hypercycle-ui nil))
 
 (defn- handle-returned!
   "Handle all effects described and caused by a [[Returned]] object. This is the entry point into a Reacl update cycle.
 
   Assumes the actions in `ret` are for comp."
   [comp ^Returned ret from]
-  (let [ui (handle-returned comp ret from)
-        app-state (:toplevel-app-state ui)]
-    ;; after handle-returned, all messages must have been processed:
-    (assert (empty? (:queued-messages ui)) "Internal invariant violation.")
-    (trace/trace-commit! app-state (:local-state-map ui))
-    (doseq [[comp local-state] (:local-state-map ui)]
-      (set-local-state! comp local-state))
-    (when-not (keep-state? app-state)
-      (let [comp (:toplevel-component ui)
-            uber (resolve-uber comp)]
-        (.setState uber #js {:reacl_uber_app_state app-state})))))
+  (let [current-hypercycle-ui (get-current-hypercycle-ui comp)]
+    (let [fresh-ui? (nil? @current-hypercycle-ui)
+          ui (handle-returned (or @current-hypercycle-ui fresh-ui) comp ret from)
+          app-state (:toplevel-app-state ui)]
+
+      ;; after handle-returned, all messages must have been processed:
+      (assert (empty? (:queued-messages ui)) "Internal invariant violation.")
+      (trace/trace-commit! app-state (:local-state-map ui))
+      (doseq [[comp local-state] (:local-state-map ui)]
+        (set-local-state! comp local-state))
+      (let [uber (when-let [comp (:toplevel-component ui)]
+                   (resolve-uber comp))
+            uber-state-js (when-not (keep-state? app-state)
+                            #js {:reacl_uber_app_state app-state})
+            ui (-> ui
+                   (assoc :local-state-map {}          ;; done above
+                          :toplevel-app-state keep-state ;; done below
+                          :toplevel-component nil))]
+        (reset! current-hypercycle-ui ui)
+        ;; Note: if the uber-class itself is in the process of being unmounted, React does not call
+        ;; the callback anymore - but because we have the UpdateInfo in the state of the uber-class,
+        ;; it will still be garbage collected.
+        (if fresh-ui?
+          ;; Cleanup the ui in the callback (hopefully, React does not do any lifecylce methods after the callback...)
+          ;; Note: we always want to call setState to get a callback, even if
+          ;; nothing changed (shouldComponentUpdate of uber-class catches that)
+          (.setState uber (or uber-state-js #js {}) (partial hypercycle-callback current-hypercycle-ui))
+          (when uber-state-js (.setState uber uber-state-js)))))))
 
 
 (defn ^:no-doc resolve-component
@@ -1434,7 +1503,6 @@ component (like the result of an Ajax request).
 
             ;; Note handle-message must always see the most recent
             ;; app-state, even if the component was not updated after
-            
             ;; a change to it.
             "__handleMessage" (when handle-message
                                 (fn [this app-state local-state recompute-locals? args refs msg]
@@ -1501,39 +1569,39 @@ component (like the result of an Ajax request).
             (instantiate-embedded-internal-v1 this app-state reaction compute-locals []))
           (-invoke [this app-state reaction a1]
             (instantiate-embedded-internal-v1 this app-state reaction compute-locals [a1]))
-          (-invoke [this app-state reaction compute-locals a1 a2]
+          (-invoke [this app-state reaction a1 a2]
             (instantiate-embedded-internal-v1 this app-state reaction compute-locals [a1 a2]))
-          (-invoke [this app-state reaction compute-locals a1 a2 a3]
+          (-invoke [this app-state reaction a1 a2 a3]
             (instantiate-embedded-internal-v1 this app-state reaction compute-locals [a1 a2 a3]))
-          (-invoke [this app-state reaction compute-locals a1 a2 a3 a4]
+          (-invoke [this app-state reaction a1 a2 a3 a4]
             (instantiate-embedded-internal-v1 this app-state reaction compute-locals [a1 a2 a3 a4]))
-          (-invoke [this app-state reaction compute-locals a1 a2 a3 a4 a5]
+          (-invoke [this app-state reaction a1 a2 a3 a4 a5]
             (instantiate-embedded-internal-v1 this app-state reaction compute-locals [a1 a2 a3 a4 a5]))
-          (-invoke [this app-state reaction compute-locals a1 a2 a3 a4 a5 a6]
+          (-invoke [this app-state reaction a1 a2 a3 a4 a5 a6]
             (instantiate-embedded-internal-v1 this app-state reaction compute-locals [a1 a2 a3 a4 a5 a6]))
-          (-invoke [this app-state reaction compute-locals a1 a2 a3 a4 a5 a6 a7]
+          (-invoke [this app-state reaction a1 a2 a3 a4 a5 a6 a7]
             (instantiate-embedded-internal-v1 this app-state reaction compute-locals [a1 a2 a3 a4 a5 a6 a7]))
-          (-invoke [this app-state reaction compute-locals a1 a2 a3 a4 a5 a6 a7 a8]
+          (-invoke [this app-state reaction a1 a2 a3 a4 a5 a6 a7 a8]
             (instantiate-embedded-internal-v1 this app-state reaction compute-locals [a1 a2 a3 a4 a5 a6 a7 a8]))
-          (-invoke [this app-state reaction compute-locals a1 a2 a3 a4 a5 a6 a7 a8 a9]
+          (-invoke [this app-state reaction a1 a2 a3 a4 a5 a6 a7 a8 a9]
             (instantiate-embedded-internal-v1 this app-state reaction compute-locals [a1 a2 a3 a4 a5 a6 a7 a8 a9]))
-          (-invoke [this app-state reaction compute-locals a1 a2 a3 a4 a5 a6 a7 a8 a9 a10]
+          (-invoke [this app-state reaction a1 a2 a3 a4 a5 a6 a7 a8 a9 a10]
             (instantiate-embedded-internal-v1 this app-state reaction compute-locals [a1 a2 a3 a4 a5 a6 a7 a8 a9 a10]))
-          (-invoke [this app-state reaction compute-locals a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11]
+          (-invoke [this app-state reaction a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11]
             (instantiate-embedded-internal-v1 this app-state reaction compute-locals [a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11]))
-          (-invoke [this app-state reaction compute-locals a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12]
+          (-invoke [this app-state reaction a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12]
             (instantiate-embedded-internal-v1 this app-state reaction compute-locals [a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12]))
-          (-invoke [this app-state reaction compute-locals a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12 a13]
+          (-invoke [this app-state reaction a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12 a13]
             (instantiate-embedded-internal-v1 this app-state reaction compute-locals [a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12 a13]))
-          (-invoke [this app-state reaction compute-locals a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12 a13 a14]
+          (-invoke [this app-state reaction a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12 a13 a14]
             (instantiate-embedded-internal-v1 this app-state reaction compute-locals [a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12 a13 a14]))
-          (-invoke [this app-state reaction compute-locals a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12 a13 a14 a15]
+          (-invoke [this app-state reaction a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12 a13 a14 a15]
             (instantiate-embedded-internal-v1 this app-state reaction compute-locals [a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12 a13 a14 a15]))
-          (-invoke [this app-state reaction compute-locals a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12 a13 a14 a15 a16]
+          (-invoke [this app-state reaction a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12 a13 a14 a15 a16]
             (instantiate-embedded-internal-v1 this app-state reaction compute-locals [a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12 a13 a14 a15 a16]))
-          (-invoke [this app-state reaction compute-locals a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12 a13 a14 a15 a16 a17]
+          (-invoke [this app-state reaction a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12 a13 a14 a15 a16 a17]
             (instantiate-embedded-internal-v1 this app-state reaction compute-locals [a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12 a13 a14 a15 a16 a17]))
-          (-invoke [this app-state reaction compute-locals a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12 a13 a14 a15 a16 a17 rest]
+          (-invoke [this app-state reaction a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12 a13 a14 a15 a16 a17 rest]
             (instantiate-embedded-internal-v1 this app-state reaction compute-locals (concat [a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12 a13 a14 a15 a16 a17] rest)))
           IReaclClass
           (-instantiate-embedded-internal [this rst]

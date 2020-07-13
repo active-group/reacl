@@ -51,14 +51,16 @@
           (.-children)
           (aget 0)))
 
-(defn- find-env [v]
-  (if (instance? TestEnv v)
-    v
-    (loop [runner v]
+(defn find-env
+  "Returns the 'env' instance for the given component."
+  [comp]
+  (if (instance? TestEnv comp)
+    comp
+    (loop [runner comp]
       (if (not= (.-type runner) (reacl/react-class runner-class))
         (if-let [p (.-parent runner)]
           (recur p)
-          (throw (ex-info "The given component or test environment is not mounted or not mounted anymore." {:value v})))
+          (throw (ex-info "The given component or test environment is not mounted or not mounted anymore." {:value comp})))
         ;; first arg of the runner is the test env:
         (let [[env] (reacl/extract-args (.-instance runner))]
           (assert (instance? TestEnv env))

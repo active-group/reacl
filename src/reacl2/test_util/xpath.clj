@@ -22,7 +22,7 @@
    - `..` selects the parent node.
    - `...` selects the root node.
    - `**` selects the current node and all its children and grand children.\n
-   - `[x y]` filters as with `(has? (>> x y))`\n
+   - `[x y]` filters as with `(where (>> x y))`\n
    Any other form should evaluate to a selector as with [[comp]].\n
    For example `(>> / **)` selects the children and all grand children from the current node.
 "

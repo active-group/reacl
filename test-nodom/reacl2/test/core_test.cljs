@@ -2,6 +2,8 @@
   (:require [reacl2.core :as reacl :include-macros true]
             [reacl2.dom :as dom :include-macros true]
             [reacl2.test-util.alpha :as reacl-test]
+            [reacl2.test-util.beta :as tu]
+            [reacl2.test-util.xpath :as xpath :include-macros true]
             [cljs.test :as t]
             [clojure.string :as string])
   (:require-macros [cljs.test :refer (is deftest testing)]))
@@ -330,3 +332,28 @@
       (is (= (i '(21 42) 11)) '(21 11))
       (is (= (i '(21) 11)) '(21 11))
       (is (= (i nil 11)) '(nil 11)))))
+
+(deftest specialize-test
+  (let [class-1 (reacl/class "class-1" this state [arg1 arg2]
+                             render (dom/div (str state "," arg1 "," arg2)))
+        spec-1 (reacl/specialize class-1 "foo")
+        spec-2 (reacl/specialize spec-1 "bar")
+
+        class-2 (reacl/class "class-2" this state []
+                             render (spec-2 (reacl/bind this)))
+
+        get (fn [class & args]
+              (let [c (tu/mount spec-1 "state" "bar")]
+                (xpath/select c (xpath/>> ** xpath/text))))]
+
+    (is (= "state,foo,bar" (get class-1 "state" "foo" "bar")))
+    (is (= "state,foo,bar" (get spec-1 "state" "bar")))
+    (is (= "state,foo,bar" (get spec-2 "state")))
+    (is (= "state,foo,bar" (get class-2 "state")))))
+
+(comment
+  (reacl/defclass fragment this state [& items]
+    render (appyly dom/fragment (map #(% (reacl/bind this))
+                                     items)))
+
+  (specialize fragment class-1 class-2))

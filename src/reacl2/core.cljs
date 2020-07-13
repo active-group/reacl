@@ -1664,6 +1664,74 @@ component (like the result of an Ajax request).
             (when validate (apply validate app-state args)))
           (-react-class [this] react-class))))))
 
+(defn- concat-r [has-app-state? p-args args]
+  ;; p-args should come before args, expect for the 'meta args' (app-state/opts/binding), which must come first, and must be in args.
+  (let [[binding args] (extract-binding has-app-state? args)]
+    (concat (list binding) p-args args)))
+
+(defrecord ^:private PartialClass [clazz p-args]
+  IFn
+  (-invoke [this]
+    (-instantiate-embedded-internal this []))
+  (-invoke [this a1]
+    (-instantiate-embedded-internal this [a1]))
+  (-invoke [this a1 a2]
+    (-instantiate-embedded-internal this [a1 a2]))
+  (-invoke [this a1 a2 a3]
+    (-instantiate-embedded-internal this [a1 a2 a3]))
+  (-invoke [this a1 a2 a3 a4]
+    (-instantiate-embedded-internal this [a1 a2 a3 a4]))
+  (-invoke [this a1 a2 a3 a4 a5]
+    (-instantiate-embedded-internal this [a1 a2 a3 a4 a5]))
+  (-invoke [this a1 a2 a3 a4 a5 a6]
+    (-instantiate-embedded-internal this [a1 a2 a3 a4 a5 a6]))
+  (-invoke [this a1 a2 a3 a4 a5 a6 a7]
+    (-instantiate-embedded-internal this [a1 a2 a3 a4 a5 a6 a7]))
+  (-invoke [this a1 a2 a3 a4 a5 a6 a7 a8]
+    (-instantiate-embedded-internal this [a1 a2 a3 a4 a5 a6 a7 a8]))
+  (-invoke [this a1 a2 a3 a4 a5 a6 a7 a8 a9]
+    (-instantiate-embedded-internal this [a1 a2 a3 a4 a5 a6 a7 a8 a9]))
+  (-invoke [this a1 a2 a3 a4 a5 a6 a7 a8 a9 a10]
+    (-instantiate-embedded-internal this [a1 a2 a3 a4 a5 a6 a7 a8 a9 a10]))
+  (-invoke [this a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11]
+    (-instantiate-embedded-internal this [a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11]))
+  (-invoke [this a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12]
+    (-instantiate-embedded-internal this [a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12]))
+  (-invoke [this a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12 a13]
+    (-instantiate-embedded-internal this [a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12 a13]))
+  (-invoke [this a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12 a13 a14]
+    (-instantiate-embedded-internal this [a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12 a13 a14]))
+  (-invoke [this a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12 a13 a14 a15]
+    (-instantiate-embedded-internal this [a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12 a13 a14 a15]))
+  (-invoke [this a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12 a13 a14 a15 a16]
+    (-instantiate-embedded-internal this [a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12 a13 a14 a15 a16]))
+  (-invoke [this a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12 a13 a14 a15 a16 a17]
+    (-instantiate-embedded-internal this [a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12 a13 a14 a15 a16 a17]))
+  (-invoke [this a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12 a13 a14 a15 a16 a17 a18]
+    (-instantiate-embedded-internal this [a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12 a13 a14 a15 a16 a17 a18]))
+  (-invoke [this a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12 a13 a14 a15 a16 a17 a18 a19]
+    (-instantiate-embedded-internal this [a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12 a13 a14 a15 a16 a17 a18 a19]))
+  (-invoke [this a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12 a13 a14 a15 a16 a17 a18 a19 a20]
+    (-instantiate-embedded-internal this [a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12 a13 a14 a15 a16 a17 a18 a19 a20]))
+  (-invoke [this a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12 a13 a14 a15 a16 a17 a18 a19 a20 rest]
+    (-instantiate-embedded-internal this (concat [a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12 a13 a14 a15 a16 a17 a18 a19 a20] rest)))
+  IReaclClass
+  (-instantiate-embedded-internal [this args]
+    (-instantiate-embedded-internal clazz (concat-r (-has-app-state? clazz) p-args args)))
+  (-has-app-state? [this] (-has-app-state? clazz))
+  (-validate! [this app-state args]
+    (-validate! clazz app-state (concat p-args args)))
+  (-react-class [this] (-react-class clazz)))
+
+(defn specialize
+  "Creates class by partially applying the given class, given some of
+  its arguments. Note that this applies only the ordinary arguments,
+  not the app-state, [[opt]] or state binding; those still have to
+  passed to an application of the returned class, if needed."
+  [class & args]
+  (assert (reacl-class? class))
+  (PartialClass. class args))
+
 (def ^:private mixin-methods #{:component-will-mount :component-did-mount
                                :component-will-update :component-did-update
                                :component-will-receive-args

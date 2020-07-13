@@ -486,7 +486,7 @@
           ;; Note: could also make optimizations over 2 or more.
           :else (recur (scomp res s1) (rest selectors)))))))
 
-(def ^{:doc "Selects the current node and all of it's children and
+(def ^{:doc "Selects the current node and all of its children and
   grand children. When using the composition macro [[>>]], the literal
   `**` is translated into this."}
   all (All.))
@@ -508,12 +508,12 @@
   (Position. from to))
 
 (defn nth "Select nodes that are the nth child, starting at index 0." [n] (range n (inc n)))
-(defn nth-last "Select nodes that are \"nth but last\" child." [n] (range (- n) (inc (- n))))
+(defn nth-last "Select nodes that are the \"nth but last\" child." [n] (range (- n) (inc (- n))))
 
 (def first "Select nodes that are the first child of their parent." (nth 0))
 (def last "Select nodes that are the last child of their parent." (range -1 0))
 
-(def root "Select the root of node tree. When using the composition macro [[>>]], the literal `...` is translated into this." (Root.))
+(def root "Select the root of the node tree. When using the composition macro [[>>]], the literal `...` is translated into this." (Root.))
 
 (def ^{:doc "Selects the child nodes of type 'text'."} text
   (Text.))
@@ -537,7 +537,7 @@
 
 (def ^{:doc "Selects the key property of the nodes, if they have one."} key (Prop. "key"))
 
-(defn is? "Keeps the current node only if `(pred node & args)` returns truthy." [pred & args]
+(defn is? "Keeps the current node only if `(pred node & args)` holds." [pred & args]
   (Is. pred args))
 
 (defn is= "Keeps the current node only if it is equal to `v`." [v]
@@ -547,7 +547,7 @@
   [s]
   (where (comp text (is= s))))
 
-(defn id= "Keeps the current node only if it has an attribute `id` equaling `v`." [v]
+(defn id= "Keeps the current node only if it has an attribute `id` equal to `v`." [v]
   (where (comp (attr :id) (is= v))))
 
 (defn- re-matches-rev [s re]
@@ -604,7 +604,7 @@
           sub))
 
 (defn style? "Keeps the current node only if it has a `:style`
-  attribute, with matches with all styles given in the map `style`. Note
+  attribute, which matches with all styles given in the map `style`. Note
   that it's ok if it has more styles."
   [style]
   (where (comp (attr :style)

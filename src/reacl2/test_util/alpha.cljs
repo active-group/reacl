@@ -4,8 +4,8 @@
             [reacl2.dom :as dom :include-macros true]
             ["react-dom/server" :as react-dom-server]
             ["react-dom/test-utils" :as react-tu]
-            ["react-test-renderer"]
-            ["react-test-renderer/shallow"]))
+            ["react-test-renderer" :as rtr]
+            ["react-test-renderer/shallow" :as rtr-shallow]))
 
 (defn send-message!
   [comp msg]
@@ -122,7 +122,7 @@
 (defn render-shallowly
   "Render an element shallowly."
   ([element]
-     (render-shallowly element (js/ReactShallowRenderer.createRenderer)))
+     (render-shallowly element (rtr-shallow/createRenderer)))
   ([element renderer]
      (.render renderer element)
      (.getRenderOutput renderer)))
@@ -162,7 +162,7 @@
                       (vec (list* (keyword ttype) props ch))))
                   (recur (.find element (fn [ti]
                                           (string? (.-type ti)))))))))]
-    (recurse (.-root (js/ReactTestRenderer.create element)))))
+    (recurse (.-root (rtr/create element)))))
 
 (defn hiccup-matches?
   [pattern data]
@@ -213,7 +213,7 @@
   [path-element element]
   (and (some? (.-type element))
        (= (.-type path-element) (.-type element))
-       ((.-props-predicate path-element) (.-props element))))
+       ((.-props-predicate ^js path-element) (.-props element))))
 
 (defn resolve-toplevel
   [element]
@@ -240,7 +240,7 @@
 (defn create-renderer
   "Create a renderer for testing"
   [& [el]]
-  (js/ReactTestRenderer.create el))
+  (rtr/create el))
 
 (defn render!
   "Render an element into a renderer."

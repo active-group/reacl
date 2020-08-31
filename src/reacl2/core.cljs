@@ -20,11 +20,12 @@ To finally render a class to the DOM use [[render-component]] and [[handle-tople
 An older API consists of the functions [[opt]], [[opt?]], [[no-reaction]].
 
 "
-  (:require [react :as react]
-            [react-dom :as react-dom]
-            [create-react-class :as createReactClass] ;; Note: function import, not a namespace.
-            [prop-types :as ptypes]
-            [reacl2.trace.core :as trace])
+  (:require ["react" :as react]
+            ["react-dom" :as react-dom]
+            ["create-react-class" :as create-react-class] ;; Note: function import, not a namespace.
+            ["prop-types" :as ptypes]
+            [reacl2.trace.core :as trace]
+            [clojure.data :as data])
   (:refer-clojure :exclude [refer]))
 
 (defn ^:no-doc warning [& args]
@@ -653,7 +654,7 @@ An older API consists of the functions [[opt]], [[opt?]], [[no-reaction]].
 
 (def ^:no-doc uber-class
   (let [cl
-        (createReactClass
+        (create-react-class
          #js {:getInitialState (fn []
                                  (this-as this
                                    (aset this "reacl_toplevel_ref" (react/createRef))
@@ -871,7 +872,7 @@ component (like the result of an Ajax request).
   (-pr-writer [ret writer _]
     (-write writer (str "#" (namespace ::x) ".Returned "))
     (-write writer
-            (->> (clojure.data.diff ret returned-nil)
+            (->> (data/diff ret returned-nil)
                  (first)
                  (as-map)))))
 
@@ -1552,7 +1553,7 @@ component (like the result of an Ajax request).
             }
            )
 
-          react-class (createReactClass
+          react-class (create-react-class
                        (apply js-obj (apply concat
                                             (filter #(not (nil? (second %)))
                                                     react-method-map))))

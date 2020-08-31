@@ -1,7 +1,7 @@
 (ns reacl2.test-util.beta
   (:require [reacl2.core :as reacl :include-macros true]
             [reacl2.dom :as dom]
-            ["react-test-renderer"]))
+            ["react-test-renderer" :as react-test-renderer]))
 
 ;; TODO: xpath/select adaptor in the test utility object (when mounted)?
 
@@ -79,11 +79,11 @@
 
 (defn- test* [class has-app-state? options]
   (TestEnv. class has-app-state?
-            (js/ReactTestRenderer.create nil (clj->js (into {} (map (fn [[k v]]
-                                                          [(if (= k :create-node-mock)
-                                                             :createNodeMock
-                                                             k) v])
-                                                        options))))
+            (react-test-renderer/create nil (clj->js (into {} (map (fn [[k v]]
+                                                                     [(if (= k :create-node-mock)
+                                                                        :createNodeMock
+                                                                        k) v])
+                                                                   options))))
             (atom (reacl/return))))
 
 (defn fn-env
@@ -237,7 +237,7 @@
   (fn [c msg]
     (with-reacl-instance-return c
       (fn [inst]
-        (js/ReactTestRenderer.unstable_batchedUpdates
+        (react-test-renderer/unstable_batchedUpdates
          #(reacl/send-message! inst msg))))))
 
 (defn invoke-callback!
@@ -252,7 +252,7 @@
   [elem callback event]
   (with-collect-return! (find-env elem)
     (fn []
-      (js/ReactTestRenderer.unstable_batchedUpdates
+      (react-test-renderer/unstable_batchedUpdates
        #(let [n (aget dom/reacl->react-attribute-names (name callback))]
           ((aget (.-props elem) n) event))))))
 
@@ -326,7 +326,7 @@
                 (reacl/has-app-state? class)))
     (with-collect-return! (find-env comp)
       (fn []
-        (js/ReactTestRenderer.unstable_batchedUpdates
+        (react-test-renderer/unstable_batchedUpdates
          #(reacl/toplevel-handle-returned! instance ret 'injected))))))
 
 (defn inject-change!

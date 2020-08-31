@@ -11,7 +11,7 @@
   easy reference in an event handler."}
   reacl2.dom
   (:require-macros [reacl2.dom :refer [defdom]])
-  (:require [react :as react]
+  (:require ["react" :as react]
             [clojure.string :as string]
             [reacl2.core :refer [IHasDom get-dom]])
   (:refer-clojure :exclude (meta map time use set symbol)))

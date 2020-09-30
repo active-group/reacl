@@ -1061,13 +1061,13 @@ component (like the result of an Ajax request).
 
 (defn- process-reactions
   "Process all reactions that apply to a certain component and propagate upwards."
-  [this app-state0 local-state0 actions pending-messages queued-messages]
+  [this app-state0 local-state0 actions pending-messages]
   (loop [msgs pending-messages
          remaining (transient [])
          app-state keep-state
          local-state keep-state
          actions (transient actions)
-         queued-messages (or queued-messages #queue [])]
+         queued-messages #queue []]
     (if (empty? msgs)
       
       [(persistent! remaining)
@@ -1129,9 +1129,9 @@ component (like the result of an Ajax request).
         app-state (returned-app-state p-ret)
         local-state (returned-local-state p-ret)
         actions-for-parent (returned-actions p-ret)
-        
-        queued-messages (reduce conj (:queued-messages ui) (returned-messages p-ret))
+
         ui (-> ui
+               (assoc :queued-messages (reduce conj (:queued-messages ui) (returned-messages p-ret)))
                (update :app-state-map update-state-map comp app-state)
                (update :local-state-map update-state-map comp local-state))]
 
@@ -1144,7 +1144,7 @@ component (like the result of an Ajax request).
              [pending-messages returned] (process-reactions parent
                                                             (get-app-state parent (:app-state-map ui))
                                                             (get-local-state parent (:local-state-map ui))
-                                                            actions-for-parent pending-messages queued-messages)]
+                                                            actions-for-parent pending-messages)]
 
          (recur (-> ui
                     (update :app-state-map update-state-map parent (:app-state returned))
@@ -1163,8 +1163,7 @@ component (like the result of an Ajax request).
          (assert (or (nil? (:toplevel-component ui)) (= comp (:toplevel-component ui))))
          (assoc ui
                 :toplevel-component comp
-                :toplevel-app-state (right-state (get (:app-state-map ui) comp (:toplevel-app-state ui)) app-state)
-                :queued-messages queued-messages)))))
+                :toplevel-app-state (right-state (get (:app-state-map ui) comp (:toplevel-app-state ui)) app-state))))))
 
 (defn- handle-returned
   "Execute a complete supercycle.

@@ -1113,6 +1113,52 @@
                       :test)
     (is (= @received :test))))
 
+(deftest double-messages-regression-test
+  ;; there was an endless loop in the queued-messages of the
+  ;; update-info, then two messages were sent, and there are multiple
+  ;; parents - the loop that goes on till the uber-component screwed it
+  ;; up, adding messages to the queue multiple times.
+
+  (let [child-comp (atom nil)
+        c1 (reacl/class "child" this state [parent]
+                        component-did-mount
+                        (fn []
+                          (reset! child-comp this)
+                          nil)
+                        
+                        handle-message
+                        (fn [_]
+                          (reacl/return :message [parent ::hide]
+                                        :message [parent ::done]
+                                        :app-state :test))
+                        render (dom/button))
+        received (atom [])
+        p1 (reacl/class "parent" this state []
+                        local-state [show? true]
+
+                        render (if show? (c1 (reacl/bind this) this) (dom/div))
+                        
+                        handle-message
+                        (fn [msg]
+                          (swap! received conj msg)
+                          (cond
+                            (= msg ::hide)
+                            (reacl/return :local-state false
+                                          :app-state :test2)
+
+                            (= msg ::done)
+                            (reacl/return))))
+
+        wrapper (reacl/class "wrapper" this []
+                             render (dom/div (p1)))
+
+        host (js/document.createElement "div")
+        c (reacl/render-component host wrapper)]
+
+    (reacl/send-message! @child-comp ::start)
+
+    (is (= @received [::hide ::done]))))
+
 (deftest fragment
   (is (= ""
          (test-util/render-to-text (dom/fragment))))

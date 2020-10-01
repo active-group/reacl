@@ -1246,3 +1246,33 @@
       (test-util/send-message! cc :bar)
       (is (= r1
              @last-ref)))))
+
+#_(deftest bubbling-events-test
+  ;; FIXME: if there is an update pending, we should attach to the callback of it, and wait for react update before making a new message - or what?
+  
+  (let [last-c1-local (atom nil)
+        inner (atom false)
+        outer (atom false)
+        
+        c1 (reacl/class "test1" this state []
+                        local-state [local []]
+                        render (do (reset! last-c1-local local)
+                                   (dom/div {:onclick (fn [ev]
+                                                        (reset! outer true)
+                                                        (reacl/send-message! this :new-local-2))}
+                                            (dom/div {:onclick (fn [ev]
+                                                                 (reset! inner true)
+                                                                 (reacl/send-message! this :new-local-1))})))
+
+                        handle-message
+                        (fn [msg]
+                          (reacl/return :local-state (conj local msg))))
+        host (js/document.createElement "div")
+        cc (reacl/render-component host c1 nil)]
+    
+    (let [inner-div (.-firstChild (.-firstChild host))]
+      (react-tu/Simulate.click inner-div (js/Event. "click" #js {:bubbles true :cancelable true})))
+
+    (is @inner)
+    (is @outer)
+    (is (= [:new-local-1 :new-local-2] @last-c1-local))))

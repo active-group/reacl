@@ -6,8 +6,8 @@
             [prop-types :as ptypes]
             [reacl2.trace.core :as trace]))
 
-(defn- warning [& args]
-  (if (and js/console js/console.warn)
+(defn ^:no-doc warning [& args]
+  (if js/console.-warn
     (apply js/console.warn args)
     (apply println args)))
 

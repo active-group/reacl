@@ -645,66 +645,121 @@ An older API consists of the functions [[opt]], [[opt?]], [[no-reaction]].
   (let [[binding args] (extract-binding has-app-state? rst)]
     [binding (:app-state (:map binding)) args]))
 
-(defn- uber-render-data [props state]
-  (let [clazz (aget props "reacl_toplevel_class")
-        opts (aget props "reacl_toplevel_opts")
-        args (aget props "reacl_toplevel_args")
-        app-state (aget state "reacl_uber_app_state")]
-    [clazz opts app-state args]))
+(defn- uber-render-data [props]
+  [(aget props "reacl_toplevel_class")
+   (aget props "reacl_toplevel_args")
+   (aget props "reacl_toplevel_opts")])
 
-(def ^:no-doc uber-class
+(defn- create-uber-class [get-initial-state get-app-state set-app-state!]
   (let [cl
         (create-react-class
          #js {:getInitialState (fn []
                                  (this-as this
-                                   (aset this "reacl_toplevel_ref" (react/createRef))
-                                   (let [props (.-props this)]
-                                     #js {:reacl_init_id (aget props "reacl_init_id")
-                                          :reacl_hypercycle_ui (atom nil) ;; an UpdateInfo, while we are in a hypercycle, nil otherwise.
-                                          :reacl_uber_app_state (aget props "reacl_initial_app_state")})))
+                                          (aset this "reacl_toplevel_ref" (react/createRef))
+                                          (doto (get-initial-state (.-props this))
+                                            ;; an UpdateInfo, while we are in a hypercycle, nil otherwise.
+                                            (aset "reacl_hypercycle_ui" (atom nil)))))
 
               :shouldComponentUpdate
               (fn [nextProps nextState]
                 (this-as this
                          ;; Note: the main purpose if this is to catch the empty update case done in handle-returned!
-                         (let [[clazz opts app-state args] (uber-render-data (.-props this) (.-state this))
-                               [n-clazz n-opts n-app-state n-args] (uber-render-data nextProps nextState)]
+                         (let [[clazz args opts] (uber-render-data (.-props this))
+                               app-state (get-app-state (.-props this) (.-state this))
+                               [n-clazz n-args n-opts] (uber-render-data nextProps)
+                               n-app-state (get-app-state nextProps nextState)]
                            (or (not= clazz n-clazz)
                                (not= opts n-opts)
                                ;; be conservate here, because the user cannot override this in case he want's to use mutable data:
                                (not (identical? app-state n-app-state))
                                (not (identical? args n-args))))))
 
+              :setUberState
+              (fn [state callback]
+                (this-as this
+                         (set-app-state! this state callback)))
+
               :render
               (fn []
                 (this-as this
-                  (let [[clazz opts app-state args] (uber-render-data (.-props this) (.-state this))]
-                    (-instantiate-embedded-internal
-                     clazz
-                     (cons (Options. (cond-> (assoc opts :ref (aget this "reacl_toplevel_ref"))
-                                       (has-app-state? clazz) (assoc :app-state app-state)))
-                           args)))))
+                         (let [[clazz args opts] (uber-render-data (.-props this))
+                               app-state (get-app-state (.-props this) (.-state this))]
+                           (-instantiate-embedded-internal
+                            clazz
+                            (cons (Options. (cond-> (assoc opts :ref (aget this "reacl_toplevel_ref"))
+                                              (has-app-state? clazz)
+                                              (assoc :app-state app-state)))
+                                  args)))))
 
               :displayName (str `toplevel)
 
               :getChildContext (fn []
                                  (this-as this 
-                                   #js {:reacl_uber this}))})]
-         (aset cl "childContextTypes" #js {:reacl_uber ptypes/PropTypes.object})
-         (aset cl "contextTypes" #js {:reacl_uber ptypes/PropTypes.object})
-         (aset cl "getDerivedStateFromProps"
-               (fn [new-props state]
-                 ;; take a new initial app-state from outside if render-component was called again;
-                 ;; note this is called before every 'render' call,
-                 ;; which is why we have to remember how the class was
-                 ;; instantiated.
-                 (let [new-init-id (aget new-props "reacl_init_id")]
-                   (if (not (identical? new-init-id (aget state "reacl_init_id")))
-                     (let [app-state (aget new-props "reacl_initial_app_state")]
-                       #js {:reacl_init_id new-init-id
-                            :reacl_uber_app_state app-state})
-                     #js {}))))
-         cl))
+                                          #js {:reacl_uber this
+                                               ;; Note: need to cut off the parent hierarchy, so that the update
+                                               ;; cycle does not 'jump' other this to an outer uber-class.
+                                               :reacl_parent nil}))})]
+    (aset cl "childContextTypes" #js {:reacl_uber ptypes/PropTypes.object
+                                      :reacl_parent ptypes/PropTypes.object})
+    (aset cl "contextTypes" #js {:reacl_uber ptypes/PropTypes.object
+                                 :reacl_parent ptypes/PropTypes.object})
+    cl))
+
+(def ^:no-doc controlled-uber-class
+  ;; props:
+  ;; reacl_toplevel_class
+  ;; reacl_toplevel_args
+  ;; reacl_toplevel_opts
+  ;; reacl_app_state
+  ;; reacl_set_app_state
+  (create-uber-class (fn get-initial-state [props] #js {})
+                     (fn get-app-state [props state] (aget props "reacl_app_state"))
+                     (fn set-app-state [this state callback]
+                       ;; Note: setting the app-state of a non-app-state class is currently possible
+                       ;; with the other uber-class; should no be, but would be a small breaking change.
+                       (let [clazz (aget (.-props this) "reacl_toplevel_class")]
+                         (if-not (has-app-state? clazz)
+                           (do (assert (keep-state? state) (str "Class " (class-name clazz) " has no app-state. Can't set it to " (pr-str state) "."))
+                               ;; must still invoke callback; let react do it via a fake update.
+                               (.setState this nil callback))
+                           (let [set-app-state! (aget (.-props this) "reacl_set_app_state")]
+                             (assert (some? set-app-state!) (str "No set-app-state! passed to instance of "
+                                                                 (class-name (aget (.-props this) "reacl_toplevel_class"))
+                                                                 ". Can't set the app-state to " (pr-str state) "."))
+                             (set-app-state! state (or callback (constantly nil)))))))))
+
+(def ^:no-doc uber-class
+  ;; props:
+  ;; reacl_toplevel_class
+  ;; reacl_toplevel_args
+  ;; reacl_toplevel_opts
+  ;; reacl_initial_app_state
+  (let [cl
+        (create-uber-class
+         (fn get-initial-state [props]
+           #js {:reacl_init_id (aget props "reacl_init_id")
+                :reacl_uber_app_state (aget props "reacl_initial_app_state")})
+         (fn get-app-state [props state]
+           (aget state "reacl_uber_app_state"))
+         (fn set-app-state! [this state callback]
+           (.setState this
+                      (when-not (keep-state? state)
+                        #js {:reacl_uber_app_state state})
+                      callback)))]
+    
+    (aset cl "getDerivedStateFromProps"
+          (fn [new-props state]
+            ;; take a new initial app-state from outside if render-component was called again;
+            ;; note this is called before every 'render' call,
+            ;; which is why we have to remember how the class was
+            ;; instantiated.
+            (let [new-init-id (aget new-props "reacl_init_id")]
+              (if (not (identical? new-init-id (aget state "reacl_init_id")))
+                (let [app-state (aget new-props "reacl_initial_app_state")]
+                  #js {:reacl_init_id new-init-id
+                       :reacl_uber_app_state app-state})
+                #js {}))))
+    cl))
 
 (defn- resolve-uber
   [comp]
@@ -829,6 +884,60 @@ component (like the result of an Ajax request).
     (react-dom/render
      (apply instantiate-toplevel clazz rst)
      element)))
+
+(defrecord ^:private ImperativeActionReducer [f]
+  IFn
+  (-invoke [this app-state action]
+    (f action)
+    (return)))
+
+(defn- react-element-props [props]
+  ;; allow both a clojure and an api easier for js:
+  (if (or (map? props) (nil? props))
+    (do (assert (empty? (keys (dissoc props :app-state :set-app-state! :handle-action! :args :key :ref))))
+        [(:app-state props) (:set-app-state! props) (:handle-action! props) (:args props) (:ref props) (:key props)])
+    [(.-appState props) (.-setAppState props) (.-handleAction props) (array-seq (.-args props)) (.-ref props) (.-key props)]))
+
+(defn react-element
+  "Returns a react element that renders as the given reacl class. Props must be a map with the following keys:
+
+  - `:args`  A sequence of arguments to the class.
+  - `:app-state`  The app-state of the element.
+  - `:set-app-state!`  A function to store a new app-state, which gets a callback function as the second argument which must be called after the new state is processed.
+  - `:handle-action!`  A function that handles actions emitted by the element.
+  - `:ref`, `:key`  Optional ref and key to the element.
+
+  Note that `set-app-state!` must expect to be called with [[keep-state]], representing no change, but still invoke the callback.
+
+  The `props` can be a Javascript object, where the corresponding property names should be
+  - `args`  An array of arguments,
+  - `appState`
+  - `setAppState`
+  - `handleAction`
+  - `ref` and `key`.
+
+  Messages can be sent to the instance of the element (via a ref) via [[send-message!]].
+  "
+  [clazz props]
+  ;; Note: this is basically on the same level as make-uber-component,
+  ;; but instead of the app-state being managed mostly as an internal
+  ;; state, this allows to fully control the toplevel state.
+  (let [[state set-state! handle-action args ref key] (react-element-props props)]
+    (when (and (has-app-state? clazz) (not set-state!))
+      (warning "Instantiating class" (class-name clazz) "without reacting to its app-state changes. Returning a new app-state will fail."))
+    (react/createElement controlled-uber-class
+                         #js {:ref ref
+                              :key key
+                              :reacl_toplevel_class clazz
+                              :reacl_toplevel_args args
+                              :reacl_app_state state
+                              :reacl_set_app_state set-state!
+                              :reacl_toplevel_opts (cond-> {}
+                                                     (some? handle-action)
+                                                     (assoc :reduce-action (ImperativeActionReducer. handle-action))
+                                                     ;; just to prevent warning - toplevel app-state is handled differently:
+                                                     (has-app-state? clazz)
+                                                     (assoc :reaction no-reaction))})))
 
 (defrecord ^{:doc "Type of a unique value to distinguish nil from no change of state.
             For internal use in [[return]]."
@@ -1244,10 +1353,8 @@ component (like the result of an Ajax request).
       (trace/trace-commit! app-state (:local-state-map ui))
       (doseq [[comp local-state] (:local-state-map ui)]
         (set-local-state! comp local-state))
-      (let [uber (when-let [comp (:toplevel-component ui)]
+      (let [uber (when-let [comp (:toplevel-component ui)] ;; TODO: is this actually optional?
                    (resolve-uber comp))
-            uber-state-js (when-not (keep-state? app-state)
-                            #js {:reacl_uber_app_state app-state})
             ui (-> ui
                    (assoc :local-state-map {}          ;; done above
                           :toplevel-app-state keep-state ;; done below
@@ -1256,12 +1363,16 @@ component (like the result of an Ajax request).
         ;; Note: if the uber-class itself is in the process of being unmounted, React does not call
         ;; the callback anymore - but because we have the UpdateInfo in the state of the uber-class,
         ;; it will still be garbage collected.
-        (if fresh-ui?
-          ;; Cleanup the ui in the callback (hopefully, React does not do any lifecylce methods after the callback...)
-          ;; Note: we always want to call setState to get a callback, even if
-          ;; nothing changed (shouldComponentUpdate of uber-class catches that)
-          (.setState uber (or uber-state-js #js {}) (partial hypercycle-callback current-hypercycle-ui))
-          (when uber-state-js (.setState uber uber-state-js)))))))
+
+        ;; If hypercycle ends, cleanup the ui in the callback (hopefully, React does not do any lifecylce methods after the callback...)
+        ;; Note: we always want to call setState to get a callback, even if
+        ;; nothing changed (shouldComponentUpdate of uber-class catches that)
+        
+        (when (or fresh-ui? (not (keep-state? app-state)))
+          (.call (aget uber "setUberState")
+                 uber
+                 app-state
+                 (when fresh-ui? (partial hypercycle-callback current-hypercycle-ui))))))))
 
 
 (defn ^:no-doc resolve-component

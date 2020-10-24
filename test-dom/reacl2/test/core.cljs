@@ -9,6 +9,7 @@
             [reacl.dom :as dom1 :include-macros true]
             [active.clojure.lens :as lens]
             ["react-dom/test-utils" :as react-tu]
+            ["react-dom" :as react-dom]
             [cljs.test :as t])
   (:require-macros [cljs.test
                     :refer (is deftest run-tests testing async)]))
@@ -1276,3 +1277,96 @@
     (is @inner)
     (is @outer)
     (is (= [:new-local-1 :new-local-2] @last-c1-local))))
+
+(deftest react-interop
+  (testing "basic rendering and updates"
+    (let [class1 (reacl/class "interop1" this state [arg]
+                              render (dom/div state "-" arg))
+          dom (js/document.createElement "div")]
+      
+      (react-dom/render (reacl/react-element class1
+                                             {:app-state "state"
+                                              :set-app-state! #(assert false)
+                                              :args ["arg1"]})
+                        dom)
+      (is (= "DIV" (.-nodeName (.-firstChild dom))))
+      (is (= "state-arg1" (.-wholeText (.-firstChild (.-firstChild dom)))))
+
+      ;; update to new state
+      (react-dom/render (reacl/react-element class1
+                                             {:app-state "newstate"
+                                              :set-app-state! #(assert false)
+                                              :args ["arg2"]})
+                        dom)
+      (is (= "newstate-arg2" (.-wholeText (.-firstChild (.-firstChild dom)))))))
+
+  (testing "handling state updates"
+    (let [class2 (reacl/class "interop2" this state []
+                              component-did-mount #(reacl/return :app-state (str state "-new"))
+                              render (dom/div))
+          dom (js/document.createElement "div")
+          state (atom "state")]
+      
+      (react-dom/render (reacl/react-element class2
+                                             {:app-state @state
+                                              :set-app-state!
+                                              (fn [new-state callback]
+                                                (when-not (reacl/keep-state? new-state) (reset! state new-state))
+                                                (callback))})
+                        dom)
+      (is (= "state-new" @state))))
+
+  (testing "handling actions"
+    (let [class3 (reacl/class "interop3" this []
+                              component-did-mount #(reacl/return :action "action")
+                              render (dom/div))
+          dom (js/document.createElement "div")
+          action (atom nil)]
+      
+      (react-dom/render (reacl/react-element class3
+                                             {:handle-action!
+                                              (fn [a]
+                                                (reset! action a))})
+                        dom)
+      (is (= "action" @action))))
+
+  (testing "receiving messages"
+    (let [message (atom nil)
+          class4 (reacl/class "interop4" this []
+                              handle-message (fn [msg] (reset! message msg) (reacl/return))
+                              render (dom/div))
+          dom (js/document.createElement "div")]
+      
+      (let [comp (react-dom/render (reacl/react-element class4 {})
+                                   dom)]
+        (reacl/send-message! comp :msg)
+        (is (= :msg @message)))))
+
+  (testing "double embedded"
+    (let [class5 (reacl/class "interop5" this state []
+                              component-did-mount (fn []
+                                                    (reacl/return :app-state (str state "-new")))
+                              render (dom/div))
+          class6 (reacl/class "interop6" this state []
+                              handle-message
+                              (fn [st] (if (reacl/keep-state? st)
+                                         (reacl/return)
+                                         (reacl/return :app-state st)))
+                              render
+                              (reacl/react-element class5 {:app-state state
+                                                           :set-app-state! (fn [st cb]
+                                                                             (js/console.log "new inner state" st)
+                                                                             ;; FIXME: cb should be passed down to send-message!?
+                                                                             (reacl/send-message! this st)
+                                                                             (cb))}))
+          dom (js/document.createElement "div")
+          state (atom "state")]
+      (react-dom/render (reacl/react-element class6
+                                             {:app-state @state
+                                              :set-app-state!
+                                              (fn [new-state callback]
+                                                (reset! state new-state)
+                                                (callback))})
+                        dom)
+      (is (= "state-new" @state))))
+  )

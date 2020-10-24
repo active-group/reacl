@@ -1355,7 +1355,6 @@
                               render
                               (reacl/react-element class5 {:app-state state
                                                            :set-app-state! (fn [st cb]
-                                                                             (js/console.log "new inner state" st)
                                                                              ;; FIXME: cb should be passed down to send-message!?
                                                                              (reacl/send-message! this st)
                                                                              (cb))}))
@@ -1365,6 +1364,8 @@
                                              {:app-state @state
                                               :set-app-state!
                                               (fn [new-state callback]
+                                                ;; if there would be another layer; we should be able to call send-message again; just like above.
+                                                ;;(assert (reacl/send-message-allowed?))
                                                 (reset! state new-state)
                                                 (callback))})
                         dom)

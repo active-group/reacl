@@ -1371,3 +1371,44 @@
                         dom)
       (is (= "state-new" @state))))
   )
+
+(deftest send-message-effect-test
+  (let [ch-1 (atom nil)
+        ch-2 (atom nil)
+
+        d1 (reacl/class "d1" this [at]
+
+                        render (dom/div)
+
+                        handle-message
+                        (fn [msg]
+                          (reset! at msg)
+                          (reacl/return)))
+        
+        c1 (reacl/class "c1" this []
+                        local-state [st 0]
+
+                        refs [ch]
+
+                        render (-> (if (even? st)
+                                     (d1 ch-1)
+                                     (d1 ch-2))
+                                   (reacl/refer ch))
+
+                        handle-message
+                        (fn [msg]
+                          (reacl/return :local-state (inc st)
+                                        :message [(reacl/get-dom ch) msg])))]
+    
+    (let [host (js/document.createElement "div")
+          cc (reacl/render-component host c1)]
+
+      ;; Note: when React might go 'fully async' in the future, this
+      ;; might fail;
+      ;; solution might then be to add the 'setState'-callback to
+      ;; send-message! and send the second message from there.
+      (reacl/send-message! cc :m1)
+      (reacl/send-message! cc :m2)
+      ;; first msg went to 'ch-1' and second msg to 'ch-2'.
+      (is (= :m1 @ch-1))
+      (is (= :m2 @ch-2)))))

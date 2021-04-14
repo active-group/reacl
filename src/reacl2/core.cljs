@@ -330,6 +330,9 @@ An older API consists of the functions [[opt]], [[opt?]], [[no-reaction]].
 (defn- embed-local-f [app-state local-state child-app-state f]
   [keep-state (f local-state child-app-state)])
 
+(defn- embed-both-state-f [app-state local-state child-app-state f]
+  (f [app-state local-state] child-app-state))
+
 ;; TODO: use active-clojure lens utils?
 
 (defn- id-lens
@@ -388,8 +391,8 @@ An older API consists of the functions [[opt]], [[opt?]], [[no-reaction]].
 (defn- internal-opt
   "Translates the 'user facing api' of using [[opt]] into a simplified form."
   [opts]
-  (assert (<= (count (select-keys opts [:reaction :embed-app-state :embed-local-state :bind :bind-local])) 1)
-          "Only one of :reaction, :embed-app-state, :embed-local-state :bind and :bind-local may be specified.")
+  (assert (<= (count (select-keys opts [:reaction :embed-app-state :embed-local-state :bind :bind-local :bind-both])) 1)
+          "Only one of :reaction, :embed-app-state, :embed-local-state :bind, :bind-local and :bind-both may be specified.")
   (-> (condp geti opts
         :reaction :>>
         (fn [r]
@@ -414,6 +417,15 @@ An older API consists of the functions [[opt]], [[opt?]], [[no-reaction]].
             (assoc opts
                    :app-state (l (extract-app-state comp))
                    :reaction (reaction comp ->EmbedState embed-app-state-f [l]))))
+        :bind-both :>>
+        (fn [[comp lens]]
+          (when-not (-has-app-state? (component-class comp))
+            (throw (ex-info (str "Cannot bind to the app-state of the given component, as it does not have an app-state. Maybe use bind-local instead.") {:class (component-class comp)})))
+          (assert (not (contains? opts :app-state)) "Do not use :bind-both together with an :app-state.")
+          (let [l (lift-lens (or lens id-lens))]
+            (assoc opts
+                   :app-state (l [(extract-app-state comp) (extract-local-state comp)])
+                   :reaction (reaction comp ->EmbedState embed-both-state-f [l]))))
         :bind-local :>>
         (fn [[comp lens]]
           (assert (not (contains? opts :app-state)) "Do not use :bind-local together with an :app-state.")
@@ -448,6 +460,9 @@ An older API consists of the functions [[opt]], [[opt?]], [[no-reaction]].
     an index into a sequential collection.
   - `:bind-local [parent lens]` is similar to `:bind`, but the app state of the
     component is instead bound to the local state of the parent.
+  - `:bind-both [parent lens]` binds to both the app-state and local-state of the parent,
+    such that the app-state of the component is a tuple of those states; first the
+    app-state then the local-state.
   - `:reduce-action` takes arguments `[app-state action]` where `app-state` is the app state
     of the component being instantiated, and `action` is an action.  This
     should call [[return]] to handle the action.  By default, it is a function
@@ -460,12 +475,12 @@ An older API consists of the functions [[opt]], [[opt?]], [[no-reaction]].
     instance of this class is bound to the ref at any time. Note that this cannot be specified on the toplevel.
 
   Only one of `:reaction`, `:embed-app-state`, `:embed-local-state`,
-  `:bind` and `:bind-local` should be specified, and when using `:bind`
-  or `:bind-local` then do not specify an `:app-state` either.
+  `:bind`, `:bind-local` and `bind-both` should be specified, and when using `:bind`,
+  `:bind-local` or `bind-both`, then do not specify an `:app-state` either.
   "
   [& {:as mp}]
   {:pre [(every? (fn [[k _]]
-                   (contains? #{:reaction :embed-app-state :embed-local-state :bind :bind-local :app-state :reduce-action :parent :ref} k))
+                   (contains? #{:reaction :embed-app-state :embed-local-state :bind :bind-local :bind-both :app-state :reduce-action :parent :ref} k))
                  mp)]}
   (Options. (internal-opt mp)))
 
@@ -502,7 +517,7 @@ An older API consists of the functions [[opt]], [[opt?]], [[no-reaction]].
                   (update :reaction
                           (fn [prev-reaction]
                             (when-not (contains? mp :app-state)
-                              (throw (new js/Error "To focus a reaction, it must include the app-state. Use 'bind', 'bind-local', 'use-app-state' or 'use-reaction'.")))
+                              (throw (new js/Error "To focus a reaction, it must include the app-state. Use 'bind', 'bind-local', 'bind-both', 'use-app-state' or 'use-reaction'.")))
                             (cond
                               ;; simplified special case for embed (current states get passed in process-message anyway):
                               (= ->EmbedState (:make-message prev-reaction))
@@ -542,6 +557,16 @@ An older API consists of the functions [[opt]], [[opt?]], [[no-reaction]].
    (assert (component? parent))
    (opt :bind-local [parent lens])))
 
+(defn bind-both
+  "Returns a binding that embeds a child's app-state into both the
+  app-state and the local-state of the given `parent` component. The
+  child's app-state must be a tuple `[app-state local-state]` if no
+  lens is specified, otherwise the lens must be over such a tuple."
+  ([parent] (bind-both parent id-lens))
+  ([parent lens]
+   (assert (component? parent))
+   (opt :bind-both [parent lens])))
+
 (defn use-reaction
   "Returns a binding the uses the given value `app-state` as the
   child's app-state, and triggers the given `reaction` when the child
@@ -562,7 +587,7 @@ An older API consists of the functions [[opt]], [[opt?]], [[no-reaction]].
   (let [mp (:map binding)]
     (if (contains? mp :app-state)
       (:app-state mp)
-      (throw (new js/Error "Cannot reveal the app-state of this binding; must created via 'use-app-state', 'use-reaction', 'bind' or 'bind-local'.")))))
+      (throw (new js/Error "Cannot reveal the app-state of this binding; must created via 'use-app-state', 'use-reaction', 'bind', 'bind-local' or 'bind-both'.")))))
 
 (defn- map-over-components [elem f]
   (assert (.hasOwnProperty elem "props"))

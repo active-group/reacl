@@ -23,13 +23,23 @@
 (deftest bind-local-test
   (let [c (tu/mount (reacl/class "class" this []
                                  local-state [st {:sub nil}]
-                                 render (msg-to-state (reacl/bind-local this :sub)))
-                    {:sub nil})]
+                                 render (msg-to-state (reacl/bind-local this :sub))))]
     (is (= (tu/send-message! (xpath/select c (xpath/>> / msg-to-state))
                              ::state)
            (reacl/return)))
     (is (= (tu/inspect-local-state c)
            {:sub ::state}))))
+
+(deftest bind-both-test
+  (let [c (tu/mount (reacl/class "class" this ast []
+                                 local-state [st :inner]
+                                 render (msg-to-state (reacl/bind-both this)))
+                    :outer)]
+    (is (= (tu/send-message! (xpath/select c (xpath/>> / msg-to-state))
+                             [:outer-new :inner-new])
+           (reacl/return :app-state :outer-new)))
+    (is (= (tu/inspect-local-state c)
+           :inner-new))))
 
 (deftest use-app-state-test
   (let [c (tu/mount (reacl/class "class" this []

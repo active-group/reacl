@@ -400,14 +400,14 @@
     (reduce #(And. %1 %2)
             selectors)))
 
-(defn type "Selects those nodes that either of the given dom tag type, or the given Reacl class." [t]
+(defn type "Selects those nodes that either of the given dom tag type, or the given Reacl or React class." [t]
   ;; (assert (or (string? t) (reacl/reacl-class? t) (react-class? t)))
   (Type. t))
 
 (def ^{:doc "Selects only those nodes that are a virtual dom element of the given string `type`."
        :arglists '([type])}
   tag type)
-(def ^{:doc "Selects only those nodes that are an instance of the given Reacl `c`."
+(def ^{:doc "Selects only those nodes that are an instance of the given Reacl or React class `c`."
        :arglists '([c])}
   class type)
 

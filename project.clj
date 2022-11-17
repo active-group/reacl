@@ -19,7 +19,8 @@
             [lein-codox "0.10.5"]
             [lein-auto "0.1.3"]]
 
-  :profiles {:dev        {:dependencies   [[active-clojure "0.11.0" :exclusions [org.clojure/clojure]]
+  :profiles {:dev        {:dependencies   [[de.active-group/active-clojure "0.37.1" :exclusions [org.clojure/clojure
+                                                                                                 org.clojure/clojurescript]]
                                            [lein-doo "0.1.7"]
                                            [codox-theme-rdash "0.1.2"]
                                            [com.bhauman/figwheel-main "0.2.0"]

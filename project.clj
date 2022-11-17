@@ -99,6 +99,13 @@
                           :output-dir "target/comments/out"
                           :source-map "target/comments/main.map"
                           :optimizations :whitespace
+                          :parallel-build true}}
+             {:id "tabs"
+               :source-paths ["src" "examples/tabs"]
+               :compiler {:output-to "target/tabs/main.js"
+                          :output-dir "target/tabs/out"
+                          :source-map "target/tabs/main.map"
+                          :optimizations :whitespace
                           :parallel-build true}}]}
 
   )

@@ -95,6 +95,10 @@ from the console, and open
 `http://localhost:9500/figwheel-extra-main/todo` for the todo example,
 and the others accordingly.
 
+The example `tabs` shows draggable Bootstrap tabs.  Since the `tabs` example
+uses Bootstrap 5, you need to open
+`http://localhost:9500/examples/tabs/index.html` to see it in action.
+
 ## License
 
 Copyright © 2015-2020 Active Group GmbH

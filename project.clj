@@ -106,8 +106,12 @@
                           :output-dir "target/tabs/out"
                           :source-map "target/tabs/main.map"
                           :optimizations :whitespace
+                          :parallel-build true}}
+             {:id "arranger"
+               :source-paths ["src" "examples/arranger"]
+               :compiler {:output-to "target/arranger/main.js"
+                          :output-dir "target/arranger/out"
+                          :source-map "target/arranger/main.map"
+                          :optimizations :whitespace
                           :parallel-build true}}]}
-
   )
-
-

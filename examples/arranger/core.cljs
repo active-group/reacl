@@ -65,7 +65,7 @@
       (reacl/return :app-state (add-selection arranged (select-selection msg)))
 
       (unselect? msg)
-      (reacl/return :app-state (remove-selection arranged (unselect-selection msg))))))
+      (reacl/return :app-state (remove-selection arranged (unselect-selection msg)))))))
 
 (reacl/defclass root this state []
   render

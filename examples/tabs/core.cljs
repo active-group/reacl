@@ -108,7 +108,7 @@
   (let [render-tab-name (or render-tab-name identity)
         hidden-tabs (remove-tabs all-tabs (tabbed-tabs tabbed))]
     (apply dom/ul {:class "nav nav-tabs"}
-           ;; DEF DRAG-AND-DROP-SPACER
+                 ;; DEF DRAG-AND-DROP-SPACER
            (let [render-drag-and-drop-spacer
                  (fn [idx tab tab-before]
                    (dom/keyed
@@ -132,7 +132,7 @@
                    (dom/keyed
                     (str "nav-item-" idx "-" (render-tab-name tab))
                     (dom/li
-                     ;; DEF TAB-ELEMENT: draggable-setting
+                     ;; TAB-ELEMENT: draggable-setting
                      {:class "nav-item"
                       ;; FIXME: enabling this causes the :x: button to stop working
                       ;; :onclick (fn [ev]
@@ -157,7 +157,7 @@
                       :ondrop (fn [ev]
                                 (.preventDefault ev)
                                 (reacl/send-message! this (drag-stop tab)))}
-                     ;; DEF TAB-ELEMENT name and close-button
+                     ;; TAB-ELEMENT name and close-button
                      (dom/span
                       {:class   (str "nav-link" (when (= (tabbed-selected-tab tabbed) tab) " active"))}
                       ;; DEF TAB-ELEMENT name
@@ -178,16 +178,16 @@
                         :draggable false
                         :href    "#"})))))]
              (concat
-              ;; DRAW spacer tab, spacer tab, spacer tab, ...
+              ;; BUILD spacer tab, spacer tab, spacer tab, ...
               (mapcat-indexed (fn [idx tab tab-before] [(render-drag-and-drop-spacer idx tab tab-before)
                                                         (render-tab idx tab)])
                               (tabbed-tabs tabbed) (concat [nil] (tabbed-tabs tabbed)))
-              ;; DRAW last spacer before dropdown-menu
+              ;; ADD last spacer before dropdown-menu
               [(render-drag-and-drop-spacer -1 ::last (last (tabbed-tabs tabbed)))
-               ;; DRAW DROPDOWN
+               ;; ADD DROPDOWN
                (dom/li
                 {:class "nav-item"}
-                ;; DEF DROPDOWN-ICON
+                ;; DROPDOWN-ICON
                 (dom/a
                  {:class   (str "nav-link" (when (and (nil? (tab-state-dragging-tab local-state))
                                                       (empty? hidden-tabs))
@@ -203,7 +203,7 @@
                             (.preventDefault ev)
                             (reacl/send-message! this (drag-stop ::last)))}
                  "+")
-                ;; DEF DROPDOWN-MENU
+                ;; DROPDOWN-MENU
                 (apply dom/ul {:class "dropdown-menu"}
                        (map-indexed (fn [idx tab]
                                       (dom/keyed
@@ -215,7 +215,7 @@
                                           :href    "#"}
                                          (render-tab-name tab)))))
                                     hidden-tabs)))
-               ;; DRAW some space after dropdown-menu
+               ;; ADD some space after dropdown-menu
                (dom/li
                 {:style {:width "30px"}
                  :ondragover (fn [ev]

@@ -236,7 +236,7 @@
                                      removed (remove-tab (tabbed-tabs tabbed) tab-to-hide)]
                                  (-> tabbed
                                      (tabbed-selected-tab (if (= selected-tab tab-to-hide)
-                                                            (or previous-selected-tab (first removed))
+                                                            (first removed)
                                                             selected-tab))
                                      (tabbed-tabs removed))))
 

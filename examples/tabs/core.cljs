@@ -6,6 +6,8 @@
 
 (enable-console-print!)
 
+;; User actions
+
 (define-record-type SelectTab
   select-tab
   select-tab?
@@ -51,6 +53,8 @@
   drag-end?
   [tab drag-end-tab])
 
+;; Internal actions
+
 (def render-tab-name identity)
 
 (defn remove-tab
@@ -77,6 +81,8 @@
   [f & args]
   (apply mapcat f (range) args))
 
+;; ?
+
 (define-record-type Tabbed
   make-tabbed
   tabbed?
@@ -97,10 +103,12 @@
 
   local-state [local-state initial-tab-state]
 
+  ;; TAB-AREA
   render
   (let [render-tab-name (or render-tab-name identity)
         hidden-tabs (remove-tabs all-tabs (tabbed-tabs tabbed))]
     (apply dom/ul {:class "nav nav-tabs"}
+           ;; DEF DRAG-AND-DROP-SPACER
            (let [render-drag-and-drop-spacer
                  (fn [idx tab tab-before]
                    (dom/keyed
@@ -118,11 +126,13 @@
                       :ondrop (fn [ev]
                                 (.preventDefault ev)
                                 (reacl/send-message! this (drag-stop tab)))})))
+                 ;; DEF TAB-ELEMENT (draggable-setting, name and close-button)
                  render-tab
                  (fn [idx tab]
                    (dom/keyed
                     (str "nav-item-" idx "-" (render-tab-name tab))
                     (dom/li
+                     ;; DEF TAB-ELEMENT: draggable-setting
                      {:class "nav-item"
                       ;; FIXME: enabling this causes the :x: button to stop working
                       ;; :onclick (fn [ev]
@@ -147,8 +157,10 @@
                       :ondrop (fn [ev]
                                 (.preventDefault ev)
                                 (reacl/send-message! this (drag-stop tab)))}
+                     ;; DEF TAB-ELEMENT name and close-button
                      (dom/span
                       {:class   (str "nav-link" (when (= (tabbed-selected-tab tabbed) tab) " active"))}
+                      ;; DEF TAB-ELEMENT name
                       (dom/a
                        {:onclick (fn [ev]
                                    (.preventDefault ev)
@@ -156,6 +168,7 @@
                         :draggable false
                         :href    "#"}
                        (render-tab-name tab))
+                      ;; DEF TAB-ELEMENT close-button
                       (dom/button
                        {:class "btn btn-sm btn-close ms-3"
                         :aria-label "Close"
@@ -165,12 +178,16 @@
                         :draggable false
                         :href    "#"})))))]
              (concat
+              ;; DRAW spacer tab, spacer tab, spacer tab, ...
               (mapcat-indexed (fn [idx tab tab-before] [(render-drag-and-drop-spacer idx tab tab-before)
                                                         (render-tab idx tab)])
                               (tabbed-tabs tabbed) (concat [nil] (tabbed-tabs tabbed)))
+              ;; DRAW last spacer before dropdown-menu
               [(render-drag-and-drop-spacer -1 ::last (last (tabbed-tabs tabbed)))
+               ;; DRAW DROPDOWN
                (dom/li
                 {:class "nav-item"}
+                ;; DEF DROPDOWN-ICON
                 (dom/a
                  {:class   (str "nav-link" (when (and (nil? (tab-state-dragging-tab local-state))
                                                       (empty? hidden-tabs))
@@ -186,6 +203,7 @@
                             (.preventDefault ev)
                             (reacl/send-message! this (drag-stop ::last)))}
                  "+")
+                ;; DEF DROPDOWN-MENU
                 (apply dom/ul {:class "dropdown-menu"}
                        (map-indexed (fn [idx tab]
                                       (dom/keyed
@@ -197,6 +215,7 @@
                                           :href    "#"}
                                          (render-tab-name tab)))))
                                     hidden-tabs)))
+               ;; DRAW some space after dropdown-menu
                (dom/li
                 {:style {:width "30px"}
                  :ondragover (fn [ev]
@@ -253,7 +272,9 @@
 (reacl/defclass root this state []
   render
   (dom/div
+   ;; TAB-AREA
    (tabbed-navigation (reacl/bind this) ["A" "B" "C" "D"] render-tab-name)
+   ;; TAB-CONTENT
    (tabbed-selected-tab state)))
 
 (reacl/render-component

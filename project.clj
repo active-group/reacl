@@ -26,7 +26,7 @@
                                            [com.bhauman/figwheel-main "0.2.0"]
                                            [com.bhauman/rebel-readline-cljs "0.1.4"]]
                           :resource-paths ["target" "dev-resources"]}
-             :test       {:source-paths ["src" "test-nodom" "test-dom"]}
+             :test       {:source-paths ["src" "test-nodom" "test-dom" "examples"]}
              :test-dom   {:source-paths ["src" "test-dom"]}
              :test-nodom {:source-paths ["src" "test-nodom"]}}
 

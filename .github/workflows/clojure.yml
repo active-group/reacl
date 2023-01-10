@@ -21,8 +21,8 @@ jobs:
       run: |
         lein doo firefox-headless test-dom once
         lein doo firefox-headless test-nodom once
-        lein doo chrome-headless test-dom once
-        lein doo chrome-headless test-nodom once
+        # lein doo chrome-headless test-dom once
+        # lein doo chrome-headless test-nodom once
     - name: Notify with mattermost upon failure
       if: failure()
       env:

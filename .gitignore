@@ -15,3 +15,7 @@ pom.xml.asc
 .rebel_readline_history
 node_modules
 .shadow-cljs
+
+resources/clj-kondo.exports/de.active-group/reacl/.cache
+.lsp
+.clj-kondo

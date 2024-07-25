@@ -1,0 +1,4 @@
+{:linters {}
+ :lint-as {}
+ :hooks {:analyze-call {reacl.core/defclass hooks.reacl/defclass
+                        reacl2.core/defclass hooks.reacl/defclass}}}

@@ -4,25 +4,25 @@ on: [push, workflow_dispatch]
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
-
     steps:
-    - uses: actions/checkout@v1
-    - name: Install karma
+    - uses: actions/checkout@v4
+    - name: Add pwd to PATH
+      shell: bash
+      run: echo "$(pwd)" >> "$GITHUB_PATH"
+    - name: Install Leiningen
+      shell: bash
       run: |
-          sudo npm install -g karma
-          sudo npm install -g karma-cljs-test
-          sudo npm install -g karma-firefox-launcher
-          sudo npm install -g karma-chrome-launcher
+        curl -LSs https://raw.githubusercontent.com/technomancy/leiningen/stable/bin/lein -o lein
+        chmod +x lein
+    - name: Install karma
+      run: sudo npm install -g karma karma-cljs-test karma-firefox-launcher karma-chrome-launcher
     - name: Install dependencies
       run: lein deps
     - name: Run tests
       run: |
         lein doo firefox-headless test-dom once
         lein doo firefox-headless test-nodom once
-        # lein doo chrome-headless test-dom once
-        # lein doo chrome-headless test-nodom once
     - name: Notify with mattermost upon failure
       if: failure()
       env:

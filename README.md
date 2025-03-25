@@ -3,7 +3,7 @@
 A ClojureScript library for programming with Facebook's React framework.
 
 [![Clojars Project](https://img.shields.io/clojars/v/reacl.svg)](https://clojars.org/reacl)
-[![cljdoc reacl badge](https://cljdoc.xyz/badge/reacl)](https://cljdoc.xyz/d/reacl/reacl/CURRENT)
+[![cljdoc reacl badge](https://cljdoc.xyz/badge/reacl)](https://cljdoc.org/d/reacl/reacl/CURRENT)
 [![Actions Status](https://github.com/active-group/reacl/workflows/Tests/badge.svg)](https://github.com/active-group/reacl/actions)
 
 ## Using it
@@ -18,7 +18,7 @@ Your `project.clj` should contain something like this:
 
 ## Documentation
 
-API documentation for the latest release: [CljDoc](https://cljdoc.xyz/d/reacl/reacl/CURRENT).
+API documentation for the latest release: [CljDoc](https://cljdoc.org/d/reacl/reacl/CURRENT).
 
 An introduction to the library can be found [here](doc/intro.md).
 

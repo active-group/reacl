@@ -6,7 +6,7 @@ Facebook’s React framework brought a wonderful programming model to user inter
 
 <img src="https://raw.githubusercontent.com/active-group/reacl/master/doc/rationale-2.png" width="524">
 
-With React, the transitions in logical time (a.k.a. your business logic) are driven and managed implicitely by imperative calls to `setState`. Reacl improves on this model by decoupling the triggering of change (`send-message!`) from the pure handling of application state transitions (`handle-message`).
+With React, the transitions in logical time (a.k.a. your business logic) are driven and managed implicitly by imperative calls to `setState`. Reacl improves on this model by decoupling the triggering of change (`send-message!`) from the pure handling of application state transitions (`handle-message`).
 
 <img src="https://raw.githubusercontent.com/active-group/reacl/master/doc/rationale-3.png" width="609">
 
@@ -81,7 +81,7 @@ arguments for their content, resp. child nodes in the DOM. Strings
 represent simple text nodes.
 
 In the following, we build a small application showing the current
-time in diferent timezones, introducing the main concepts of Reacl on
+time in different timezones, introducing the main concepts of Reacl on
 the way.
 
 ### Reacl components
@@ -91,7 +91,7 @@ which offer additional features to implement a web application.
 
 Reacl components are usually created from templates called
 *classes*. Classes can be defined via the macro `defclass`. We start
-by definiting a class for our little application like this:
+by defining a class for our little application like this:
 
 ```clj
 (reacl/defclass my-app this state [greeting]
@@ -266,7 +266,7 @@ Clojure](https://github.com/active-group/active-clojure)).
 A call to `bind` without a second argument specifies a "1:1" binding
 of the parent's and the child's application state. We can use that to
 factor out the "clock with timezone selector" component as a class,
-and use it twice in our application, each time with a seperate
+and use it twice in our application, each time with a separate
 timezone but with the same date value:
 
 ```clj
@@ -299,13 +299,13 @@ applications state now:
 We've now written a simple reusable class `clock-select` and used it
 twice in our application.
 
-### Local state and livecycle
+### Local state and lifecycle
 
 The way we started the interval timer at the beginning of this
 introduction is not the way one would normally do something like
 that. There is another way that integrates it into the definition of
 the `my-app` class. It uses two clauses that are called at specific
-points in the *livecycle* of the component: after its first rendering
+points in the *lifecycle* of the component: after its first rendering
 into the web page, and just before it is removed from it
 again. Although the toplevel component of your application might never
 be removed, it is important for reusable classes to cleanup things
@@ -345,7 +345,7 @@ component, and an initial local state for the components created from
 the class. In this case it is the timer id which shall be `nil`
 initially. The other two clauses, `component-did-mount` and
 `component-will-unmount`, specify the functions to be called at the
-aforementioned points in the livecycle of the component. They must
+aforementioned points in the lifecycle of the component. They must
 both return a `reacl/return` value, which is used here to update the
 value for the timer id.
 
@@ -358,7 +358,7 @@ without side effects in these two functions.
 
 The application state of a component should be used to represent its
 steady state that evolves over time, usually via user
-interactions. But somtimes a user interaction is only a discrete event
+interactions. But sometimes a user interaction is only a discrete event
 that just 'happens'. These can be modeled as *actions* in Reacl.
 
 As an example, we use a class that renders as a button, and *emits* an
